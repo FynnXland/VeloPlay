@@ -326,6 +326,17 @@ struct Strings {
     const char* kbmPressKey;     // shown on a control that waits for its key
     const char* kbmUnassigned;
     const char* kbmReset;
+    const char* padHints;
+    const char* padTestTitle;
+    const char* padTestRate;      // {0} = reports per second, {1} = milliseconds between two
+    const char* padTestVibration;
+    const char* padTestTriggers;
+    const char* padTestResistance;
+    const char* padTestPoint;
+    const char* padTestShake;
+    const char* padTestHint;
+    const char* padTestHintPlain;
+    const char* padTestBusy;
     const char* kbmFor;
     const char* kbmAllGames;
     const char* kbmAddGame;     // {0} = name of the game

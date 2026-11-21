@@ -165,6 +165,11 @@ The display in the top left corner names how many frames per second arrive and a
 bitrate, the response time, the packet loss and the decoder. “D3D11VA” there means the graphics
 card decodes the picture, “CPU” means the processor does.
 
+**Controller.** VeloPlay itself can be steered with it: directional pad or left stick to move, Cross to
+select, Circle to go back, Options for the settings, L1 and R1 to turn their pages. Settings >
+Controller shows live what the controller reports and lets you try vibration and, on a DualSense,
+the adaptive triggers without a console.
+
 **Microphone.** Settings > Advanced > “Send the microphone to the PS5”, or the switch in the menu
 behind Esc. Off by default. While it is on and you are connected, your default microphone goes to
 the console for voice chat, and the top right corner of the picture says so. Use headphones.

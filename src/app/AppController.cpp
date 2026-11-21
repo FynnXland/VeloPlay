@@ -543,6 +543,7 @@ bool AppController::startAttempt() {
     if (!created) return false;
     // Full strength until the console says otherwise. That also undoes what another program left the controller at.
     controllers_.setEffectStrength(input::EffectStrength::Strong, input::EffectStrength::Strong);
+    controllers_.clearTriggerEffects(); // and loose triggers: a test from the settings may still be on them
     spdlog::info("Connecting to {} at {}, attempt {} of {} ({}x{}, {} fps, {} kbit/s)", console->name, *address,
                  session_->attempt, session_->attempts, sessionConfig.stream.width, sessionConfig.stream.height,
                  sessionConfig.stream.fps, sessionConfig.stream.bitrateKbps);
@@ -952,6 +953,31 @@ void AppController::addNotice(Notice::Kind kind, Notice::Topic topic, std::strin
     // The same problem reported twice is still one problem.
     std::erase_if(notices_, [&](const Notice& notice) { return notice.topic == topic; });
     notices_.push_back({kind, topic, std::move(detail), std::move(technical)});
+}
+
+void AppController::testVibration() {
+    if (session_) return; // the console owns the controller's effects then
+    // Both motors, clearly felt, short enough not to annoy.
+    controllers_.rumble(0xA000, 0xA000, milliseconds{600});
+}
+
+void AppController::testTriggers(int effect) {
+    if (session_) return;
+    input::TriggerEffect chosen; // released
+    switch (effect) {
+        case 1: chosen = input::feedbackEffect(1, 8); break;     // nearly the whole travel, as strong as it gets
+        case 2: chosen = input::weaponEffect(3, 6, 8); break;    // a point in the middle to push through
+        case 3: chosen = input::vibrationEffect(1, 8, 30); break; // shakes while pressed
+        default: break;
+    }
+    // Full strength, whatever a game left the controller at.
+    controllers_.setEffectStrength(input::EffectStrength::Strong, input::EffectStrength::Strong);
+    if (chosen.type == input::kTriggerEffectOff) {
+        controllers_.clearTriggerEffects();
+    } else {
+        controllers_.triggerEffects(chosen.type, chosen.parameters, chosen.type, chosen.parameters);
+    }
+    spdlog::info("Trigger test: effect {}", effect);
 }
 
 void AppController::updateSessionGame() {

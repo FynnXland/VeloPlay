@@ -398,3 +398,60 @@ TEST(ControllerManager, SendsTriggerEffectsToADualSenseOnly) {
     EXPECT_EQ(shared.effects[1][21], kTriggerEffectOff);
     EXPECT_EQ(shared.effects[1][11], 0);
 }
+
+// The three effects for trying the triggers, byte for byte as the layouts
+// published by Nielk1 say (see the header). A wrong bit here is a trigger
+// that does something else than the label on the button claims.
+TEST(DualSenseEffects, BuildsTheEffectsForTryingTheTriggers) {
+    // Resistance from zone 1 on, strongest: zones 1 to 9 active, each with level 7 in three bits.
+    const TriggerEffect resistance = feedbackEffect(1, 8);
+    EXPECT_EQ(resistance.type, 0x21);
+    EXPECT_EQ(resistance.parameters[0], 0xFE); // zones 1..7
+    EXPECT_EQ(resistance.parameters[1], 0x03); // zones 8 and 9
+    // 7 in every zone from 1 on: bits 3 to 29 set.
+    EXPECT_EQ(resistance.parameters[2], 0xF8);
+    EXPECT_EQ(resistance.parameters[3], 0xFF);
+    EXPECT_EQ(resistance.parameters[4], 0xFF);
+    EXPECT_EQ(resistance.parameters[5], 0x3F);
+    for (std::size_t i = 6; i < resistance.parameters.size(); ++i) EXPECT_EQ(resistance.parameters[i], 0) << i;
+
+    // A lighter one from the middle: zones 5 to 9, level 2 (strength 3).
+    const TriggerEffect light = feedbackEffect(5, 3);
+    EXPECT_EQ(light.parameters[0], 0xE0);
+    EXPECT_EQ(light.parameters[1], 0x03);
+    const std::uint32_t levels = light.parameters[2] | (light.parameters[3] << 8) | (light.parameters[4] << 16) |
+                                 (static_cast<std::uint32_t>(light.parameters[5]) << 24);
+    for (int zone = 0; zone < 10; ++zone) EXPECT_EQ((levels >> (3 * zone)) & 7u, zone >= 5 ? 2u : 0u) << zone;
+
+    // A point to push through between zones 3 and 6.
+    const TriggerEffect point = weaponEffect(3, 6, 8);
+    EXPECT_EQ(point.type, 0x25);
+    EXPECT_EQ(point.parameters[0], 0x48); // bits 3 and 6
+    EXPECT_EQ(point.parameters[1], 0x00);
+    EXPECT_EQ(point.parameters[2], 7);
+    for (std::size_t i = 3; i < point.parameters.size(); ++i) EXPECT_EQ(point.parameters[i], 0) << i;
+
+    // Shaking at 30 Hz from zone 1 on; the frequency sits in the ninth parameter.
+    const TriggerEffect shake = vibrationEffect(1, 8, 30);
+    EXPECT_EQ(shake.type, 0x26);
+    EXPECT_EQ(shake.parameters[0], 0xFE);
+    EXPECT_EQ(shake.parameters[1], 0x03);
+    EXPECT_EQ(shake.parameters[2], 0xF8);
+    EXPECT_EQ(shake.parameters[5], 0x3F);
+    EXPECT_EQ(shake.parameters[6], 0);
+    EXPECT_EQ(shake.parameters[7], 0);
+    EXPECT_EQ(shake.parameters[8], 30);
+    EXPECT_EQ(shake.parameters[9], 0);
+
+    // Anything out of range releases the trigger instead of sending something odd.
+    const TriggerEffect released;
+    EXPECT_EQ(released.type, kTriggerEffectOff);
+    EXPECT_EQ(feedbackEffect(10, 8), released);
+    EXPECT_EQ(feedbackEffect(1, 0), released);
+    EXPECT_EQ(feedbackEffect(1, 9), released);
+    EXPECT_EQ(weaponEffect(1, 6, 8), released);
+    EXPECT_EQ(weaponEffect(5, 5, 8), released);
+    EXPECT_EQ(weaponEffect(3, 9, 8), released);
+    EXPECT_EQ(vibrationEffect(1, 8, 0), released);
+    EXPECT_EQ(vibrationEffect(1, 9, 30), released);
+}

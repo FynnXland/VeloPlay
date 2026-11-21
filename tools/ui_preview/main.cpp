@@ -41,6 +41,8 @@ public:
     void dismissNotice(std::size_t) override {}
     void selectProfile(std::string_view) override {}
     void captureKey() override {}
+    void testVibration() override {}
+    void testTriggers(int) override {}
     void endKeyCapture() override {}
     void configChanged() override {}
     void openHelp(std::string_view) override {}
@@ -73,6 +75,8 @@ protocol::LatencySnapshot sampleLink(bool steady) {
 struct Scene {
     std::string name;
     std::function<void(UiModel&, ui::UiManager&)> setup;
+    /// Optional: what the controller does in each frame, for pictures of steering with it.
+    std::function<void(UiModel&, int frame)> step = {};
 };
 
 ConsoleEntry console(std::string name, std::string hostId, std::string address, ConsoleStatus status, bool registered) {
@@ -148,6 +152,21 @@ std::vector<Scene> scenes() {
     return {
         {"01-searching", [](UiModel& model, UiManager&) { model.discoveryRunning = true; }},
         {"02-dashboard", [](UiModel& model, UiManager&) { withConsoles(model); }},
+        {"35-dashboard-with-controller", [](UiModel& model, UiManager&) { withConsoles(model); },
+         [](UiModel& model, int frame) {
+             // Down twice on the directional pad, each a short press.
+             const bool down = (frame >= 20 && frame < 23) || (frame >= 40 && frame < 43);
+             model.controllerState.buttons = down ? static_cast<std::uint32_t>(input::Button::DpadDown) : 0u;
+         }},
+        {"36-settings-with-controller",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             ui.openSettings(UiManager::SettingsTab::Picture);
+         },
+         [](UiModel& model, int frame) {
+             const bool down = (frame >= 20 && frame < 23) || (frame >= 40 && frame < 43) || (frame >= 60 && frame < 63);
+             model.controllerState.buttons = down ? static_cast<std::uint32_t>(input::Button::DpadDown) : 0u;
+         }},
         {"03-waking",
          [](UiModel& model, UiManager&) {
              withConsoles(model);
@@ -220,6 +239,14 @@ std::vector<Scene> scenes() {
         {"13-settings-controller",
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
+             // A controller in use: Cross held, the left stick pushed up and right, R2 half way down.
+             model.controller.reportsPerSecond = 250.0f;
+             model.controller.batteryPercent = 80;
+             model.controller.charging = true;
+             model.controllerState.buttons = static_cast<std::uint32_t>(input::Button::Cross);
+             model.controllerState.leftX = 20000;
+             model.controllerState.leftY = -26000;
+             model.controllerState.r2 = 128;
              ui.openSettings(UiManager::SettingsTab::Controller);
          }},
         {"30-settings-mouse-keyboard",
@@ -522,6 +549,7 @@ int main(int argc, char** argv) {
             io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
             io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
             io.DeltaTime = 1.0f / 60.0f;
+            if (scene.step) scene.step(model, frame);
             manager.feedNavigation(model);
             ImGui::NewFrame();
             manager.draw(model);

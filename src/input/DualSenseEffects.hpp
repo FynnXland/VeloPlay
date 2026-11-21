@@ -39,4 +39,25 @@ std::array<std::uint8_t, kDualSenseEffectSize> buildTriggerEffect(std::uint8_t t
 /// A block that sets only the strength of the effects and touches nothing else.
 std::array<std::uint8_t, kDualSenseEffectSize> buildMotorPower(std::uint8_t power);
 
+/// One trigger's effect as the console would send it: the type and its ten parameter bytes.
+struct TriggerEffect {
+    std::uint8_t type = kTriggerEffectOff;
+    std::array<std::uint8_t, kTriggerEffectParameters> parameters{};
+
+    friend bool operator==(const TriggerEffect&, const TriggerEffect&) = default;
+};
+
+// Three effects to try the adaptive triggers with, without a console. The
+// byte layouts are those of the effects games use, as worked out and
+// published by John "Nielk1" Klein (MIT licence; see THIRD_PARTY.md). The
+// trigger's travel is divided into ten zones, 0 at rest and 9 fully pressed.
+
+/// Resistance from zone `position` to the end. `strength` 1 (light) to 8 (strongest); 0 releases the trigger.
+[[nodiscard]] TriggerEffect feedbackEffect(int position, int strength);
+/// A point to push through, as on the trigger of a weapon: resistance from
+/// zone `start` (2..7) that gives way at zone `end` (start+1..8). `strength` 1 to 8.
+[[nodiscard]] TriggerEffect weaponEffect(int start, int end, int strength);
+/// The trigger shakes from zone `position` on. `amplitude` 1 to 8, `frequency` in Hz.
+[[nodiscard]] TriggerEffect vibrationEffect(int position, int amplitude, int frequency);
+
 } // namespace veloplay::input

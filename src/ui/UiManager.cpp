@@ -392,6 +392,13 @@ void UiManager::draw(const UiModel& model) {
     text_ = &strings(language);
     ctx.text = text_;
     ctx.animator.setReducedMotion(model.reducedMotion);
+    // A test effect on the triggers belongs to the page it is switched on
+    // from. Once that page is gone, the triggers are let go.
+    if (!controllerTabDrawn_ && triggerTest_ != 0) {
+        triggerTest_ = 0;
+        actions_.testTriggers(0);
+    }
+    controllerTabDrawn_ = false;
 
     pictureOwnsInput_ = false;
     const bool inSession = model.state == AppState::Connecting || model.state == AppState::Streaming ||
@@ -464,6 +471,13 @@ void UiManager::drawDashboard(const UiModel& model) {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
+    // Steering with a controller or the keyboard needs a window that has the
+    // focus. Nothing gives this one the focus by itself: it is no pop-up and
+    // nobody has clicked it yet.
+    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow) &&
+        !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+        ImGui::SetNextWindowFocus();
+    }
     ImGui::Begin("dashboard", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -472,7 +486,7 @@ void UiManager::drawDashboard(const UiModel& model) {
     const float margin = px(kPageMargin);
     const float column = std::min(px(kColumnWidth), viewport->Size.x - 2.0f * margin);
     ImGui::SetCursorPos(ImVec2(std::floor((viewport->Size.x - column) * 0.5f), 0.0f));
-    ImGui::BeginChild("column", ImVec2(column, 0.0f), ImGuiChildFlags_None,
+    ImGui::BeginChild("column", ImVec2(column, 0.0f), ImGuiChildFlags_NavFlattened,
                       ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
     pushExplicitSpacing();
 
@@ -498,6 +512,11 @@ void UiManager::drawDashboard(const UiModel& model) {
     space(32.0f);
     hairline();
     space(12.0f);
+    // How to get around without a mouse, for whoever sits on the sofa with the controller.
+    if (model.controllerConnected) {
+        paragraph(TextStyle::Caption, t.padHints, p.textSecondary);
+        space(6.0f);
+    }
     paragraph(TextStyle::Caption, format(t.previewNote, {VELOPLAY_VERSION}), p.textTertiary);
     if (!model.gpuName.empty()) {
         space(4.0f);
@@ -526,7 +545,8 @@ void UiManager::drawHeader(const UiModel& model) {
 
     const ImVec2 settingsSize = buttonSize(t.settings);
     ImGui::SetCursorScreenPos(ImVec2(start.x + width - settingsSize.x, start.y));
-    if (button(t.settings, ButtonKind::Secondary)) openSettings();
+    // On a controller, Options opens the settings from anywhere on this page.
+    if (button(t.settings, ButtonKind::Secondary) || (sheet_ == Sheet::None && ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false))) openSettings();
 
     // Controller status sits left of the settings button.
     const std::string controller = controllerLine(t, model);
@@ -876,7 +896,7 @@ void UiManager::drawPairing(const UiModel& model) {
             const float width = ImGui::GetContentRegionAvail().x;
             const float height = px(48.0f);
             const ImVec2 min = ImGui::GetCursorScreenPos();
-            if (ImGui::InvisibleButton("pick", ImVec2(width, height))) pairingAddress_ = console.address;
+            if (ImGui::InvisibleButton("pick", ImVec2(width, height), ImGuiButtonFlags_EnableNav)) pairingAddress_ = console.address;
             const float hover = context().animator.to(ImGui::GetItemID(), ImGui::IsItemHovered() ? 1.0f : 0.0f, 0.16f);
             const float picked = context().animator.to(ImGui::GetItemID() + 1, chosen ? 1.0f : 0.0f, 0.18f);
             ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -1631,7 +1651,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         const ImVec2 max(min.x + tileWidth, min.y + tileHeight);
         ImGui::SetCursorScreenPos(min);
         ImGui::PushID(static_cast<int>(i));
-        const bool clicked = ImGui::InvisibleButton("tile", ImVec2(tileWidth, tileHeight));
+        const bool clicked = ImGui::InvisibleButton("tile", ImVec2(tileWidth, tileHeight), ImGuiButtonFlags_EnableNav);
         const bool hovered = ImGui::IsItemHovered();
         const bool held = ImGui::IsItemActive();
         const float lit = animator.to(ImGui::GetID("lit"), held ? 1.0f : hovered ? 0.6f : 0.0f, 0.12f, 0.0f);
@@ -1695,7 +1715,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         const float rowBottom = ImGui::GetCursorScreenPos().y;
 
         ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
-        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(model.microphoneAvailable ? 84.0f : 36.0f)), ImGuiChildFlags_None,
+        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(model.microphoneAvailable ? 84.0f : 36.0f)), ImGuiChildFlags_NavFlattened,
                           ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
         pushExplicitSpacing();
         toggleRow(t.kbmTitle, &config.controller.keyboardMouse.enabled);
@@ -1751,6 +1771,13 @@ void UiManager::drawSession(const UiModel& model) {
     const float shown = presenting && model.state == AppState::Streaming ? menuShown_ : 1.0f;
     // Nearly solid: where computed pictures alternate with real ones, a picture that shows through reads as a flicker.
     if (presenting) ImGui::SetNextWindowBgAlpha(0.94f * shown);
+    // Steering with a controller or the keyboard needs a window that has the
+    // focus. Nothing gives this one the focus by itself: it is no pop-up and
+    // nobody has clicked it yet.
+    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow) &&
+        !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+        ImGui::SetNextWindowFocus();
+    }
     ImGui::Begin("session", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -1764,7 +1791,7 @@ void UiManager::drawSession(const UiModel& model) {
                            : std::floor(viewport->Size.y * 0.30f);
     ImGui::SetCursorPos(ImVec2(std::floor((viewport->Size.x - column) * 0.5f), top + std::floor((1.0f - shown) * px(10.0f))));
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * std::max(shown, 0.02f));
-    ImGui::BeginChild("session-column", ImVec2(column, 0.0f), ImGuiChildFlags_None,
+    ImGui::BeginChild("session-column", ImVec2(column, 0.0f), ImGuiChildFlags_NavFlattened,
                       ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
     pushExplicitSpacing();
 
@@ -1908,6 +1935,9 @@ void UiManager::drawSettings(const UiModel& model) {
     const std::array<const char*, 4> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabAdvanced};
     settingsTab_ = static_cast<SettingsTab>(
         segmented("tabs", tabs, static_cast<int>(settingsTab_), ImGui::GetContentRegionAvail().x));
+    // On a controller the shoulder buttons turn the pages, as they do on the console.
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 4);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 3) % 4);
     space(18.0f);
 
     // A fixed height keeps the sheet from jumping when the tab changes. The
@@ -1915,12 +1945,12 @@ void UiManager::drawSettings(const UiModel& model) {
     const float contentWidth = ImGui::GetContentRegionAvail().x;
     const float bodyHeight = std::min(px(440.0f), ImGui::GetMainViewport()->Size.y - px(260.0f));
     const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
-    ImGui::BeginChild("settings-body", ImVec2(contentWidth + px(12.0f), bodyHeight), ImGuiChildFlags_None,
+    ImGui::BeginChild("settings-body", ImVec2(contentWidth + px(12.0f), bodyHeight), ImGuiChildFlags_NavFlattened,
                       ImGuiWindowFlags_NoBackground);
     if (settingsScrollTo_ >= 0.0f) ImGui::SetScrollY(ImGui::GetScrollMaxY() * settingsScrollTo_);
     const float scrollY = ImGui::GetScrollY();
     const float scrollMax = ImGui::GetScrollMaxY();
-    ImGui::BeginChild("settings-content", ImVec2(contentWidth, 0.0f), ImGuiChildFlags_AutoResizeY,
+    ImGui::BeginChild("settings-content", ImVec2(contentWidth, 0.0f), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_NavFlattened,
                       ImGuiWindowFlags_NoBackground);
     switch (settingsTab_) {
         case SettingsTab::Stream: drawStreamTab(model, config); break;
@@ -2103,6 +2133,8 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     ImGui::PopStyleVar(2);
     hint(model.controllerConnected ? t.controllerAutoHint : t.controllerNone);
 
+    drawControllerTest(model);
+
     space(20.0f);
     float deadzone = config.controller.deadzone * 100.0f;
     if (sliderRow(t.deadzone, &deadzone, 0.0f, 30.0f, std::to_string(static_cast<int>(std::lround(deadzone))) + " %")) {
@@ -2271,6 +2303,87 @@ void drawGamepad(ImDrawList* draw, ImVec2 origin, float scale, const std::array<
 
 } // namespace
 
+/// The controller as it is right now: every press, both sticks, both
+/// triggers, drawn on the controller itself. Below it, vibration and the
+/// adaptive triggers can be tried without a console.
+void UiManager::drawControllerTest(const UiModel& model) {
+    using input::Button;
+    using input::PadControl;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    controllerTabDrawn_ = true;
+    if (!model.controllerConnected) return;
+    const bool streaming = model.state == AppState::Streaming || model.state == AppState::Connecting ||
+                           model.state == AppState::Reconnecting;
+
+    sectionTitle(t.padTestTitle);
+    const input::ControllerState& s = model.controllerState;
+    std::array<float, input::kPadControlCount> lit{};
+    const auto set = [&](PadControl control, float value) { lit[static_cast<std::size_t>(control)] = std::clamp(value, 0.0f, 1.0f); };
+    static constexpr std::pair<PadControl, Button> kButtons[] = {
+        {PadControl::Cross, Button::Cross},       {PadControl::Circle, Button::Circle},     {PadControl::Square, Button::Square},
+        {PadControl::Triangle, Button::Triangle}, {PadControl::DpadUp, Button::DpadUp},     {PadControl::DpadDown, Button::DpadDown},
+        {PadControl::DpadLeft, Button::DpadLeft}, {PadControl::DpadRight, Button::DpadRight}, {PadControl::L1, Button::L1},
+        {PadControl::R1, Button::R1},             {PadControl::L3, Button::L3},             {PadControl::R3, Button::R3},
+        {PadControl::Options, Button::Options},   {PadControl::Create, Button::Create},     {PadControl::Touchpad, Button::Touchpad},
+        {PadControl::Ps, Button::Ps},
+    };
+    for (const auto& [control, pressed] : kButtons) set(control, s.pressed(pressed) ? 1.0f : 0.0f);
+    set(PadControl::L2, static_cast<float>(s.l2) / 255.0f);
+    set(PadControl::R2, static_cast<float>(s.r2) / 255.0f);
+    const float lx = static_cast<float>(s.leftX) / 32767.0f, ly = static_cast<float>(s.leftY) / 32767.0f;
+    const float rx = static_cast<float>(s.rightX) / 32767.0f, ry = static_cast<float>(s.rightY) / 32767.0f;
+    set(PadControl::LeftStickUp, -ly);
+    set(PadControl::LeftStickDown, ly);
+    set(PadControl::LeftStickLeft, -lx);
+    set(PadControl::LeftStickRight, lx);
+    set(PadControl::RightStickUp, -ry);
+    set(PadControl::RightStickDown, ry);
+    set(PadControl::RightStickLeft, -rx);
+    set(PadControl::RightStickRight, rx);
+
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float scale = std::min(1.0f, width / px(520.0f)) * px(1.0f);
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    const ImVec2 origin(start.x + (width - 420.0f * scale) * 0.5f, start.y);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    drawGamepad(draw, origin, scale, lit);
+    // Where each stick stands, as a dot on its cap.
+    const auto stickDot = [&](float x, float y, float dx, float dy) {
+        draw->AddCircleFilled(ImVec2(origin.x + (x + dx * 11.0f) * scale, origin.y + (y + dy * 11.0f) * scale), 3.5f * scale,
+                              toU32(p.text));
+    };
+    stickDot(150.0f, 142.0f, lx, ly);
+    stickDot(270.0f, 142.0f, rx, ry);
+    ImGui::Dummy(ImVec2(width, 226.0f * scale));
+
+    // The figures that a drawing cannot show.
+    std::string figures = "L2 " + std::to_string(static_cast<int>(std::lround(s.l2 / 2.55f))) + " %  ·  R2 " +
+                          std::to_string(static_cast<int>(std::lround(s.r2 / 2.55f))) + " %";
+    if (model.controller.reportsPerSecond > 1.0f) {
+        figures += "  ·  " + format(t.padTestRate, {number(model.controller.reportsPerSecond, 0),
+                                                    number(1000.0f / model.controller.reportsPerSecond, 0)});
+    }
+    label(TextStyle::Caption, figures, p.textSecondary);
+    space(12.0f);
+
+    if (button(t.padTestVibration, ButtonKind::Secondary, ImVec2(0, 0), !streaming)) actions_.testVibration();
+    const bool dualSense = model.controller.type == input::ControllerType::DualSense ||
+                           model.controller.type == input::ControllerType::DualSenseEdge;
+    if (dualSense) {
+        space(14.0f);
+        label(TextStyle::Strong, t.padTestTriggers);
+        space(8.0f);
+        const std::array<const char*, 4> effects = {t.off, t.padTestResistance, t.padTestPoint, t.padTestShake};
+        const int chosen = segmented("trigger-test", effects, streaming ? 0 : triggerTest_);
+        if (!streaming && chosen != triggerTest_) {
+            triggerTest_ = chosen;
+            actions_.testTriggers(chosen);
+        }
+    }
+    hint(streaming ? t.padTestBusy : dualSense ? t.padTestHint : t.padTestHintPlain);
+}
+
 void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     using input::PadControl;
     const Strings& t = *text_;
@@ -2320,7 +2433,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             }
             ImGui::SetCursorScreenPos(at);
             ImGui::PushID(index);
-            const bool clicked = ImGui::InvisibleButton("layout-chip", ImVec2(chipWidth, chipHeight));
+            const bool clicked = ImGui::InvisibleButton("layout-chip", ImVec2(chipWidth, chipHeight), ImGuiButtonFlags_EnableNav);
             const bool over = ImGui::IsItemHovered();
             ImGui::PopID();
             const bool chosen = editedGameId_ == id;
@@ -2465,7 +2578,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             const ImVec2 min(x, rowsStart.y + static_cast<float>(row) * rowHeight);
             ImGui::SetCursorScreenPos(min);
             ImGui::PushID(index);
-            const bool clicked = ImGui::InvisibleButton("bind", ImVec2(columnWidth, rowHeight - px(4.0f)));
+            const bool clicked = ImGui::InvisibleButton("bind", ImVec2(columnWidth, rowHeight - px(4.0f)), ImGuiButtonFlags_EnableNav);
             const bool over = ImGui::IsItemHovered() || hovered == index;
             ImGui::PopID();
             if (over) hovered = index;

@@ -192,6 +192,8 @@ private:
         const bool gyro = SDL_GamepadHasSensor(handle, SDL_SENSOR_GYRO) && SDL_SetGamepadSensorEnabled(handle, SDL_SENSOR_GYRO, true);
         const bool accel = SDL_GamepadHasSensor(handle, SDL_SENSOR_ACCEL) && SDL_SetGamepadSensorEnabled(handle, SDL_SENSOR_ACCEL, true);
         pad.info.hasMotion = gyro && accel;
+        // The motion sensor comes with every report of the controller, so its rate is the controller's.
+        if (gyro) pad.info.reportsPerSecond = std::max(0.0f, SDL_GetGamepadSensorDataRate(handle, SDL_SENSOR_GYRO));
 
         pads_.emplace(id, std::move(pad));
     }

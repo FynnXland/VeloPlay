@@ -115,7 +115,9 @@ bool button(const char* label, ButtonKind kind, ImVec2 size, bool enabled) {
 
     const ImVec2 min = ImGui::GetCursorScreenPos();
     ImGui::BeginDisabled(!enabled);
-    const bool clicked = ImGui::InvisibleButton(label, size);
+    // EnableNav: an invisible button is left out of steering with a controller or the keyboard
+    // unless it asks to take part. Every control of ours is one, so every one of them asks.
+    const bool clicked = ImGui::InvisibleButton(label, size, ImGuiButtonFlags_EnableNav);
     ImGui::EndDisabled();
     const ImGuiID id = ImGui::GetItemID();
     const bool hovered = enabled && ImGui::IsItemHovered();
@@ -173,7 +175,7 @@ bool moreButton(const char* id) {
     const Palette& p = palette();
     const ImVec2 size(px(36.0f), px(36.0f));
     const ImVec2 min = ImGui::GetCursorScreenPos();
-    const bool clicked = ImGui::InvisibleButton(id, size);
+    const bool clicked = ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
     const float hover = context().animator.to(ImGui::GetItemID(), ImGui::IsItemHovered() ? 1.0f : 0.0f, 0.16f);
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -217,7 +219,7 @@ int segmented(const char* id, std::span<const char* const> labels, int selected,
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         ImGui::PushID(i);
         ImGui::SetCursorScreenPos(ImVec2(min.x + pad + static_cast<float>(i) * segment, min.y));
-        if (ImGui::InvisibleButton("segment", ImVec2(segment, height))) result = i;
+        if (ImGui::InvisibleButton("segment", ImVec2(segment, height), ImGuiButtonFlags_EnableNav)) result = i;
         const bool hovered = ImGui::IsItemHovered();
         const float active = clamp01(1.0f - std::abs(thumbX - static_cast<float>(i)));
         const ImVec4 ink = mix(hovered ? p.text : p.textSecondary, p.onAccent, active);
@@ -243,7 +245,7 @@ bool toggleRow(const char* label, bool* value, bool enabled) {
     const ImVec2 min = ImGui::GetCursorScreenPos();
 
     ImGui::BeginDisabled(!enabled);
-    const bool clicked = ImGui::InvisibleButton(label, ImVec2(width, rowHeight));
+    const bool clicked = ImGui::InvisibleButton(label, ImVec2(width, rowHeight), ImGuiButtonFlags_EnableNav);
     ImGui::EndDisabled();
     if (clicked) *value = !*value;
 

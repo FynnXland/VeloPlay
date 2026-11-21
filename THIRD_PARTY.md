@@ -151,3 +151,12 @@ The sharpening pass in `src/render/VideoRenderer.cpp` follows the method AMD pub
 written from the description of the method, not copied. FidelityFX Super Resolution is
 Copyright (c) 2021 Advanced Micro Devices, Inc. and available under the MIT licence:
 https://github.com/GPUOpen-Effects/FidelityFX-FSR
+
+## DualSense trigger effects
+
+The byte layouts of the three effects VeloPlay uses to try the adaptive triggers (resistance,
+pressure point, shaking; `src/input/DualSenseEffects.cpp`) were worked out and published by
+John "Nielk1" Klein as "Factories for all DualSense trigger effects", under the MIT licence,
+Copyright (c) 2021-2022 John "Nielk1" Klein:
+https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db
+The code here was written from that description, not copied.

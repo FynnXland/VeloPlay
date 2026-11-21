@@ -106,6 +106,8 @@ public:
     void sleepAndDisconnect() override;
     void applyStreamSettings() override;
     void captureKey() override;
+    void testVibration() override;
+    void testTriggers(int effect) override;
     void endKeyCapture() override;
 
     /// Keys and mouse for playing without a controller. The window passes

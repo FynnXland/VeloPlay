@@ -67,4 +67,52 @@ std::array<std::uint8_t, kDualSenseEffectSize> buildTriggerEffect(std::uint8_t t
     return state;
 }
 
+namespace {
+
+/// Zones `position` to 9 switched on, each with `value` in three bits. Shared by resistance and shaking.
+void fillZones(TriggerEffect& effect, int position, int value) {
+    std::uint16_t active = 0;
+    std::uint32_t levels = 0;
+    for (int zone = position; zone < 10; ++zone) {
+        active = static_cast<std::uint16_t>(active | (1u << zone));
+        levels |= static_cast<std::uint32_t>(value & 0x07) << (3 * zone);
+    }
+    effect.parameters[0] = static_cast<std::uint8_t>(active & 0xff);
+    effect.parameters[1] = static_cast<std::uint8_t>(active >> 8);
+    effect.parameters[2] = static_cast<std::uint8_t>(levels & 0xff);
+    effect.parameters[3] = static_cast<std::uint8_t>((levels >> 8) & 0xff);
+    effect.parameters[4] = static_cast<std::uint8_t>((levels >> 16) & 0xff);
+    effect.parameters[5] = static_cast<std::uint8_t>((levels >> 24) & 0xff);
+}
+
+} // namespace
+
+TriggerEffect feedbackEffect(int position, int strength) {
+    TriggerEffect effect;
+    if (position < 0 || position > 9 || strength < 1 || strength > 8) return effect; // released
+    effect.type = 0x21;
+    fillZones(effect, position, strength - 1);
+    return effect;
+}
+
+TriggerEffect weaponEffect(int start, int end, int strength) {
+    TriggerEffect effect;
+    if (start < 2 || start > 7 || end <= start || end > 8 || strength < 1 || strength > 8) return effect;
+    effect.type = 0x25;
+    const auto zones = static_cast<std::uint16_t>((1u << start) | (1u << end));
+    effect.parameters[0] = static_cast<std::uint8_t>(zones & 0xff);
+    effect.parameters[1] = static_cast<std::uint8_t>(zones >> 8);
+    effect.parameters[2] = static_cast<std::uint8_t>(strength - 1);
+    return effect;
+}
+
+TriggerEffect vibrationEffect(int position, int amplitude, int frequency) {
+    TriggerEffect effect;
+    if (position < 0 || position > 9 || amplitude < 1 || amplitude > 8 || frequency < 1 || frequency > 255) return effect;
+    effect.type = 0x26;
+    fillZones(effect, position, amplitude - 1);
+    effect.parameters[8] = static_cast<std::uint8_t>(frequency);
+    return effect;
+}
+
 } // namespace veloplay::input

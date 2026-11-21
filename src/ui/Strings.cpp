@@ -344,6 +344,21 @@ constexpr Strings kGerman = {
     .kbmPressKey = "Taste drücken",
     .kbmUnassigned = "frei",
     .kbmReset = "Standardbelegung",
+    .padHints = "Mit dem Controller: Steuerkreuz oder linker Stick bewegt die Markierung, Kreuz wählt aus, Kreis geht "
+                "zurück, Options öffnet die Einstellungen, L1 und R1 blättern darin.",
+    .padTestTitle = "Controller testen",
+    .padTestRate = "meldet {0}-mal pro Sekunde, also alle {1} ms",
+    .padTestVibration = "Vibration testen",
+    .padTestTriggers = "Adaptive Trigger testen",
+    .padTestResistance = "Widerstand",
+    .padTestPoint = "Druckpunkt",
+    .padTestShake = "Rütteln",
+    .padTestHint = "Die Zeichnung zeigt, was dein Controller gerade meldet. „Widerstand“ bremst L2 und R2 fast über den "
+                   "ganzen Weg mit voller Kraft, „Druckpunkt“ gibt in der Mitte nach wie ein Abzug, „Rütteln“ lässt die "
+                   "Trigger beim Drücken vibrieren. So stark kann dein Controller. Beim Verlassen dieser Seite sind die "
+                   "Trigger wieder frei.",
+    .padTestHintPlain = "Die Zeichnung zeigt, was dein Controller gerade meldet.",
+    .padTestBusy = "Während der Verbindung bestimmt die PS5 über Vibration und Trigger. Zum Testen erst trennen.",
     .kbmFor = "Belegung für",
     .kbmAllGames = "Alle Spiele",
     .kbmAddGame = "Eigene Belegung für {0} anlegen",
@@ -717,6 +732,21 @@ constexpr Strings kEnglish = {
     .kbmPressKey = "Press a key",
     .kbmUnassigned = "free",
     .kbmReset = "Default layout",
+    .padHints = "With the controller: the directional pad or the left stick moves the mark, Cross selects, Circle goes "
+                "back, Options opens the settings, L1 and R1 turn their pages.",
+    .padTestTitle = "Try the controller",
+    .padTestRate = "reports {0} times a second, every {1} ms",
+    .padTestVibration = "Try vibration",
+    .padTestTriggers = "Try the adaptive triggers",
+    .padTestResistance = "Resistance",
+    .padTestPoint = "Pressure point",
+    .padTestShake = "Shaking",
+    .padTestHint = "The drawing shows what your controller reports right now. “Resistance” brakes L2 and R2 over nearly "
+                   "their whole travel at full force, “Pressure point” gives way in the middle like the trigger of a "
+                   "weapon, “Shaking” makes the triggers vibrate while pressed. That is how strong your controller can "
+                   "be. When you leave this page the triggers are free again.",
+    .padTestHintPlain = "The drawing shows what your controller reports right now.",
+    .padTestBusy = "While connected, the PS5 decides about vibration and triggers. Disconnect to try them.",
     .kbmFor = "Layout for",
     .kbmAllGames = "All games",
     .kbmAddGame = "Give {0} a layout of its own",

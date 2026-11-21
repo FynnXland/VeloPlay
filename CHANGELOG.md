@@ -3,6 +3,34 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.16.0
+
+- **VeloPlay can be steered with the controller.** On the start page and in the settings the
+  directional pad or the left stick moves a mark from button to button, Cross selects, Circle
+  goes back, Options opens the settings, and L1 and R1 turn their pages. Until now only the
+  sliders reacted; the buttons were not part of it. In the game the controller belongs to the
+  PS5, as before.
+- **A page to try the controller**, under Settings > Controller. A drawing of the controller
+  shows live what it reports: every button, both sticks, how far L2 and R2 are pressed, and
+  how often it reports. One button makes it vibrate. On a DualSense three effects for the
+  adaptive triggers can be switched on without a console: resistance over nearly the whole
+  travel at full force, a pressure point as on a weapon's trigger, and shaking. That shows what
+  your controller can do, to compare with what arrives in a game.
+
+**Deutsch**
+
+- **VeloPlay lässt sich mit dem Controller bedienen.** Auf der Startseite und in den
+  Einstellungen bewegt das Steuerkreuz oder der linke Stick eine Markierung von Knopf zu Knopf,
+  Kreuz wählt aus, Kreis geht zurück, Options öffnet die Einstellungen, L1 und R1 blättern
+  darin. Bisher reagierten nur die Schieberegler; die Knöpfe waren nicht dabei. Im Spiel gehört
+  der Controller wie bisher der PS5.
+- **Eine Seite zum Testen des Controllers**, unter Einstellungen > Controller. Eine Zeichnung
+  des Controllers zeigt live, was er meldet: jeden Knopf, beide Sticks, wie weit L2 und R2
+  gedrückt sind, und wie oft er meldet. Ein Knopf lässt ihn vibrieren. An einem DualSense
+  lassen sich drei Effekte der adaptiven Trigger ohne Konsole einschalten: Widerstand fast über
+  den ganzen Weg mit voller Kraft, ein Druckpunkt wie am Abzug einer Waffe, und Rütteln. Das
+  zeigt, was dein Controller kann, zum Vergleich mit dem, was im Spiel ankommt.
+
 ## 0.15.1
 
 - **Frame generation: ladders and fences are right again.** 0.15.0 held every spot in place that

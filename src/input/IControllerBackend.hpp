@@ -25,6 +25,8 @@ struct ControllerInfo {
     /// Charge of the controller's battery in percent; -1 if it has none or does not say.
     int batteryPercent = -1;
     bool charging = false; // on the cable and charging, or full
+    /// How often the controller reports its state, per second, as its driver says; 0 if unknown.
+    float reportsPerSecond = 0.0f;
 
     friend bool operator==(const ControllerInfo&, const ControllerInfo&) = default;
 };

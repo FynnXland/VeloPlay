@@ -82,6 +82,7 @@ private:
     void drawPictureTab(const UiModel& model, AppConfig& config);
     void drawControllerTab(const UiModel& model, AppConfig& config);
     void drawKeyboardMouse(const UiModel& model, AppConfig& config);
+    void drawControllerTest(const UiModel& model);
     void drawAdvancedTab(const UiModel& model, AppConfig& config);
     bool beginSheet(const char* id, float width);
     void endSheet();
@@ -116,6 +117,8 @@ private:
     std::string editedGameId_;      // the game whose key layout the settings show; empty = the one for all games
     bool editedGameChosen_ = false; // false until the settings picked the layout in use
     bool keyOverlay_ = false;       // the key layout is shown over the picture (F1)
+    int triggerTest_ = 0;           // the test effect on the adaptive triggers, 0 = none
+    bool controllerTabDrawn_ = false; // the controller settings were on screen in the frame before
     bool settingsFromGame_ = false; // the settings sheet was opened from that menu
     std::string loginPin_; // typed login passcode; never leaves this field except to the session
 };

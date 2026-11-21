@@ -184,6 +184,12 @@ public:
     /// and clears it.
     virtual void captureKey() = 0;
     virtual void endKeyCapture() = 0;
+    /// Lets the active controller vibrate for a moment, to try it out. Not during a session.
+    virtual void testVibration() = 0;
+    /// Puts a test effect on both adaptive triggers: 0 releases them, 1
+    /// resistance over the whole travel, 2 a point to push through, 3 shaking.
+    /// Not during a session; the console decides then.
+    virtual void testTriggers(int effect) = 0;
     virtual void submitLoginPin(std::string_view digits) = 0;
     virtual void forgetConsole(std::string_view hostId) = 0;
 
