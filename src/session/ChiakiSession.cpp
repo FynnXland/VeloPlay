@@ -103,6 +103,7 @@ public:
         callbacks.quit = &ChiakiSession::onQuit;
         callbacks.rumble = &ChiakiSession::onRumble;
         callbacks.trigger_effects = &ChiakiSession::onTriggerEffects;
+        callbacks.effect_strength = &ChiakiSession::onEffectStrength;
         callbacks.video = &ChiakiSession::onVideo;
         callbacks.audio_format = &ChiakiSession::onAudioFormat;
         callbacks.audio = &ChiakiSession::onAudio;
@@ -253,6 +254,19 @@ private:
         event.type = SessionEvent::Type::Rumble;
         event.rumbleLow = low;
         event.rumbleHigh = high;
+        self(user).push(std::move(event));
+    }
+
+    static void onEffectStrength(void* user, int triggers, int level) {
+        SessionEvent event;
+        event.type = SessionEvent::Type::EffectStrength;
+        event.strengthOfTriggers = triggers != 0;
+        switch (level) {
+            case 0: event.strength = input::EffectStrength::Off; break;
+            case 2: event.strength = input::EffectStrength::Medium; break;
+            case 3: event.strength = input::EffectStrength::Weak; break;
+            default: event.strength = input::EffectStrength::Strong; break;
+        }
         self(user).push(std::move(event));
     }
 

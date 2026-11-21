@@ -1,12 +1,18 @@
 name: Release
 
-# Builds, tests and publishes VeloPlay when a version tag arrives. The tag and
-# the source it points at are pushed here by the release of the development
+# Builds, tests and publishes VeloPlay when a new version arrives on main.
+# The source and its tag are pushed here by the release of the development
 # repository; this file is generated there (tools/publish), so change it there.
+#
+# It runs for the branch and not for the tag on purpose. GitHub keeps what a
+# run stores for later runs (here: the built dependencies, half an hour of
+# work) per branch or tag, and a run for a new tag cannot read what the run
+# for the tag before it stored. Every release built everything from scratch
+# that way. Runs for main share their store.
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: write
@@ -193,7 +199,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          # The version is the one in the source; its tag came with the same push.
+          $found = Select-String -Path CMakeLists.txt -Pattern '^\s*VERSION\s+(\d+\.\d+\.\d+)' | Select-Object -First 1
+          if (-not $found) { throw 'CMakeLists.txt names no version.' }
+          $version = $found.Matches[0].Groups[1].Value
+          $tag = "v$version"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { Write-Host "$tag is published already."; exit 0 }
           $take = $false
           $notes = foreach ($line in Get-Content CHANGELOG.md) {
             if ($line -match '^## ') { $take = ($line.Trim() -eq "## $version"); continue }
@@ -202,5 +214,5 @@ jobs:
           if (-not ($notes | Where-Object { $_.Trim() })) { throw "CHANGELOG.md has no section ## $version." }
           $notes | Set-Content notes.md -Encoding utf8
           Compress-Archive -Path dist\VeloPlay\* -DestinationPath VeloPlay-windows-x64.zip
-          gh release create $env:GITHUB_REF_NAME VeloPlay-windows-x64.zip --title "VeloPlay $version" --notes-file notes.md
+          gh release create $tag VeloPlay-windows-x64.zip --verify-tag --title "VeloPlay $version" --notes-file notes.md
           exit $LASTEXITCODE

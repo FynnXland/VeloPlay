@@ -1,0 +1,239 @@
+#include <gtest/gtest.h>
+
+#include <chrono>
+#include <cmath>
+#include <set>
+
+#include "input/KeyboardMouse.hpp"
+
+using namespace veloplay::input;
+using namespace std::chrono_literals;
+
+namespace {
+
+using Clock = KeyboardMouseMapper::Clock;
+
+KeyboardMouseSettings enabled() {
+    KeyboardMouseSettings settings;
+    settings.enabled = true;
+    return settings;
+}
+
+/// Moves the mouse evenly for a while, read as often as the program reads it.
+ControllerState moveFor(KeyboardMouseMapper& mapper, Clock::time_point& now, std::chrono::milliseconds duration,
+                        double countsPerSecondX, double countsPerSecondY, int reportsPerSecond = 1000) {
+    ControllerState state;
+    double owedX = 0.0;
+    double owedY = 0.0;
+    const auto step = 2ms;
+    const int reportEvery = 1000 / reportsPerSecond; // in milliseconds
+    int elapsed = 0;
+    for (auto t = 0ms; t < duration; t += step, elapsed += 2) {
+        owedX += countsPerSecondX * 0.002;
+        owedY += countsPerSecondY * 0.002;
+        if (elapsed % reportEvery == 0) {
+            const int dx = static_cast<int>(owedX);
+            const int dy = static_cast<int>(owedY);
+            mapper.mouseMoved(dx, dy);
+            owedX -= dx;
+            owedY -= dy;
+        }
+        now += step;
+        state = mapper.state(now);
+    }
+    return state;
+}
+
+} // namespace
+
+TEST(KeyboardMouse, DefaultLayoutUsesEachKeyOnce) {
+    const auto keys = defaultKeyBindings();
+    std::set<int> seen;
+    for (const int code : keys) {
+        if (code == key::None) continue;
+        EXPECT_TRUE(seen.insert(code).second) << "key " << code << " stands for two controls";
+        EXPECT_FALSE(isReservedKey(code));
+    }
+    // Walking is on W A S D, shooting and aiming on the mouse buttons.
+    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::LeftStickUp)], 'W');
+    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::R2)], key::MouseLeft);
+    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::L2)], key::MouseRight);
+    // Every control has a name for the settings file, and the name leads back to it.
+    for (std::size_t i = 0; i < kPadControlCount; ++i) {
+        const auto control = static_cast<PadControl>(i);
+        ASSERT_FALSE(padControlName(control).empty());
+        EXPECT_EQ(parsePadControl(padControlName(control)), control);
+    }
+    EXPECT_FALSE(parsePadControl("nonsense").has_value());
+}
+
+TEST(KeyboardMouse, DoesNothingWhileSwitchedOff) {
+    KeyboardMouseMapper mapper;
+    mapper.configure(KeyboardMouseSettings{});
+    mapper.key('W', true);
+    mapper.key(key::MouseLeft, true);
+    mapper.mouseMoved(500, 0);
+    Clock::time_point now{1s};
+    EXPECT_EQ(mapper.state(now), ControllerState{});
+}
+
+TEST(KeyboardMouse, KeysPressButtonsAndTriggers) {
+    KeyboardMouseMapper mapper;
+    mapper.configure(enabled());
+    Clock::time_point now{1s};
+    mapper.key(key::Space, true);
+    mapper.key(key::MouseLeft, true);
+    ControllerState state = mapper.state(now);
+    EXPECT_TRUE(state.pressed(Button::Square));
+    EXPECT_FALSE(state.pressed(Button::Cross));
+    EXPECT_EQ(state.r2, 255);
+    EXPECT_EQ(state.l2, 0);
+
+    mapper.key(key::Space, false);
+    mapper.key(key::MouseLeft, false);
+    mapper.key(key::MouseRight, true);
+    state = mapper.state(now);
+    EXPECT_FALSE(state.pressed(Button::Square));
+    EXPECT_EQ(state.r2, 0);
+    EXPECT_EQ(state.l2, 255);
+
+    // A key nothing is bound to changes nothing.
+    mapper.key('Z', true);
+    mapper.key(key::MouseRight, false);
+    EXPECT_EQ(mapper.state(now), ControllerState{});
+}
+
+TEST(KeyboardMouse, FourKeysMakeAStick) {
+    KeyboardMouseMapper mapper;
+    mapper.configure(enabled());
+    Clock::time_point now{1s};
+    mapper.key('W', true);
+    ControllerState state = mapper.state(now);
+    EXPECT_EQ(state.leftX, 0);
+    EXPECT_EQ(state.leftY, -32767); // up is negative
+
+    // Forward and right: between the two, and no further out than one alone.
+    mapper.key('D', true);
+    state = mapper.state(now);
+    EXPECT_NEAR(state.leftX, 23170, 2);
+    EXPECT_NEAR(state.leftY, -23170, 2);
+    EXPECT_NEAR(std::hypot(state.leftX, state.leftY), 32767.0, 3.0);
+
+    // Opposite keys cancel out.
+    mapper.key('A', true);
+    state = mapper.state(now);
+    EXPECT_EQ(state.leftX, 0);
+    EXPECT_EQ(state.leftY, -32767);
+}
+
+TEST(KeyboardMouse, TheSpeedOfTheMouseIsHowFarTheStickIsPushed) {
+    KeyboardMouseMapper mapper;
+    mapper.configure(enabled());
+    Clock::time_point now{1s};
+    (void)mapper.state(now);
+
+    // A slow, steady move to the right.
+    const ControllerState slow = moveFor(mapper, now, 300ms, 600.0, 0.0);
+    EXPECT_GT(slow.rightX, 6000);
+    EXPECT_LT(slow.rightX, 16000);
+    EXPECT_EQ(slow.rightY, 0);
+    // Twice as fast pushes clearly further.
+    const ControllerState faster = moveFor(mapper, now, 300ms, 1200.0, 0.0);
+    EXPECT_GT(faster.rightX, slow.rightX + 5000);
+    // A flick: all the way, and not beyond.
+    const ControllerState flick = moveFor(mapper, now, 200ms, 9000.0, 0.0);
+    EXPECT_EQ(flick.rightX, 32767);
+
+    // The hand stops: so does the stick, within a few pictures.
+    const ControllerState stopped = moveFor(mapper, now, 120ms, 0.0, 0.0);
+    EXPECT_EQ(stopped.rightX, 0);
+    EXPECT_EQ(stopped.rightY, 0);
+
+    // Up is up: the mouse away from the player pushes the stick up, which is negative.
+    const ControllerState up = moveFor(mapper, now, 300ms, 0.0, -800.0);
+    EXPECT_LT(up.rightY, -6000);
+    EXPECT_EQ(up.rightX, 0);
+}
+
+TEST(KeyboardMouse, StaysSteadyWithAMouseThatReportsRarely) {
+    // Office mice report 125 times a second, the state is read 500 times a
+    // second. The stick must not flicker between pushed and centred.
+    KeyboardMouseMapper mapper;
+    mapper.configure(enabled());
+    Clock::time_point now{1s};
+    (void)mapper.state(now);
+    (void)moveFor(mapper, now, 200ms, 1000.0, 0.0, 125);
+    int lowest = 32767;
+    int highest = 0;
+    for (int i = 0; i < 100; ++i) {
+        const ControllerState state = moveFor(mapper, now, 2ms, 1000.0, 0.0, 125);
+        lowest = std::min<int>(lowest, state.rightX);
+        highest = std::max<int>(highest, state.rightX);
+    }
+    EXPECT_GT(lowest, 8000);
+    EXPECT_LT(highest - lowest, 9000);
+}
+
+TEST(KeyboardMouse, FollowsSensitivityAndTheInvertedAxis) {
+    KeyboardMouseSettings settings = enabled();
+    KeyboardMouseMapper normal;
+    normal.configure(settings);
+    settings.mouseSensitivity = 2.0f;
+    settings.invertY = true;
+    KeyboardMouseMapper changed;
+    changed.configure(settings);
+
+    Clock::time_point a{1s};
+    Clock::time_point b{1s};
+    (void)normal.state(a);
+    (void)changed.state(b);
+    const ControllerState plain = moveFor(normal, a, 300ms, 500.0, 500.0);
+    const ControllerState other = moveFor(changed, b, 300ms, 500.0, 500.0);
+    EXPECT_GT(other.rightX, plain.rightX + 3000);
+    EXPECT_GT(plain.rightY, 0);
+    EXPECT_LT(other.rightY, 0);
+}
+
+TEST(KeyboardMouse, AWheelNotchIsAShortPress) {
+    KeyboardMouseSettings settings = enabled();
+    settings.keys[static_cast<std::size_t>(PadControl::DpadRight)] = key::WheelUp;
+    settings.keys[static_cast<std::size_t>(PadControl::DpadLeft)] = key::WheelDown;
+    KeyboardMouseMapper mapper;
+    mapper.configure(settings);
+    Clock::time_point now{1s};
+    mapper.wheel(1, now);
+    EXPECT_TRUE(mapper.state(now).pressed(Button::DpadRight));
+    EXPECT_FALSE(mapper.state(now).pressed(Button::DpadLeft));
+    EXPECT_TRUE(mapper.state(now + 50ms).pressed(Button::DpadRight));
+    EXPECT_FALSE(mapper.state(now + 100ms).pressed(Button::DpadRight));
+    mapper.wheel(-2, now + 200ms);
+    EXPECT_TRUE(mapper.state(now + 210ms).pressed(Button::DpadLeft));
+}
+
+TEST(KeyboardMouse, LetsGoOfEverythingWhenTheWindowLosesTheKeyboard) {
+    KeyboardMouseMapper mapper;
+    mapper.configure(enabled());
+    Clock::time_point now{1s};
+    (void)mapper.state(now);
+    mapper.key('W', true);
+    mapper.key(key::MouseLeft, true);
+    (void)moveFor(mapper, now, 100ms, 2000.0, 0.0);
+    mapper.releaseAll();
+    now += 2ms;
+    EXPECT_EQ(mapper.state(now), ControllerState{});
+}
+
+TEST(KeyboardMouse, SettingsKeepOneControlPerKey) {
+    KeyboardMouseSettings settings = enabled();
+    settings.mouseSensitivity = 40.0f;
+    settings.keys[static_cast<std::size_t>(PadControl::Circle)] = 'W';          // already walking forward
+    settings.keys[static_cast<std::size_t>(PadControl::Triangle)] = key::Escape; // VeloPlay's own menu
+    settings.keys[static_cast<std::size_t>(PadControl::Cross)] = -5;
+    sanitize(settings);
+    EXPECT_FLOAT_EQ(settings.mouseSensitivity, 4.0f);
+    EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Triangle)], key::None);
+    EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Cross)], key::None);
+    // Circle comes before the left stick in the list, so it keeps the key and walking loses it.
+    EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Circle)], 'W');
+    EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::LeftStickUp)], key::None);
+}

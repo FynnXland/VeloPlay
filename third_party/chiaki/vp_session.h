@@ -82,6 +82,11 @@ typedef struct VpCallbacks
 	void (*quit)(void *user, int reason, const char *detail);
 	void (*rumble)(void *user, uint8_t low, uint8_t high);
 	void (*trigger_effects)(void *user, uint8_t type_left, const uint8_t *left, uint8_t type_right, const uint8_t *right);
+	/* How strong the console wants the controller's effects, as set on the
+	 * console under Accessories > Controllers. `triggers` is nonzero for the
+	 * adaptive triggers and zero for vibration and haptics. `level`: 0 off,
+	 * 1 strong, 2 medium, 3 weak. */
+	void (*effect_strength)(void *user, int triggers, int level);
 	/* One access unit of the video bitstream in Annex B format. The first
 	 * call carries the parameter sets.
 	 * Returns nonzero if the unit was decoded; zero requests a new key frame. */

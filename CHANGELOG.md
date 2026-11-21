@@ -3,6 +3,37 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.11.0
+
+- **Cuts no longer flash.** When the game jumps to another picture, a computed picture used to
+  show both scenes at once for a moment. If most of the picture finds no counterpart in the next
+  one, the nearer real picture is shown instead.
+- **The game's own display stays calm.** A map, a counter or writing stands still while the scene
+  moves behind it, and its edges could shimmer in computed pictures. Edges that have stood still
+  for about a second are now taken from the real pictures as they are.
+- **Adaptive triggers and haptics at the strength the console asks for.** The PS5 says how strong
+  the triggers and the vibration are to be (its setting under Accessories > Controllers).
+  VeloPlay did not pass that on, so the controller kept whatever strength the program before had
+  left it at. It is now set to full strength when a session starts and follows the console from
+  there. This comes from a report that the resistance of the triggers is there but weaker than at
+  the console; whether it is the whole reason is open.
+
+**Deutsch**
+
+- **Schnitte blitzen nicht mehr.** Springt das Spiel zu einem anderen Bild, zeigte ein
+  berechnetes Bild bisher für einen Moment beide Szenen gleichzeitig. Findet der größte Teil
+  des Bildes im nächsten kein Gegenstück, wird stattdessen das nähere echte Bild gezeigt.
+- **Die Anzeige des Spiels bleibt ruhig.** Eine Karte, ein Zähler oder Schrift steht still,
+  während sich die Szene dahinter bewegt, und ihre Kanten konnten in berechneten Bildern
+  flimmern. Kanten, die seit etwa einer Sekunde stillstehen, kommen jetzt unverändert aus den
+  echten Bildern.
+- **Adaptive Trigger und Haptik in der Stärke, die die Konsole vorgibt.** Die PS5 teilt mit,
+  wie stark Trigger und Vibration sein sollen (ihre Einstellung unter Zubehör > Controller).
+  VeloPlay gab das nicht weiter, der Controller behielt also die Stärke, die das Programm davor
+  hinterlassen hatte. Jetzt wird er beim Start einer Sitzung auf volle Stärke gestellt und folgt
+  danach der Konsole. Anlass ist die Rückmeldung, dass der Widerstand der Trigger da ist, aber
+  schwächer als an der Konsole; ob das der ganze Grund ist, ist offen.
+
 ## 0.10.1
 
 - **"Game 30 fps" no longer drops out while the camera moves.** With every turn the detection

@@ -300,8 +300,8 @@ TEST(DualSenseEffects, PlacesBothTriggersInTheEffectsBlock) {
     const auto block = buildTriggerEffect(0x21, left, 0x26, right);
 
     ASSERT_EQ(block.size(), 47u);
-    EXPECT_EQ(block[0], 0x0c); // change both triggers, nothing else
-    EXPECT_EQ(block[1], 0x00);
+    EXPECT_EQ(block[0], 0x0c); // change both triggers
+    EXPECT_EQ(block[1], 0x40); // and say how strong: full, unless told otherwise
     EXPECT_EQ(block[2], 0x00); // rumble stays as it is
     EXPECT_EQ(block[3], 0x00);
     EXPECT_EQ(block[10], 0x26); // right trigger: type, then its parameters
@@ -311,6 +311,64 @@ TEST(DualSenseEffects, PlacesBothTriggersInTheEffectsBlock) {
     EXPECT_EQ(block[22], 1);
     EXPECT_EQ(block[31], 10);
     for (std::size_t i = 32; i < block.size(); ++i) EXPECT_EQ(block[i], 0) << i;
+}
+
+TEST(DualSenseEffects, TellsTheControllerHowStrongEffectsAreToBe) {
+    // Full strength is zero: nothing is held back.
+    EXPECT_EQ(motorPower(EffectStrength::Strong, EffectStrength::Strong), 0x00);
+    // The values chiaki-ng uses: triggers in the upper half, vibration and haptics in the lower.
+    EXPECT_EQ(motorPower(EffectStrength::Strong, EffectStrength::Medium), 0x60);
+    EXPECT_EQ(motorPower(EffectStrength::Strong, EffectStrength::Weak), 0x90);
+    EXPECT_EQ(motorPower(EffectStrength::Medium, EffectStrength::Strong), 0x02);
+    EXPECT_EQ(motorPower(EffectStrength::Weak, EffectStrength::Medium), 0x63);
+    EXPECT_EQ(motorPower(EffectStrength::Off, EffectStrength::Off), 0xFF);
+
+    // On its own it touches nothing but the strength.
+    const auto alone = buildMotorPower(0x63);
+    EXPECT_EQ(alone[0], 0x00);
+    EXPECT_EQ(alone[1], 0x40); // "take the motor power"
+    EXPECT_EQ(alone[36], 0x63);
+    for (std::size_t i = 2; i < alone.size(); ++i) {
+        if (i != 36) EXPECT_EQ(alone[i], 0) << i;
+    }
+
+    // With trigger effects it goes along in the same block.
+    const std::array<std::uint8_t, 10> parameters = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    const auto block = buildTriggerEffect(0x21, parameters, 0x26, parameters, 0x60);
+    EXPECT_EQ(block[0], 0x0C);
+    EXPECT_EQ(block[1], 0x40);
+    EXPECT_EQ(block[36], 0x60);
+    EXPECT_EQ(block[10], 0x26);
+    EXPECT_EQ(block[21], 0x21);
+}
+
+TEST(ControllerManager, PassesTheStrengthFromTheConsoleOn) {
+    FakeBackend::Shared shared;
+    ControllerManager manager(std::make_unique<FakeBackend>(shared));
+    const std::array<std::uint8_t, 10> parameters = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+    shared.controllers = {makeInfo(7, "DualSense", ControllerType::DualSense, ConnectionType::Usb)};
+    manager.update();
+
+    // Told at once, so a strength left behind by another program does not stay.
+    EXPECT_TRUE(manager.setEffectStrength(EffectStrength::Strong, EffectStrength::Medium));
+    ASSERT_EQ(shared.effects.size(), 1u);
+    EXPECT_EQ(shared.effects[0][1], 0x40);
+    EXPECT_EQ(shared.effects[0][36], 0x60);
+    EXPECT_EQ(shared.effects[0][0], 0x00); // the triggers themselves are left as they are
+
+    // And again with every effect.
+    EXPECT_TRUE(manager.triggerEffects(0x21, parameters, 0x21, parameters));
+    ASSERT_EQ(shared.effects.size(), 2u);
+    EXPECT_EQ(shared.effects[1][36], 0x60);
+    EXPECT_EQ(shared.effects[1][21], 0x21);
+
+    // Switched off on the console: the triggers stay loose, whatever the game sends.
+    EXPECT_TRUE(manager.setEffectStrength(EffectStrength::Strong, EffectStrength::Off));
+    EXPECT_TRUE(manager.triggerEffects(0x21, parameters, 0x26, parameters));
+    ASSERT_EQ(shared.effects.size(), 4u);
+    EXPECT_EQ(shared.effects[3][10], kTriggerEffectOff);
+    EXPECT_EQ(shared.effects[3][21], kTriggerEffectOff);
+    EXPECT_EQ(shared.effects[3][22], 0);
 }
 
 TEST(ControllerManager, SendsTriggerEffectsToADualSenseOnly) {

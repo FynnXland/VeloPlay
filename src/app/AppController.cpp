@@ -442,6 +442,8 @@ bool AppController::startAttempt() {
 
     auto created = options_.sessionFactory();
     if (!created) return false;
+    // Full strength until the console says otherwise. That also undoes what another program left the controller at.
+    controllers_.setEffectStrength(input::EffectStrength::Strong, input::EffectStrength::Strong);
     spdlog::info("Connecting to {} at {}, attempt {} of {} ({}x{}, {} fps, {} kbit/s)", console->name, *address,
                  session_->attempt, session_->attempts, sessionConfig.stream.width, sessionConfig.stream.height,
                  sessionConfig.stream.fps, sessionConfig.stream.bitrateKbps);
@@ -536,6 +538,19 @@ void AppController::updateSession(Clock::time_point now) {
                                                 event.triggers.right);
                 }
                 break;
+            case session::SessionEvent::Type::EffectStrength: {
+                // What is set on the console under Accessories > Controllers.
+                const input::EffectStrength haptics =
+                    event.strengthOfTriggers ? controllers_.hapticStrength() : event.strength;
+                const input::EffectStrength triggers =
+                    event.strengthOfTriggers ? event.strength : controllers_.triggerStrength();
+                static constexpr const char* kNames[] = {"off", "strong", "medium", "weak"};
+                spdlog::info("The console sets the strength of {} to {}",
+                             event.strengthOfTriggers ? "the adaptive triggers" : "vibration and haptics",
+                             kNames[static_cast<int>(event.strength)]);
+                controllers_.setEffectStrength(haptics, triggers);
+                break;
+            }
             case session::SessionEvent::Type::Quit:
                 handleQuit(event.reason, event.detail, now);
                 return; // the session object is gone

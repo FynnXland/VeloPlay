@@ -12,6 +12,7 @@
 
 #include "app/StreamProfile.hpp"
 #include "input/ControllerState.hpp"
+#include "input/DualSenseEffects.hpp"
 #include "protocol/Crypto.hpp"
 #include "util/Result.hpp"
 
@@ -62,7 +63,7 @@ struct TriggerEffects {
 };
 
 struct SessionEvent {
-    enum class Type { Connected, LoginPinRequested, Quit, Rumble, TriggerEffects };
+    enum class Type { Connected, LoginPinRequested, Quit, Rumble, TriggerEffects, EffectStrength };
 
     Type type = Type::Connected;
     bool previousPinWrong = false;            // LoginPinRequested
@@ -71,6 +72,8 @@ struct SessionEvent {
     std::uint8_t rumbleLow = 0;               // Rumble: low-frequency motor, 0..255
     std::uint8_t rumbleHigh = 0;              // Rumble: high-frequency motor
     TriggerEffects triggers{};                // TriggerEffects
+    bool strengthOfTriggers = false;          // EffectStrength: for the triggers, else for vibration and haptics
+    input::EffectStrength strength = input::EffectStrength::Strong; // EffectStrength
 };
 
 struct AudioFormat {

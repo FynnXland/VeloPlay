@@ -171,6 +171,93 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 }
 )";
 
+// Is this a cut? Brightness alone cannot tell: a flash or a fade changes
+// every pixel and is no cut, and two scenes that are both dark differ
+// little and are one. What tells is the fine structure, the brightness of a
+// place minus that of its surroundings. Across real motion the structure
+// found along the shift is the same in both pictures. Across a flash or a
+// fade it is the same at the same place. Across a cut it is neither.
+//
+// Two passes boil that down to one number. The first looks at eight by
+// eight parts of the picture, sixty-four samples each, and notes how much
+// the structure differs along the shift, how much without any shift, and
+// how much structure there is at all. The second counts the parts where
+// the smaller difference is as large as the structure itself.
+const char kReduceShader[] = VELOPLAY_FLOW_CONSTANTS R"(
+Texture2D source : register(t0);
+Texture2D lumaA : register(t1);
+Texture2D lumaB : register(t2);
+SamplerState linearSampler : register(s0);
+SamplerState pointSampler : register(s1);
+
+float structure(Texture2D luma, float2 at) {
+    return luma.SampleLevel(linearSampler, at, 0).r - luma.SampleLevel(linearSampler, at, mip).r;
+}
+
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    if (hasPrediction > 0.5) {
+        // Second pass: the share of parts that do not fit.
+        float misfits = 0.0;
+        [loop] for (int y = 0; y < 8; ++y) {
+            [loop] for (int x = 0; x < 8; ++x) {
+                float4 part = source.SampleLevel(pointSampler, (float2(x, y) + 0.5) / 8.0, 0);
+                float differs = min(part.r, part.g);
+                misfits += smoothstep(0.5, 0.8, differs / (part.b + 0.0001)) * smoothstep(0.008, 0.016, differs);
+            }
+        }
+        return float4(misfits / 64.0, 0.0, 0.0, 1.0);
+    }
+    float alongShift = 0.0;
+    float inPlace = 0.0;
+    float amount = 0.0;
+    [loop] for (int j = 0; j < 8; ++j) {
+        [loop] for (int i = 0; i < 8; ++i) {
+            float2 at = uv + (float2(i, j) - 3.5) / (8.0 * cells);
+            float2 shift = source.SampleLevel(linearSampler, at, 0).xy / frameSize;
+            float a = structure(lumaA, at - phase * shift);
+            float b = structure(lumaB, at + (1.0 - phase) * shift);
+            alongShift += abs(a - b);
+            amount += 0.5 * (abs(a) + abs(b));
+            inPlace += abs(structure(lumaA, at) - structure(lumaB, at));
+        }
+    }
+    return float4(alongShift / 64.0, inPlace / 64.0, amount / 64.0, 1.0);
+}
+)";
+
+// Keeps count, per pixel, of how long it has stood still, and of how much
+// of an edge it is. A pixel that did not change from one picture to the next
+// gains a little; one that changed a lot starts over; a small change, as the
+// encoder causes around writing on a moving background, only sets it back.
+const char kStillShader[] = VELOPLAY_FLOW_CONSTANTS R"(
+Texture2D frameA : register(t0);
+Texture2D frameB : register(t1);
+Texture2D before : register(t2);
+SamplerState linearSampler : register(s0);
+SamplerState pointSampler : register(s1);
+
+float brightness(float2 at) {
+    return dot(frameB.SampleLevel(pointSampler, at, 0).rgb, float3(0.299, 0.587, 0.114));
+}
+
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float3 difference = abs(frameA.SampleLevel(pointSampler, uv, 0).rgb - frameB.SampleLevel(pointSampler, uv, 0).rgb);
+    float change = max(difference.r, max(difference.g, difference.b));
+    float4 was = before.SampleLevel(pointSampler, uv, 0);
+    float still = was.r + (1.0 - was.r) * 0.06;
+    if (change >= 0.10) still = 0.0;
+    else if (change >= 0.03) still = was.r * 0.6;
+
+    float2 pixel = 1.0 / frameSize;
+    float here = brightness(uv);
+    float contrast = max(max(abs(here - brightness(uv + float2(pixel.x, 0.0))), abs(here - brightness(uv - float2(pixel.x, 0.0)))),
+                         max(abs(here - brightness(uv + float2(0.0, pixel.y))), abs(here - brightness(uv - float2(0.0, pixel.y)))));
+    // An edge is remembered for a while: writing can sit on a background that hides it for a moment.
+    float edge = max(contrast, was.g * 0.97);
+    return float4(still, edge, 0.0, 1.0);
+}
+)";
+
 // The new picture. Every pixel is fetched from both pictures along the
 // shift found for its place and mixed by how close the moment is to each.
 // Where the two fetched colours differ a lot, the shift cannot be trusted
@@ -180,6 +267,8 @@ const char kSynthesisShader[] = VELOPLAY_FLOW_CONSTANTS R"(
 Texture2D frameA : register(t0);
 Texture2D frameB : register(t1);
 Texture2D flow : register(t2);
+Texture2D misfit : register(t3);  // one value: the share of the picture whose structure fits nothing
+Texture2D standing : register(t4); // per pixel: how long unchanged, how much of an edge
 SamplerState linearSampler : register(s0);
 SamplerState pointSampler : register(s1);
 
@@ -210,14 +299,29 @@ float3 fetch(Texture2D picture, float2 at) {
     return saturate(sum / total);
 }
 
+// How firmly a pixel is held: it has stood still for about a second and is an edge.
+float held(float2 at) {
+    float4 s = standing.SampleLevel(pointSampler, at, 0);
+    return smoothstep(0.80, 0.95, s.r) * smoothstep(0.05, 0.15, s.g);
+}
+
 float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    // A cut: in about half of the picture or more, nothing fits. The nearer real picture, as it is.
+    if (misfit.SampleLevel(pointSampler, float2(0.5, 0.5), 0).r > 0.45) {
+        if (phase < 0.5) return float4(frameA.SampleLevel(pointSampler, uv, 0).rgb, 1.0);
+        return float4(frameB.SampleLevel(pointSampler, uv, 0).rgb, 1.0);
+    }
     float2 shift = flow.SampleLevel(linearSampler, uv, 0).xy / frameSize;
     float3 a = fetch(frameA, uv - phase * shift);
     float3 b = fetch(frameB, uv + (1.0 - phase) * shift);
     float difference = dot(abs(a - b), float3(0.299, 0.587, 0.114));
     float doubt = smoothstep(0.10, 0.30, difference);
+    // What has stood still stays where it is, and so does the pixel next to it: the soft rim of a letter.
+    float2 pixel = 1.0 / frameSize;
+    float hold = max(held(uv), max(max(held(uv + float2(pixel.x, 0.0)), held(uv - float2(pixel.x, 0.0))),
+                                   max(held(uv + float2(0.0, pixel.y)), held(uv - float2(0.0, pixel.y)))));
     float3 plain = lerp(frameA.SampleLevel(linearSampler, uv, 0).rgb, frameB.SampleLevel(linearSampler, uv, 0).rgb, phase);
-    return float4(lerp(lerp(a, b, phase), plain, doubt), 1.0);
+    return float4(lerp(lerp(a, b, phase), plain, max(doubt, hold)), 1.0);
 }
 )";
 
@@ -320,6 +424,11 @@ bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* conte
         return false;
     }
 
+    // Neither of these is needed for a picture; without them cuts and standing parts get no special care.
+    std::string extraError;
+    if (!makePixelShader(device, kReduceShader, sizeof(kReduceShader) - 1, reduceShader_, extraError)) reduceShader_.Reset();
+    if (!makePixelShader(device, kStillShader, sizeof(kStillShader) - 1, stillShader_, extraError)) stillShader_.Reset();
+
     // The card's own motion search is an extra on top. Without it, or
     // without the two shaders that use its result, the built-in search does the work.
     // The shaders come first, on every card: a mistake in them then shows
@@ -413,6 +522,34 @@ bool FlowFrameGenerator::ensureSize(int width, int height) {
         levels_.clear();
         return false;
     }
+
+    // For cuts and for what stands still. If these cannot be made, pictures are computed without that care.
+    if (!makeVectors(misfitCoarse_, 8, 8) || !makeVectors(misfit_, 1, 1)) {
+        misfitCoarse_ = Level{};
+        misfit_ = Level{};
+    }
+    D3D11_TEXTURE2D_DESC standing{};
+    standing.Width = static_cast<UINT>(width);
+    standing.Height = static_cast<UINT>(height);
+    standing.MipLevels = 1;
+    standing.ArraySize = 1;
+    standing.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    standing.SampleDesc.Count = 1;
+    standing.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    const float nothing[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (Still& still : still_) {
+        still = Still{};
+        if (FAILED(device_->CreateTexture2D(&standing, nullptr, still.texture.GetAddressOf())) ||
+            FAILED(device_->CreateShaderResourceView(still.texture.Get(), nullptr, still.view.GetAddressOf())) ||
+            FAILED(device_->CreateRenderTargetView(still.texture.Get(), nullptr, still.target.GetAddressOf()))) {
+            still_[0] = Still{};
+            still_[1] = Still{};
+            break;
+        }
+        context_->ClearRenderTargetView(still.target.Get(), nothing);
+    }
+    stillNow_ = 0;
+    pairIsNew_ = false;
     width_ = width;
     height_ = height;
     return true;
@@ -444,8 +581,8 @@ void FlowFrameGenerator::pass(ID3D11PixelShader* shader, ID3D11RenderTargetView*
     context_->Draw(3, 0);
 
     // Nothing stays bound: the next pass writes to what this one read.
-    ID3D11ShaderResourceView* none[3] = {nullptr, nullptr, nullptr};
-    context_->PSSetShaderResources(0, 3, none);
+    ID3D11ShaderResourceView* none[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    context_->PSSetShaderResources(0, 5, none);
     ID3D11RenderTargetView* noTarget = nullptr;
     context_->OMSetRenderTargets(1, &noTarget, nullptr);
 }
@@ -455,6 +592,7 @@ bool FlowFrameGenerator::prepare(int slot, ID3D11ShaderResourceView* picture, in
     ID3D11ShaderResourceView* views[1] = {picture};
     pass(lumaShader_.Get(), lumaTarget_[slot].Get(), levels_[0].lumaWidth, levels_[0].lumaHeight, views, 1);
     context_->GenerateMips(lumaView_[slot].Get());
+    pairIsNew_ = true;
 
     if (usesHardwareMotion()) {
         // The card's search gets the picture as well, as brightness at full size.
@@ -533,9 +671,7 @@ bool FlowFrameGenerator::generate(int slotFrom, ID3D11ShaderResourceView* from, 
     if (usesHardwareMotion()) {
         ID3D11ShaderResourceView* flow = nullptr;
         if (hardwareFlow(slotFrom, slotTo, constants.phase, flow)) {
-            ID3D11ShaderResourceView* views[3] = {from, to, flow};
-            pass(synthesisShader_.Get(), target, width_, height_, views, 3);
-            return true;
+            return finish(slotFrom, from, slotTo, to, flow, constants.phase, target);
         }
         // Not this time, or never again: the built-in search below does it.
     }
@@ -566,8 +702,50 @@ bool FlowFrameGenerator::generate(int slotFrom, ID3D11ShaderResourceView* from, 
         pass(flowShader_.Get(), refined_.flowTarget.Get(), refined_.flowWidth, refined_.flowHeight, views, 3);
     }
 
-    ID3D11ShaderResourceView* views[3] = {from, to, refined_.flowView.Get()};
-    pass(synthesisShader_.Get(), target, width_, height_, views, 3);
+    return finish(slotFrom, from, slotTo, to, refined_.flowView.Get(), constants.phase, target);
+}
+
+bool FlowFrameGenerator::finish(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to,
+                                ID3D11ShaderResourceView* flow, float phase, ID3D11RenderTargetView* target) {
+    Constants constants{};
+    constants.phase = phase;
+    constants.frameSize[0] = static_cast<float>(width_);
+    constants.frameSize[1] = static_cast<float>(height_);
+
+    // The count of what stands still moves on once per pair of pictures, not once per picture computed.
+    const bool counting = holdStill_ && stillShader_ && still_[0].view && still_[1].view;
+    if (counting && pairIsNew_) {
+        context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+        ID3D11ShaderResourceView* views[3] = {from, to, still_[stillNow_].view.Get()};
+        pass(stillShader_.Get(), still_[1 - stillNow_].target.Get(), width_, height_, views, 3);
+        stillNow_ = 1 - stillNow_;
+    }
+    pairIsNew_ = false;
+
+    // How much of the picture found no fit.
+    const bool judging = reduceShader_ && misfit_.flowView && misfitCoarse_.flowView;
+    if (judging) {
+        constants.cells[0] = 8.0f;
+        constants.cells[1] = 8.0f;
+        constants.hasPrediction = 0.0f;
+        // "Surroundings" are the copy three steps down, a sixteenth of the picture's size.
+        constants.mip = static_cast<float>(std::min<std::size_t>(3, levels_.size() - 1));
+        context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+        ID3D11ShaderResourceView* first[3] = {flow, lumaView_[slotFrom].Get(), lumaView_[slotTo].Get()};
+        pass(reduceShader_.Get(), misfitCoarse_.flowTarget.Get(), 8, 8, first, 3);
+        constants.cells[0] = 1.0f;
+        constants.cells[1] = 1.0f;
+        constants.hasPrediction = 1.0f;
+        context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+        ID3D11ShaderResourceView* second[1] = {misfitCoarse_.flowView.Get()};
+        pass(reduceShader_.Get(), misfit_.flowTarget.Get(), 1, 1, second, 1);
+    }
+
+    context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+    // A view that is missing reads as zero: no cut, nothing held.
+    ID3D11ShaderResourceView* views[5] = {from, to, flow, judging ? misfit_.flowView.Get() : nullptr,
+                                          counting ? still_[stillNow_].view.Get() : nullptr};
+    pass(synthesisShader_.Get(), target, width_, height_, views, 5);
     return true;
 }
 

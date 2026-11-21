@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "input/DualSenseEffects.hpp"
 #include "input/IControllerBackend.hpp"
 
 namespace veloplay::input {
@@ -55,6 +56,13 @@ public:
     /// Releases both triggers.
     bool clearTriggerEffects();
 
+    /// How strong the console wants vibration and haptics, and the adaptive
+    /// triggers. Told to a DualSense at once and with every trigger effect
+    /// after that. A new session starts at full strength.
+    bool setEffectStrength(EffectStrength haptics, EffectStrength triggers);
+    [[nodiscard]] EffectStrength hapticStrength() const { return hapticStrength_; }
+    [[nodiscard]] EffectStrength triggerStrength() const { return triggerStrength_; }
+
     /// Plug and unplug events since the last call.
     std::vector<Event> takeEvents();
 
@@ -64,6 +72,8 @@ private:
     std::unique_ptr<IControllerBackend> backend_;
     std::vector<ControllerInfo> controllers_;
     std::optional<std::uint32_t> activeId_;
+    EffectStrength hapticStrength_ = EffectStrength::Strong;
+    EffectStrength triggerStrength_ = EffectStrength::Strong;
     std::string preferredName_;
     bool preferenceChanged_ = false;
     float deadzone_ = 0.08f;

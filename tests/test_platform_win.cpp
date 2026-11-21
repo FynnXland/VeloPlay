@@ -736,6 +736,151 @@ TEST(FrameGeneration, TheShadersForTheCardsMotionSearchCompile) {
     EXPECT_STREQ(renderer.frameGeneratorName(), "VeloPlay Flow");
 }
 
+TEST(FrameGeneration, ShowsARealPictureAcrossACut) {
+    constexpr int kWidth = 256;
+    constexpr int kHeight = 144;
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+
+    // The game jumps to another scene: the second picture is a different place of the structure altogether.
+    PatternFrame first(kWidth, kHeight, 0, 0);
+    PatternFrame second(kWidth, kHeight, 5003, 2999);
+    const auto show = [&](const media::VideoFrame& frame) {
+        renderer.clear();
+        EXPECT_TRUE(renderer.submit(frame));
+        surface.begin();
+        renderer.draw(kWidth, kHeight);
+        return surface.read();
+    };
+    const std::vector<int> a = show(first.frame);
+    const std::vector<int> b = show(second.frame);
+    std::vector<int> mixed(a.size());
+    for (std::size_t i = 0; i < a.size(); ++i) mixed[i] = (a[i] + b[i] + 1) / 2;
+
+    renderer.clear();
+    ASSERT_TRUE(renderer.submit(first.frame));
+    const std::uint64_t firstId = renderer.newestId();
+    ASSERT_TRUE(renderer.submit(second.frame));
+    const auto between = [&](int step, int steps) {
+        render::VideoRenderer::Output output;
+        output.choice.valid = true;
+        output.choice.base = firstId;
+        output.choice.next = renderer.newestId();
+        output.choice.step = step;
+        output.choice.steps = steps;
+        surface.begin();
+        renderer.draw(kWidth, kHeight, output);
+        EXPECT_TRUE(renderer.lastDrawWasGenerated());
+        return surface.read();
+    };
+    // A mix of two scenes shows as a flash of both at once. Shown is the nearer real picture.
+    const std::vector<int> early = between(1, 4);
+    const std::vector<int> late = between(3, 4);
+    const double earlyFromFirst = meanDifference(early, a, kWidth, kHeight, 0);
+    const double lateFromSecond = meanDifference(late, b, kWidth, kHeight, 0);
+    const double apart = meanDifference(a, b, kWidth, kHeight, 0);
+    std::printf("cut: the two scenes are %.1f grey levels apart; a quarter in is %.2f from the first, three quarters "
+                "in %.2f from the second\n",
+                apart, earlyFromFirst, lateFromSecond);
+    EXPECT_GT(apart, 20.0);
+    EXPECT_LT(earlyFromFirst, 1.0);
+    EXPECT_LT(lateFromSecond, 1.0);
+}
+
+/// A scene that moves behind something that does not: the game's own display,
+/// here a block of fine upright bars like the strokes of writing.
+struct OverlayFrame {
+    static constexpr int kLeft = 60, kTop = 30, kRight = 150, kBottom = 62;
+    PatternFrame picture;
+
+    OverlayFrame(int width, int height, double dx, double dy) : picture(width, height, dx, dy) {
+        for (int y = kTop; y < kBottom; ++y) {
+            for (int x = kLeft; x < kRight; ++x) {
+                const bool stroke = (x - kLeft) % 6 < 3;
+                picture.luma[static_cast<std::size_t>(y * width + x)] = static_cast<std::uint8_t>(stroke ? 220 : 40);
+            }
+        }
+    }
+};
+
+TEST(FrameGeneration, KeepsWhatStandsStillWhereItIs) {
+    constexpr int kWidth = 256;
+    constexpr int kHeight = 144;
+    constexpr int kPictures = 44; // a second and a half at 30 pictures a second
+    constexpr double kStepX = 4.0;
+    constexpr double kStepY = 1.0;
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+
+    // The picture between the last two, as it should be: the scene half a step on, the display unmoved.
+    std::vector<int> wanted;
+    {
+        render::VideoRenderer reference;
+        std::string error;
+        ASSERT_TRUE(reference.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        OverlayFrame expected(kWidth, kHeight, kStepX * (kPictures - 1.5), kStepY * (kPictures - 1.5));
+        ASSERT_TRUE(reference.submit(expected.picture.frame));
+        surface.begin();
+        reference.draw(kWidth, kHeight);
+        wanted = surface.read();
+    }
+    const auto offBy = [&](const std::vector<int>& picture, bool inside) {
+        double sum = 0.0;
+        int count = 0;
+        for (int y = 24; y < kHeight - 24; ++y) {
+            for (int x = 48; x < kWidth - 48; ++x) {
+                const bool display = x >= OverlayFrame::kLeft - 2 && x < OverlayFrame::kRight + 2 &&
+                                     y >= OverlayFrame::kTop - 2 && y < OverlayFrame::kBottom + 2;
+                if (display != inside) continue;
+                sum += std::abs(picture[static_cast<std::size_t>(y * kWidth + x)] - wanted[static_cast<std::size_t>(y * kWidth + x)]);
+                ++count;
+            }
+        }
+        return sum / count;
+    };
+
+    double displayError[2] = {0.0, 0.0};
+    double sceneError[2] = {0.0, 0.0};
+    for (int hold = 0; hold < 2; ++hold) {
+        render::VideoRenderer renderer;
+        std::string error;
+        ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        renderer.holdStillParts(hold == 1);
+        std::uint64_t before = 0;
+        std::vector<int> between;
+        for (int i = 0; i < kPictures; ++i) {
+            OverlayFrame picture(kWidth, kHeight, kStepX * i, kStepY * i);
+            ASSERT_TRUE(renderer.submit(picture.picture.frame));
+            if (i > 0) {
+                render::VideoRenderer::Output output;
+                output.choice.valid = true;
+                output.choice.base = before;
+                output.choice.next = renderer.newestId();
+                output.choice.step = 1;
+                output.choice.steps = 2;
+                surface.begin();
+                renderer.draw(kWidth, kHeight, output);
+                ASSERT_TRUE(renderer.lastDrawWasGenerated());
+                if (i == kPictures - 1) between = surface.read();
+            }
+            before = renderer.newestId();
+        }
+        displayError[hold] = offBy(between, true);
+        sceneError[hold] = offBy(between, false);
+    }
+    std::printf("standing display over a moving scene: display off by %.2f grey levels without care and %.2f with it; "
+                "scene off by %.2f and %.2f\n",
+                displayError[0], displayError[1], sceneError[0], sceneError[1]);
+    // The display is where it belongs, and caring for it did not cost the scene anything.
+    EXPECT_LT(displayError[1], 1.5);
+    EXPECT_LE(displayError[1], displayError[0] + 0.1);
+    EXPECT_LT(sceneError[1], sceneError[0] + 0.3);
+    EXPECT_LT(sceneError[1], 2.5);
+}
+
 TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
     constexpr int kWidth = 640;
     constexpr int kHeight = 360;

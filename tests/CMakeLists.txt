@@ -12,6 +12,7 @@ add_executable(veloplay_tests
     test_remote_control.cpp
     test_config.cpp
     test_stream_alerts.cpp
+    test_keyboard_mouse.cpp
     test_app_state.cpp
     test_console_list.cpp
     test_app_controller.cpp

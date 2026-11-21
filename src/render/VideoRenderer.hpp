@@ -84,6 +84,11 @@ public:
     /// motion search, and with frame generation switched off the card's
     /// engine is never touched.
     void wantGeneration(bool wanted) { generationWanted_ = wanted; }
+    /// Switches the care for parts that stand still off or on, to see what it does.
+    void holdStillParts(bool hold) {
+        if (generator_) generator_->holdStillParts(hold);
+        generatedFor_ = {};
+    }
     /// Leaves the card's engine aside, to compare the two ways of finding motion.
     void allowCardMotion(bool allowed) {
         if (generator_) generator_->allowHardwareMotion(allowed);

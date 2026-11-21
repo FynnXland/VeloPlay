@@ -116,8 +116,22 @@ bool ControllerManager::triggerEffects(std::uint8_t typeLeft, std::span<const st
     const auto info = active();
     if (!backend_ || !info) return false;
     if (info->type != ControllerType::DualSense && info->type != ControllerType::DualSenseEdge) return false;
-    const auto block = buildTriggerEffect(typeLeft, left, typeRight, right);
-    return backend_->sendEffect(info->id, block);
+    const std::uint8_t power = motorPower(hapticStrength_, triggerStrength_);
+    // Switched off on the console: the triggers stay loose, whatever the game asks for.
+    if (triggerStrength_ == EffectStrength::Off && (typeLeft != kTriggerEffectOff || typeRight != kTriggerEffectOff)) {
+        const std::array<std::uint8_t, kTriggerEffectParameters> none{};
+        return backend_->sendEffect(info->id, buildTriggerEffect(kTriggerEffectOff, none, kTriggerEffectOff, none, power));
+    }
+    return backend_->sendEffect(info->id, buildTriggerEffect(typeLeft, left, typeRight, right, power));
+}
+
+bool ControllerManager::setEffectStrength(EffectStrength haptics, EffectStrength triggers) {
+    hapticStrength_ = haptics;
+    triggerStrength_ = triggers;
+    const auto info = active();
+    if (!backend_ || !info) return false;
+    if (info->type != ControllerType::DualSense && info->type != ControllerType::DualSenseEdge) return false;
+    return backend_->sendEffect(info->id, buildMotorPower(motorPower(haptics, triggers)));
 }
 
 bool ControllerManager::clearTriggerEffects() {

@@ -86,6 +86,12 @@ static void event_cb(ChiakiEvent *event, void *user)
 				cb->trigger_effects(cb->user, event->trigger_effects.type_left, event->trigger_effects.left,
 					event->trigger_effects.type_right, event->trigger_effects.right);
 			break;
+		case CHIAKI_EVENT_HAPTIC_INTENSITY:
+		case CHIAKI_EVENT_TRIGGER_INTENSITY:
+			// The library's values: Off 0, Strong 1, Medium 2, Weak 3.
+			if(cb->effect_strength)
+				cb->effect_strength(cb->user, event->type == CHIAKI_EVENT_TRIGGER_INTENSITY ? 1 : 0, (int)event->intensity);
+			break;
 		case CHIAKI_EVENT_QUIT:
 			if(cb->quit)
 			{

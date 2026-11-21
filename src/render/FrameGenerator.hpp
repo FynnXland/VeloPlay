@@ -37,6 +37,8 @@ public:
     virtual void allowHardwareMotion(bool allowed) { (void)allowed; }
     /// Why the card's motion search is not in use; empty if it is, or was never an option.
     [[nodiscard]] virtual std::string hardwareMotionError() const { return {}; }
+    /// Lets a caller switch off the care for parts that stand still, to see what it does.
+    virtual void holdStillParts(bool hold) { (void)hold; }
 };
 
 /// The built-in method. It follows how things move between the two pictures
@@ -53,6 +55,21 @@ public:
 ///    into view or the search was wrong, it falls back to a plain mix.
 ///
 /// Pixel shaders only, so it runs on every Direct3D 11 card.
+///
+/// Two things are looked after on top of that:
+///
+/// - A cut. When the game jumps to another picture, nothing in the one
+///   matches anything in the other, and a mix of both shows as a flash of
+///   two pictures at once. If the fine structure of about half the picture
+///   fits neither along the shift that was found nor in place, the nearer
+///   of the two real pictures is shown instead. A flash or a fade is no
+///   cut: there the structure stays where it is.
+/// - What stands still for a while, above all the game's own display: a
+///   map, a counter, writing. The scene moves behind it, the search follows
+///   the scene, and the edges of the writing would be dragged along and
+///   shimmer. Every pixel keeps count of how long it has been unchanged;
+///   edges that have stood for about a second are taken from the real
+///   pictures as they are.
 ///
 /// On NVIDIA cards step 2 is done by the card's optical flow engine instead
 /// (NvofMotion): hardware made for this search, which also gets right what a
@@ -72,6 +89,7 @@ public:
     [[nodiscard]] const char* name() const override { return usesHardwareMotion() ? "NVIDIA Optical Flow" : "VeloPlay Flow"; }
     [[nodiscard]] bool usesHardwareMotion() const override { return nvof_ != nullptr && nvofAllowed_; }
     void allowHardwareMotion(bool allowed) override { nvofAllowed_ = allowed; }
+    void holdStillParts(bool hold) override { holdStill_ = hold; }
     [[nodiscard]] std::string hardwareMotionError() const override { return nvofError_; }
     bool prepare(int slot, ID3D11ShaderResourceView* picture, int width, int height) override;
     bool generate(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to, float phase,
@@ -92,6 +110,8 @@ private:
     bool makeFlow(Level& level);
     bool makeVectors(Level& level, int width, int height);
     bool hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView*& flow);
+    bool finish(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to,
+                ID3D11ShaderResourceView* flow, float phase, ID3D11RenderTargetView* target);
     void dropHardwareMotion(const std::string& reason);
     void pass(ID3D11PixelShader* shader, ID3D11RenderTargetView* target, int width, int height,
               ID3D11ShaderResourceView* const* views, UINT viewCount);
@@ -115,6 +135,22 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> lumaTarget_[2];
     std::vector<Level> levels_; // index 0 is the finest
     Level refined_;             // the finest level once more, with half steps
+
+    // Cuts: how much of the picture found no fit, boiled down to one number the last pass can read.
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> reduceShader_;
+    Level misfitCoarse_; // eight by eight
+    Level misfit_;       // one by one
+    // Standing still: per pixel how long it has been unchanged and how much of an edge it is.
+    struct Still {
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView> target;
+    };
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> stillShader_;
+    Still still_[2];       // written in turns: one is read while the other is written
+    int stillNow_ = 0;     // the one that holds the newest count
+    bool pairIsNew_ = false; // a picture arrived since the count was last brought up to date
+    bool holdStill_ = true;
 
     // The card's own motion search, where there is one.
     std::unique_ptr<NvofMotion> nvof_;
