@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VeloPlay">
+<defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e232b"/><stop offset="1" stop-color="#121418"/></linearGradient></defs>
+<rect width="512" height="512" rx="115.2" fill="url(#tile)"/>
+<polygon points="110.1,154.3 282.2,256.0 110.1,357.7" fill="#2a6fe8" stroke="#2a6fe8" stroke-width="35.8" stroke-linejoin="round" opacity="0.28"/>
+<polygon points="161.3,154.3 333.4,256.0 161.3,357.7" fill="#2a6fe8" stroke="#2a6fe8" stroke-width="35.8" stroke-linejoin="round" opacity="0.55"/>
+<polygon points="212.5,154.3 384.6,256.0 212.5,357.7" fill="#2a6fe8" stroke="#2a6fe8" stroke-width="35.8" stroke-linejoin="round" opacity="1.0"/>
+</svg>

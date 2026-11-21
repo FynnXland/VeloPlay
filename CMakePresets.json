@@ -1,0 +1,57 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows",
+      "displayName": "Windows client (MSVC, vcpkg)",
+      "description": "Full build. Needs Visual Studio with the C++ workload and the VCPKG_ROOT environment variable.",
+      "binaryDir": "${sourceDir}/build/windows",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "core",
+      "displayName": "Portable parts and tests (system packages)",
+      "description": "Protocol, input and configuration code plus unit tests. Builds on Linux and macOS without vcpkg.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/core",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VELOPLAY_BUILD_APP": "OFF"
+      }
+    },
+    {
+      "name": "ui-preview",
+      "displayName": "Portable parts plus offscreen UI preview",
+      "inherits": "core",
+      "binaryDir": "${sourceDir}/build/ui-preview",
+      "cacheVariables": {
+        "VELOPLAY_BUILD_UI_PREVIEW": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows", "configurePreset": "windows", "configuration": "Release" },
+    { "name": "windows-debug", "configurePreset": "windows", "configuration": "Debug" },
+    { "name": "core", "configurePreset": "core" },
+    { "name": "ui-preview", "configurePreset": "ui-preview" }
+  ],
+  "testPresets": [
+    {
+      "name": "windows",
+      "configurePreset": "windows",
+      "configuration": "Release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "core",
+      "configurePreset": "core",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

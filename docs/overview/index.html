@@ -1,0 +1,748 @@
+<title>VeloPlay Funktionsübersicht</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, left-aligned. Each step and each screen pairs
+   "what you see" with "what happens behind it". Colours follow the client's
+   own palette (src/ui/Theme.cpp), which is dark first. */
+:root {
+  color-scheme: dark;
+  --bg: #0e0f11;
+  --surface: #17191c;
+  --raised: #1f2226;
+  --line: rgba(255, 255, 255, 0.09);
+  --fg: #f2f3f5;
+  --muted: #a3a9b2;
+  --faint: #7c838d;
+  --accent: #5b93f5;
+  --accent-ink: #ffffff;
+  --accent-fill: #2a6fe8;
+  --ok: #34c759;
+  --soon: #ff9f0a;
+  --bad: #ff5a4f;
+  --ok-bg: rgba(52, 199, 89, 0.14);
+  --soon-bg: rgba(255, 159, 10, 0.14);
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --raised: #eef0f3;
+    --line: rgba(15, 20, 30, 0.12);
+    --fg: #14171c;
+    --muted: #515966;
+    --faint: #6f7783;
+    --accent: #1f5fd6;
+    --accent-ink: #ffffff;
+    --accent-fill: #2a6fe8;
+    --ok: #17803a;
+    --soon: #a85d00;
+    --bad: #c5352b;
+    --ok-bg: rgba(23, 128, 58, 0.12);
+    --soon-bg: rgba(168, 93, 0, 0.12);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --raised: #eef0f3;
+  --line: rgba(15, 20, 30, 0.12);
+  --fg: #14171c;
+  --muted: #515966;
+  --faint: #6f7783;
+  --accent: #1f5fd6;
+  --accent-ink: #ffffff;
+  --accent-fill: #2a6fe8;
+  --ok: #17803a;
+  --soon: #a85d00;
+  --bad: #c5352b;
+  --ok-bg: rgba(23, 128, 58, 0.12);
+  --soon-bg: rgba(168, 93, 0, 0.12);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 16px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 72px;
+}
+.page { max-width: 900px; margin-inline: auto; display: flex; flex-direction: column; gap: 56px; }
+section { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.1; letter-spacing: -0.02em; }
+h2 { font-size: 1.5rem; line-height: 1.2; letter-spacing: -0.01em; }
+h3 { font-size: 1.08rem; line-height: 1.3; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+code, kbd { font-family: var(--font-mono); font-size: 0.86em; background: var(--raised); padding: 0.1em 0.4em; border-radius: 5px; overflow-wrap: anywhere; }
+ul, ol { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column; gap: 6px; max-width: 68ch; }
+.lead { font-size: 1.12rem; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+
+/* header */
+.eyebrow { font: 500 0.78rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font: 500 0.82rem/1 var(--font-body); padding: 7px 11px; border-radius: 999px; background: var(--raised); color: var(--muted); white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.soon { background: var(--soon-bg); color: var(--soon); }
+nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.95rem; }
+
+/* two lists: works / comes later */
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h3 { display: flex; align-items: center; gap: 9px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--faint); }
+.dot.ok { background: var(--ok); }
+.dot.soon { background: var(--soon); }
+
+/* the walk-through: a real sequence, so the numbers carry meaning */
+.steps { list-style: none; padding: 0; gap: 14px; max-width: none; counter-reset: step; }
+.step { background: var(--surface); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; counter-increment: step; }
+.step > h3::before { content: counter(step) ". "; color: var(--faint); font-family: var(--font-mono); font-weight: 500; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 28px; }
+.pair > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label { font: 500 0.74rem/1.2 var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+details > summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 0.95rem; }
+details[open] > summary { margin-bottom: 10px; }
+details > * + * { margin-top: 8px; }
+
+/* screens */
+.screen { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px 28px; align-items: start; padding-block: 6px 22px; border-bottom: 1px solid var(--line); }
+.screen:last-child { border-bottom: 0; }
+.screen > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shot { border-radius: 10px; border: 1px solid var(--line); display: block; width: 100%; height: auto; background: #0e0f11; }
+.shot.narrow { max-width: 300px; }
+.shot { cursor: zoom-in; }
+.shot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+dialog.viewer { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; overflow: visible; }
+dialog.viewer::backdrop { background: rgba(0, 0, 0, 0.84); }
+dialog.viewer img { display: block; max-width: 96vw; max-height: 94vh; width: auto; height: auto; border-radius: 10px; cursor: zoom-out; }
+
+/* tables */
+.scroll { overflow-x: auto; border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; min-width: 640px; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 0.74rem/1.2 var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.state { font-weight: 500; white-space: nowrap; }
+.state.ok { color: var(--ok); }
+.state.soon { color: var(--soon); }
+.state.no { color: var(--faint); }
+
+.diagram { overflow-x: auto; background: var(--surface); border-radius: 14px; padding: 16px; }
+.note { border-left: 0; background: var(--raised); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="page">
+
+<header style="display:flex;flex-direction:column;gap:16px">
+  <span class="eyebrow">VeloPlay · Funktionsübersicht</span>
+  <h1>Was VeloPlay kann und wie es das macht</h1>
+  <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
+  <div class="facts">
+    <span class="pill">Version 0.7.0</span>
+    <span class="pill">Stand 21.11.2026</span>
+    <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
+    <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
+  </div>
+  <nav aria-label="Abschnitte">
+    <a href="#stand">Stand</a>
+    <a href="#ablauf">Ablauf</a>
+    <a href="#oberflaeche">Oberfläche</a>
+    <a href="#aufbau">Aufbau</a>
+    <a href="#hintergrund">Hintergrund</a>
+    <a href="#updates">Updates</a>
+    <a href="#netzwerk">Netzwerk</a>
+    <a href="#daten">Daten</a>
+    <a href="#pruefung">Prüfung</a>
+    <a href="#fahrplan">Fahrplan</a>
+  </nav>
+</header>
+
+<section id="stand">
+  <h2>Stand auf einen Blick</h2>
+  <div class="split">
+    <div class="panel">
+      <h3><span class="dot ok"></span>Funktioniert heute</h3>
+      <ul>
+        <li>PS5 im Heimnetz finden, mit Namen, Adresse und Zustand</li>
+        <li>PS5 einmalig koppeln, in drei geführten Schritten</li>
+        <li>Die Account-ID per Anmeldung bei Sony holen, ohne Skript und ohne Kopieren</li>
+        <li>PS5 aus dem Ruhemodus aufwecken</li>
+        <li>Mit der PS5 verbinden und ihr Bild im Fenster oder im Vollbild sehen, mit Ton</li>
+        <li>Das Bild auf der Grafikkarte entpacken, ersatzweise auf dem Prozessor</li>
+        <li>Die PS5 mit dem Controller am PC steuern</li>
+        <li>Vibration, adaptive Trigger (Widerstand von L2 und R2) und Haptik des DualSense</li>
+        <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
+        <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
+        <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
+        <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
+        <li>Neue Version mit einem Klick laden und einrichten</li>
+        <li>Skripte auf dem PC Tasten senden lassen</li>
+        <li>Deutsch und Englisch</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
+      <ul>
+        <li>Zwischenbilder schneller und genauer mit der Hardware von NVIDIA (Optical Flow)</li>
+        <li>Erkennen, wenn ein Spiel in einem 60-fps-Stream nur 30 Bilder liefert</li>
+        <li>HDR</li>
+      </ul>
+      <p class="small muted">Neu in 0.6.0 und bisher nur auf einem Software-Renderer geprüft: Zwischenbilder (aus 30 Bildern pro Sekunde werden 60), Hochskalieren mit Lanczos und Schärfen. Auf einer echten Grafikkarte ist diese Version der erste Versuch.</p>
+      <p class="small muted">Wichtig: An einer echten PS5 bestätigt sind seit dem 21.11.2026 mit 0.5.2 Suche, Kopplung, Verbindung, ein flüssiges Bild über die Grafikkarte, Ton und die Steuerung mit dem Controller. Noch nicht bestätigt sind Trigger, Haptik und das Aufwecken. Bekannte Fehler: Eingaben kommen spürbar später an als mit PS Remote Play, und nach Alt+Tab reagiert das Fenster manchmal nicht mehr. Die Tabelle „Was wie geprüft ist“ sagt genau, was das heißt.</p>
+    </div>
+  </div>
+</section>
+
+<section id="ablauf">
+  <h2>So läuft es ab</h2>
+  <p class="muted">Die Schritte in der Reihenfolge, in der du sie beim ersten Einrichten gehst.</p>
+  <ol class="steps">
+    <li class="step">
+      <h3>Starten und suchen</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Nach dem Start erscheint deine PS5 in der Übersicht. Ein Punkt zeigt den Zustand: grün für „Bereit“, orange für „Im Ruhemodus“, grau für „Nicht erreichbar“. Läuft ein Spiel, steht sein Name daneben.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay ruft alle zwei Sekunden ins Heimnetz, ob eine PS5 da ist. Jede Konsole antwortet mit Name, Zustand und Kennung. Kommt nach vier Sekunden keine Antwort, fragt VeloPlay zusätzlich jede Adresse des Heimnetzes einzeln. Wer sieben Sekunden lang nicht antwortet, gilt als nicht erreichbar.</p>
+          <p class="small muted">Die offizielle Remote-Play-App findet Konsolen über das PSN-Konto und nicht über das Heimnetz. Dass sie eine PS5 findet, heißt deshalb nicht, dass die Suche im Heimnetz funktioniert.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li>Suchpaket <code>SRCH * HTTP/1.1</code> per UDP an Port <code>9302</code>, als Rundruf an jede aktive Netzwerkkarte und zusätzlich direkt an bekannte Adressen.</li>
+          <li>Antwort <code>200</code> heißt eingeschaltet, <code>620</code> heißt Ruhemodus. Die Kennung <code>host-id</code> ist die MAC-Adresse und bleibt gleich, auch wenn sich die IP ändert.</li>
+          <li>Absender-Port <code>9303</code> bis <code>9319</code>, wie beim offiziellen Client; sonst ein freier Port.</li>
+          <li>Der Rundruf hat zwei Schwächen: Manche WLAN-Zugangspunkte und Repeater reichen ihn nicht weiter, und eine Firewall kann die Antwort verwerfen, weil sie von einer anderen Adresse kommt als der angefragten. Deshalb die Einzelabfrage: alle zehn Sekunden an jede Adresse, solange keine Konsole bekannt ist, in Netzen bis 254 Adressen. Die Antwort auf eine direkte Frage kommt durch jede Firewall.</li>
+          <li>Eine einmal gefundene Konsole wird danach direkt gefragt und bleibt so auch ohne Rundruf auf der Liste.</li>
+          <li>Hilft beides nicht, liegen PC und PS5 in getrennten Netzen. Sind die Netze nur getrennt adressiert, hilft die IP-Adresse der PS5 unter Einstellungen &gt; Erweitert &gt; Zusätzliche Adressen.</li>
+          <li>Ein Gast-WLAN ist absichtlich vom Heimnetz abgeschottet, bei der FRITZ!Box erkennbar an Adressen, die mit <code>192.168.179.</code> beginnen. Dort hilft auch die Adresse von Hand nicht: Die PS5 muss ins normale WLAN.</li>
+          <li>Code: <code>DiscoveryService</code>, <code>HostTracker</code>, <code>parseDiscoveryResponse()</code> in <code>src/protocol</code>.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Koppeln</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Ein Klick auf „Koppeln“ öffnet drei Schritte: Konsole wählen, Account-ID eingeben, PIN von der PS5 eintippen. Die Account-ID musst du nicht kennen: „Bei PlayStation anmelden“ öffnet die Anmeldeseite von Sony in einem eigenen Fenster, danach steht die ID im Feld. Eingaben werden beim Tippen geprüft. Schlägt es fehl, steht dort, woran es lag und was zu tun ist.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay weist der PS5 nach, dass es die PIN und dein Konto kennt. Die PS5 gibt dafür zwei Schlüssel heraus. Sie werden verschlüsselt gespeichert und gelten, bis du die Kopplung entfernst.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li>Ankündigung <code>SRC3</code> per UDP an Port <code>9295</code>, die PS5 antwortet <code>RES3</code>. Danach eine Anfrage per TCP an denselben Port.</li>
+          <li>Die Anfrage ist mit AES-128 (CFB) verschlüsselt. Der Schlüssel entsteht aus einer festen Tabelle und der PIN. Mit falscher PIN kann die PS5 nichts entziffern und lehnt ab.</li>
+          <li>Ergebnis: <code>RP-Key</code> (für spätere Sitzungen) und <code>RegistKey</code> (zum Aufwecken). Beide landen über Windows DPAPI verschlüsselt in der Einstellungsdatei.</li>
+          <li>Die Account-ID wird als Base64 oder als Zahl angenommen.</li>
+          <li><strong>Anmeldung bei Sony:</strong> Das Fenster ist ein eingebetteter Browser (WebView2, Teil von Windows). Nach der Anmeldung leitet Sony auf eine feste Adresse weiter, die einen Einmal-Code trägt. VeloPlay fängt diese Weiterleitung ab, tauscht den Code bei Sony gegen ein kurzlebiges Zugriffstoken und fragt damit die Kontonummer ab. Sony gibt die Zieladresse fest vor, deshalb kann der normale Browser nicht von selbst in das Programm zurückspringen.</li>
+          <li>Passwort, Code und Token werden weder gespeichert noch protokolliert. Was das Fenster ablegt (Cookies), wird beim Beenden und beim nächsten Start gelöscht. Gespeichert wird nur die Account-ID.</li>
+          <li>Das Verfahren stammt aus dem Skript <code>psn-account-id.py</code> des Projekts chiaki-ng, das dafür grill2010 dankt. VeloPlay führt dieselben Schritte aus.</li>
+          <li>Fehlt WebView2 (möglich unter Windows 10 ohne Edge), öffnet sich der normale Browser. Die Adresse der leeren Seite nach der Anmeldung fügst du dann in das Feld für die Account-ID ein.</li>
+          <li>Code: <code>buildRegistRequest()</code>, <code>RegistCipher</code>, <code>registerWithConsole()</code>. Die erzeugten Bytes sind gegen chiaki-ng geprüft.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Aufwecken</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Bei einer Konsole im Ruhemodus steht „Aufwecken“. Der Punkt pulsiert, bis die PS5 hochgefahren ist. Das dauert 10 bis 30 Sekunden. Wacht sie nach einer Minute nicht auf, nennt ein Hinweis die Einstellung auf der PS5, die dafür an sein muss.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay schickt ein Weckpaket mit dem Schlüssel aus der Kopplung und wartet, bis die Suche die Konsole als „Bereit“ meldet.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li>Paket <code>WAKEUP * HTTP/1.1</code> per UDP an Port <code>9302</code>, mit <code>user-credential</code> aus dem <code>RegistKey</code>.</li>
+          <li>Wiederholung alle fünf Sekunden, Abbruch nach 60 Sekunden.</li>
+          <li>Code: <code>AppController::wake()</code>, <code>buildWakeupRequest()</code>, Zustände <code>Idle → Waking → Idle</code>.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Verbindung prüfen</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Über die drei Punkte neben der Konsole. Ein Wort als Urteil (Sehr gut, Gut, Mittel, Schlecht), darunter eine Reihe von Balken und drei Zahlen. Dazu ein Vorschlag für die Datenrate, den ein Klick übernimmt.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay schickt der PS5 alle 0,4 Sekunden ein kleines Paket und stoppt die Zeit bis zur Antwort. Aus den letzten Messungen entstehen Antwortzeit, Schwankung und Verlust.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li>Es sind dieselben Suchpakete wie in Schritt 1. Deshalb klappt die Messung ohne Kopplung und auch im Ruhemodus.</li>
+          <li>Antworten nach mehr als 300 ms zählen als verloren. Bewertet wird ab zehn Messungen.</li>
+          <li>Code: <code>ConnectionProbe</code>, <code>LatencyStats</code>, <code>rateLink()</code>, <code>adviceFor()</code>.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Verbinden</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Ein Klick auf „Verbinden“. Liegt die PS5 im Ruhemodus, wird sie vorher aufgeweckt. Nach einigen Sekunden steht dort „Verbunden“, oben links laufen die Werte der Verbindung. Fragt die PS5 nach dem vierstelligen Anmelde-Code deines Benutzers, gibst du ihn hier ein.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay weist sich mit den Schlüsseln aus der Kopplung aus, handelt Auflösung, Bildrate, Datenrate und Codec aus und bekommt dann verschlüsselte Bild- und Tonpakete. In der Gegenrichtung gehen die Eingaben des Controllers zur Konsole.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li>Diesen Teil übernimmt <code>libchiaki</code> aus dem Projekt chiaki-ng, weil er an vielen echten Konsolen erprobt ist. VeloPlay bindet nur den Teil für das Heimnetz ein, ohne den Weg über Sonys Server.</li>
+          <li>Ablauf: Sitzungsanfrage per TCP an Port <code>9295</code>, Steuerverbindung auf demselben Port, eine kurze Messstrecke per UDP auf <code>9297</code> (Antwortzeit und Paketgröße), dann der Stream per UDP auf <code>9296</code> mit Fehlerkorrektur.</li>
+          <li>Angefragt wird, was in den Einstellungen steht: 1080p, 30 oder 60 Bilder pro Sekunde, HEVC oder H.264, 5 bis 60 Mbit/s. Voreingestellt sind 15 Mbit/s bei 30 und 20 Mbit/s bei 60 Bildern pro Sekunde; 15 Mbit/s nutzt auch die offizielle App für 1080p. Lehnt die Konsole das Profil ab, wird automatisch eine Stufe tiefer verhandelt.</li>
+          <li>Kommt sechs Sekunden lang kein Bild an, trägt die Strecke die Datenrate nicht. VeloPlay verbindet dann neu mit der halben Rate, bis hinunter zu 5 Mbit/s, und sagt das nach der Sitzung in einem Hinweis.</li>
+          <li>Nach dem Aufwecken nimmt die PS5 erst nach einigen Sekunden Verbindungen an. VeloPlay versucht es bis zu sechsmal im Abstand von zwei Sekunden.</li>
+          <li>Bricht der Stream ab, folgen drei neue Versuche. Erst danach erscheint ein Hinweis. Geht die PS5 selbst in den Ruhemodus, gilt das als normales Ende.</li>
+          <li>Die PS5 nennt den Grund, wenn sie ablehnt: Remote Play aus, ein anderes Gerät ist verbunden, unbekannte Protokollversion. VeloPlay zeigt dazu einen Satz und klein darunter die Meldung der Konsole.</li>
+          <li>Der Anmelde-Code wird nur an die Sitzung übergeben und nicht gespeichert.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Am PC spielen</h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>Jedes Bild kommt als gepacktes Paket an. Die Grafikkarte entpackt es, ein kleines Programm auf der Karte rechnet die Farben um und passt die Größe ans Fenster an. Der Ton wird entpackt und mit einer kleinen Reserve abgespielt, damit verspätete Pakete nicht knacken.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li><strong>Bild:</strong> FFmpeg entpackt HEVC oder H.264 über D3D11VA auf demselben Direct3D-Gerät, mit dem gezeichnet wird. Das Bild verlässt die Grafikkarte nie: Es wird von der Oberfläche des Dekoders in eine eigene Textur kopiert und von dort gezeichnet.</li>
+          <li><strong>Ersatzweg:</strong> Kann die Karte den Codec nicht, entpackt der Prozessor, und das Bild wird hochgeladen. In der Anzeige steht dann „CPU“ statt „D3D11VA“.</li>
+          <li><strong>Farben:</strong> Die PS5 sendet YUV nach BT.709 mit eingeschränktem Wertebereich. Ein Shader rechnet nach RGB um. Das Seitenverhältnis bleibt, übrige Ränder sind schwarz.</li>
+          <li><strong>Kaputte Bilder:</strong> Lässt sich ein Bild nicht entpacken oder kommt der Dekoder nicht hinterher, fordert VeloPlay bei der PS5 ein neues Vollbild an und überspringt alles bis dahin, statt Bildfehler mitzuschleppen.</li>
+          <li><strong>Stöße:</strong> Ein WLAN liefert oft erst nichts und dann mehrere Bilder auf einmal. Die Bilder warten dann kurz vor dem Dekoder. Verworfen wird erst, wenn das älteste länger als 250 ms wartet; die Anzeige nennt in dem Fall die Zahl der verworfenen Bilder.</li>
+          <li><strong>Dekoder und Anzeige teilen sich die Grafikkarte:</strong> Das Programm wartet vor dem Zeichnen auf den Monitor, nicht währenddessen. So steht der Dekoder nicht still, solange auf das nächste Bild des Monitors gewartet wird.</li>
+          <li><strong>Ton:</strong> Opus, 48 kHz, Stereo. Reserve 80 ms, mit dem Netzwerkpuffer „Stabil“ 140 ms. Läuft mehr als 80 ms darüber hinaus auf, wird alter Ton verworfen, damit er nicht hinter dem Bild herhinkt.</li>
+          <li><strong>Adaptive Trigger:</strong> Die PS5 schickt je Trigger eine Effektart und zehn Parameter. VeloPlay reicht sie über SDL unverändert an den DualSense weiter und gibt die Trigger beim Trennen wieder frei.</li>
+          <li><strong>Haptik:</strong> Die PS5 schickt sie als eigene Tonspur mit 3000 Hz. Am USB-Kabel meldet sich der DualSense als Tongerät mit vier Kanälen; VeloPlay spielt die Spur dort auf Kanal 3 und 4. Dafür muss das Gerät in Windows auf „Quadrofonie“ stehen. Sonst, und über Bluetooth, wird aus der Lautstärke der Spur Vibration.</li>
+          <li><strong>Noch nicht:</strong> HDR. Der Schalter in den Einstellungen sagt das dazu.</li>
+        </ul>
+      </details>
+    </li>
+    <li class="step">
+      <h3>Zwischenbilder und Hochskalierung <span class="pill soon" style="margin-left:6px">neu</span></h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Ein Spiel, das die PS5 mit 30 Bildern pro Sekunde schickt, läuft mit 60 über den Bildschirm. Das Bild wird scharf auf die Größe des Fensters hochgerechnet. Voreingestellt ist „Auto“: VeloPlay misst, ob 30 oder 60 Bilder ankommen, verdoppelt 30 und zeigt 60, wie sie sind.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>Die Grafikkarte verfolgt, wie sich das Bild zwischen zwei Bildern der PS5 bewegt, und setzt daraus ein Bild für den Zeitpunkt dazwischen zusammen. Damit das passt, erscheint jedes Bild etwa 17 Millisekunden später. Der Ton wartet genauso lange.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li><strong>Drei Stufen:</strong> Jedes Bild wird einmal von YUV nach RGB umgerechnet, die zwei neuesten bleiben auf der Karte. Daraus entsteht bei Bedarf das Bild dazwischen. Zum Schluss wird auf Fenstergröße skaliert und geschärft.</li>
+          <li><strong>Verfahren „VeloPlay Flow“:</strong> Beide Bilder werden auf Helligkeit in halber Größe reduziert, mit immer kleineren Kopien darunter. Von der kleinsten Kopie zur größten sucht jeder Block die Verschiebung, bei der beide Bilder am besten zusammenpassen, ausgehend vom Ergebnis der Stufe darüber. Gesucht wird um den Zeitpunkt dazwischen herum, deshalb entstehen im neuen Bild keine Löcher.</li>
+          <li><strong>Zusammensetzen:</strong> Jeder Bildpunkt wird entlang dieser Verschiebung aus beiden Bildern geholt und gemischt. Wo die beiden nicht zusammenpassen (etwas kommt ins Bild oder die Suche lag falsch), wird stattdessen schlicht überblendet.</li>
+          <li><strong>Für jede Karte:</strong> nur Pixel-Shader, kein Compute, nichts von einem Hersteller. Die Schnittstelle <code>IFrameGenerator</code> lässt Platz für schnellere Verfahren mit Hardware von NVIDIA.</li>
+          <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln.</li>
+          <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
+          <li><strong>Hochskalieren:</strong> Lanczos mit 16 Stützstellen, begrenzt auf den Wertebereich der Nachbarn, damit neben harten Kanten kein Schatten entsteht. Beim Verkleinern bleibt es beim einfachen Filter.</li>
+          <li><strong>RTX Video Super Resolution:</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich.</li>
+          <li><strong>Schärfen:</strong> nach dem Verfahren RCAS aus AMDs FidelityFX Super Resolution 1 (MIT-Lizenz): Kanten werden angehoben, aber nur so weit, wie der Kontrast der Umgebung es zulässt.</li>
+          <li><strong>Geht etwas nicht:</strong> Kann die Karte das Verfahren nicht einrichten, zeigt VeloPlay die Bilder, wie sie ankommen, und die Anzeige nennt „nicht verfügbar“.</li>
+        </ul>
+      </details>
+    </li>
+  </ol>
+</section>
+
+<section id="oberflaeche">
+  <h2>Die Oberfläche</h2>
+  <p class="muted">Jeder Bildschirm mit dem, was man darauf tun kann. Die Bilder stammen aus dem Vorschau-Werkzeug mit Beispieldaten. Ein Klick auf ein Bild zeigt es groß.</p>
+
+  <div class="screen">
+    <img class="shot" src="img/uebersicht.png" alt="Übersicht mit drei Konsolen, Controller-Anzeige und Bildmodus" width="1100" height="720">
+    <div>
+      <h3>Übersicht</h3>
+      <ul>
+        <li><strong>Konsolenzeile:</strong> Name, Zustand, laufendes Spiel, IP-Adresse.</li>
+        <li><strong>Verbinden, Aufwecken, Koppeln:</strong> „Verbinden“ weckt eine schlafende Konsole gleich mit auf. Bei einer neuen Konsole steht dort „Koppeln“.</li>
+        <li><strong>Drei Punkte:</strong> Verbindung prüfen, Kopplung entfernen (mit Rückfrage).</li>
+        <li><strong>Oben rechts:</strong> angeschlossener Controller mit Verbindungsart, daneben die Einstellungen.</li>
+        <li><strong>Bildmodus:</strong> „30-fps-Spiel“ fordert 30 Bilder an und berechnet die Bilder dazwischen, „60-fps-Spiel“ fordert 60 an und zeigt sie, wie sie sind.</li>
+        <li><strong>Konsole hinzufügen:</strong> für Konsolen, die die Suche nicht findet.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/koppeln.png" alt="Kopplung, Schritt 2: Feld für die Account-ID mit einer beanstandeten Eingabe, darunter der Knopf Bei PlayStation anmelden" width="1100" height="720">
+    <div>
+      <h3>Koppeln</h3>
+      <ul>
+        <li><strong>Schritt 1:</strong> Konsole aus der Liste wählen oder IP-Adresse eintippen.</li>
+        <li><strong>Schritt 2:</strong> „Bei PlayStation anmelden“ holt die Account-ID über die Anmeldung bei Sony. Wer sie kennt, tippt sie ein; im Bild ist ein Online-Name eingetragen, den das Feld als falsch markiert. Nach der ersten Kopplung ist die ID vorausgefüllt.</li>
+        <li><strong>Schritt 3:</strong> achtstellige PIN von der PS5.</li>
+        <li><strong>Danach:</strong> Fortschritt mit „Abbrechen“, dann Erfolg oder eine Fehlermeldung mit „Erneut versuchen“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/verbindung.png" alt="Verbindungstest mit Urteil Schlecht, Balkenreihe, drei Zahlen, Empfehlung und Tipps" width="1100" height="720">
+    <div>
+      <h3>Verbindung prüfen</h3>
+      <ul>
+        <li><strong>Urteil:</strong> ein Wort und ein Satz, was das fürs Spielen heißt.</li>
+        <li><strong>Balken:</strong> jede Messung ein Balken. Gleich hoch ist gut. Rote Striche sind verlorene Pakete.</li>
+        <li><strong>Zahlen:</strong> Antwortzeit, Schwankung, Verlust.</li>
+        <li><strong>Übernehmen:</strong> setzt Datenrate und Netzwerkpuffer passend zur Messung.</li>
+        <li><strong>Tipps:</strong> erscheinen nur bei „Mittel“ und „Schlecht“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/update.png" alt="Übersicht mit Hinweis Version 0.4.0 ist da und Knopf Aktualisieren" width="1100" height="720">
+    <div>
+      <h3>Update-Hinweis</h3>
+      <ul>
+        <li><strong>Aktualisieren:</strong> lädt die neue Version, prüft sie und richtet sie ein. Ein Balken zeigt den Fortschritt.</li>
+        <li><strong>Was ist neu?</strong> öffnet die Beschreibung der Version im Browser.</li>
+        <li><strong>Neu starten:</strong> erscheint, sobald alles an seinem Platz ist.</li>
+        <li>Ohne deinen Klick wird nichts installiert.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/einstellungen.png" alt="Einstellungen, Reiter Erweitert mit Sprache und Updates" width="1100" height="720">
+    <div>
+      <h3>Einstellungen</h3>
+      <ul>
+        <li><strong>Eingang:</strong> was die PS5 schickt. Bildrate (30 oder 60), Auflösung, Codec, HDR, Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
+        <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
+        <li><strong>Controller:</strong> welcher Controller, Totzone der Sticks, Vibration, adaptive Trigger.</li>
+        <li><strong>Erweitert:</strong> Sprache, Updates, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
+      </ul>
+      <p class="small muted">Änderungen werden von selbst gespeichert. Die Werte unter „Eingang“ gelten ab der nächsten Verbindung, alles andere sofort.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/ausgabe.png" alt="Einstellungen, Reiter Ausgabe: oben die Zeile PS5 sendet und Bildschirm zeigt, darunter Zwischenbilder auf Auto, Hochskalierung, Schärfe und VSync" width="1100" height="720">
+    <div>
+      <h3>Eingang und Ausgabe</h3>
+      <ul>
+        <li><strong>Die Zeile oben:</strong> links, was die PS5 sendet, rechts, was auf dem Bildschirm ankommt. Der umrandete Kasten gehört zum offenen Reiter.</li>
+        <li><strong>Zwischenbilder:</strong> „Auto“ verdoppelt 30 Bilder pro Sekunde und lässt 60 in Ruhe. Darunter steht, was das gerade heißt und wie viel später das Bild dadurch erscheint.</li>
+        <li><strong>Hochskalierung:</strong> „Lanczos“ ist ein schärferer Filter beim Vergrößern auf das Fenster. Auf NVIDIA-Karten gibt es zusätzlich „RTX Video“: Das neuronale Netz von NVIDIA vergrößert und glättet dabei Klötzchen. Dafür muss in der NVIDIA-App die RTX-Video-Verbesserung eingeschaltet sein.</li>
+        <li><strong>Schärfe:</strong> 0 % lässt das Bild, wie es ist.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/menue.png" alt="Menü über dem laufenden Bild: Weiter, Trennen, PS5 in den Ruhemodus, darunter der Schalter Anzeige oben links und der Knopf Einstellungen mit Zahnrad" width="1100" height="720">
+    <div>
+      <h3>Menü im Spiel</h3>
+      <ul>
+        <li><strong>Esc:</strong> öffnet und schließt das Menü. Das Spiel läuft weiter.</li>
+        <li><strong>Anzeige oben links:</strong> ein- und ausschalten, wie mit <kbd>F9</kbd>.</li>
+        <li><strong>Zahnrad:</strong> die Einstellungen, ohne die Verbindung zu trennen. Was unter „Ausgabe“ steht, wirkt sofort. Für geänderte Werte unter „Eingang“ gibt es den Knopf „Jetzt neu verbinden“; das Bild setzt dabei ein paar Sekunden aus.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/im-spiel.png" alt="Laufender Stream: oben links die Anzeige mit Bildraten, Datenrate, Antwortzeit, Verlust, Dekoder und Bildabständen, unten der Hinweis auf die Tasten Esc, F11 und F9" width="1100" height="720">
+    <div>
+      <h3>Im Spiel</h3>
+      <p class="small muted">Im Beispielbild ist die Fläche schwarz, weil das Vorschau-Werkzeug kein Spielbild hat. Dort liegt im Betrieb das Bild der PS5.</p>
+      <ul>
+        <li><strong>PS5 / Bildschirm:</strong> Bilder pro Sekunde, die ankommen, und Bilder, die gezeigt werden.</li>
+        <li><strong>PS5 und Bildschirm:</strong> davor jeweils die Größe des Bildes, wie es ankommt und wie es auf dem Bildschirm liegt.</li>
+        <li><strong>Zwischenbilder, Zusatzverzögerung:</strong> der Faktor mit dem Namen des Verfahrens, und wie viel später das Bild dadurch erscheint.</li>
+        <li><strong>Datenrate, Antwortzeit, Verlust:</strong> wie es der Verbindung geht.</li>
+        <li><strong>Dekoder:</strong> „D3D11VA“ heißt, die Grafikkarte entpackt. Dahinter die mittlere Zeit pro Bild.</li>
+        <li><strong>Langsamstes Bild:</strong> das Bild der letzten ein bis zwei Sekunden, das am längsten zum Entpacken brauchte. Liegt der Wert weit über dem Mittel, ruckelt es, auch wenn das Mittel gut aussieht.</li>
+        <li><strong>Bildabstände:</strong> gleichmäßige Balken bedeuten ruhiges Bild, orange Balken sind verspätete Bilder.</li>
+        <li><strong>Unten:</strong> ein Hinweis auf <kbd>Esc</kbd>, <kbd>F11</kbd> und <kbd>F9</kbd>, der nach einigen Sekunden verschwindet.</li>
+        <li><strong>Esc:</strong> Menü über dem Bild mit „Weiter“, „Trennen“ und „PS5 in den Ruhemodus“. Der Controller gehört weiter der PS5, das Menü bedienst du mit der Maus.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/verbunden.png" alt="Bildschirm Verbunden mit Wohnzimmer vor dem ersten Bild, darunter die Knöpfe Trennen und PS5 in den Ruhemodus" width="1100" height="720">
+    <div>
+      <h3>Verbunden, bevor das Bild da ist</h3>
+      <ul>
+        <li><strong>Kurzer Zwischenzustand:</strong> Die Verbindung steht, das erste Bild ist unterwegs.</li>
+        <li><strong>Empfangen:</strong> wie viele Bilder und Tonpakete angekommen sind.</li>
+        <li><strong>Bleibt es dabei:</strong> Nach einigen Sekunden ohne Bild steht hier, dass sich der Stream nicht entpacken lässt und wo der Grund zu finden ist. Trennen und Ruhemodus funktionieren trotzdem.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/anmelde-code.png" alt="Abfrage des Anmelde-Codes mit Eingabefeld, Hinweis auf einen falschen Code und den Knöpfen Anmelden und Abbrechen" width="1100" height="720">
+    <div>
+      <h3>Verbinden, Anmelde-Code, neu verbinden</h3>
+      <ul>
+        <li><strong>Verbinden:</strong> ein Satz, was gerade passiert, und „Abbrechen“. Startet die Konsole noch, steht dort der wievielte Versuch läuft.</li>
+        <li><strong>Anmelde-Code:</strong> erscheint nur, wenn dein Benutzer auf der PS5 mit einem Code geschützt ist. War er falsch, fragt die PS5 erneut.</li>
+        <li><strong>Neu verbinden:</strong> nach einem Abbruch, mit Zähler „Versuch 2 von 3“ und „Abbrechen“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/fehlgeschlagen.png" alt="Übersicht mit rotem Hinweis: Wohnzimmer wird gerade von einem anderen Gerät per Remote Play genutzt, darunter klein die Meldung der Konsole" width="1100" height="720">
+    <div>
+      <h3>Wenn die Verbindung nicht klappt</h3>
+      <ul>
+        <li><strong>Ein Satz zum Grund:</strong> Konsole nimmt keine Verbindung an, ein anderes Gerät ist verbunden, Remote Play abgestürzt, unbekannte Version, Verbindung abgebrochen.</li>
+        <li><strong>Was du tun kannst:</strong> steht im selben Satz.</li>
+        <li><strong>Klein darunter:</strong> die Meldung der Konsole im Wortlaut, für Fehlerberichte.</li>
+        <li><strong>Nochmal versuchen:</strong> „Verbinden“ in der Zeile der Konsole, ohne den Hinweis erst schließen zu müssen.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="aufbau">
+  <h2>Der Aufbau</h2>
+  <p>Die Oberfläche kennt den Rest nur über zwei Dinge: ein Datenpaket, das sie jedes Bild neu liest (<code>UiModel</code>), und eine Liste von Aktionen, die sie auslösen darf (<code>IUiActions</code>). Dahinter sitzt der <code>AppController</code>, der alle Dienste steuert. Deshalb lässt sich jeder Bildschirm ohne Windows und ohne Konsole rendern und prüfen.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph F[Oberfläche]
+    UI[UiManager<br/>Übersicht, Kopplung,<br/>Einstellungen, Anzeige]
+  end
+  subgraph K[Steuerung]
+    AC[AppController]
+  end
+  subgraph D[Dienste]
+    DS[Suche und Aufwecken]
+    RC[Kopplung]
+    SE[Sitzung<br/>libchiaki]
+    ME[Bild und Ton<br/>FFmpeg, Opus]
+    CP[Verbindungstest]
+    UP[Updater]
+    CM[Controller]
+    RS[Fernsteuerung]
+    CF[Einstellungen]
+  end
+  UI -- Aktionen --> AC
+  AC -- UiModel --> UI
+  AC --> DS & RC & SE & CP & UP & CM & RS & CF
+  SE -- Pakete --> ME
+  ME --> OUT[(Bildschirm, Lautsprecher,<br/>Haptik des Controllers)]
+  DS & RC & SE & CP <--> PS5[(PS5 im Heimnetz)]
+  UP <--> GH[(GitHub Releases)]
+  CM <--> PAD[(Controller)]
+  RS <--> SK[(Skripte auf dem PC)]
+  CF <--> FILE[(config.json)]
+</pre>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Teil</th><th>Enthält</th><th>Läuft auf</th></tr></thead>
+    <tbody>
+      <tr><td><code>veloplay_core</code></td><td>Suche, Kopplung, Sitzung, Bild- und Ton-Dekoder, Messung, Updater, Controller-Modell, Einstellungen, Steuerung</td><td>Windows, Linux, macOS</td></tr>
+      <tr><td><code>veloplay_ui</code></td><td>Alle Bildschirme, Texte, eigene Bedienelemente</td><td>überall, wo Dear ImGui läuft</td></tr>
+      <tr><td><code>veloplay_platform</code></td><td>Bildausgabe mit Direct3D 11, Tonausgabe mit WASAPI</td><td>Windows 10 und 11</td></tr>
+      <tr><td><code>VeloPlay.exe</code></td><td>Fenster, SDL3 für Controller, DPAPI, WinHTTP</td><td>Windows 10 und 11</td></tr>
+      <tr><td>FFmpeg, Opus</td><td>Entpacken von Bild und Ton. Liegen als eigene Dateien neben dem Programm.</td><td>Windows, Linux, macOS</td></tr>
+      <tr><td><code>libchiaki</code></td><td>Sitzungsaufbau, Transport, Fehlerkorrektur und Verschlüsselung des Streams. Aus chiaki-ng, fest auf einen Stand gesetzt, ohne den Teil für Verbindungen über das Internet.</td><td>Windows, Linux, macOS</td></tr>
+      <tr><td><code>veloplay-cli.exe</code></td><td>Suche, Messung, Aufwecken, Kopplung, Teststream mit Videodatei, Update-Abfrage im Terminal</td><td>Windows, Linux, macOS</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="hintergrund">
+  <h2>Der Hintergrund, Dienst für Dienst</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Dienst</th><th>Aufgabe</th><th>Wichtigste Funktionen</th><th>Ort im Code</th></tr></thead>
+    <tbody>
+      <tr><td>Suche</td><td>Konsolen im Netz finden und ihren Zustand aktuell halten</td><td><code>DiscoveryService::start()</code>, <code>hosts()</code>, <code>setDirectTargets()</code></td><td><code>src/protocol/Discovery*</code></td></tr>
+      <tr><td>Aufwecken</td><td>Weckpaket senden, auf „Bereit“ warten</td><td><code>DiscoveryService::wake()</code>, <code>wakeCredential()</code></td><td><code>src/protocol/Discovery*</code></td></tr>
+      <tr><td>Kopplung</td><td>PIN-Nachweis führen, Schlüssel empfangen</td><td><code>registerWithConsole()</code>, <code>buildRegistRequest()</code>, <code>parseRegistResponse()</code></td><td><code>src/protocol/Registration*</code></td></tr>
+      <tr><td>Sitzung</td><td>Verbindung aufbauen, Bild- und Tonpakete empfangen, Eingaben senden, Werte der Verbindung liefern</td><td><code>ISession::start()</code>, <code>pollEvents()</code>, <code>setControllerState()</code>, <code>sleepConsole()</code>, <code>stats()</code></td><td><code>src/session</code>, <code>third_party/chiaki</code></td></tr>
+      <tr><td>Bild</td><td>Pakete entpacken, das neueste Bild zeichnen</td><td><code>VideoDecoder::decode()</code>, <code>MediaPipeline::takeFrame()</code>, <code>VideoRenderer::submit()</code>, <code>draw()</code></td><td><code>src/media</code>, <code>src/render</code></td></tr>
+      <tr><td>Ton und Haptik</td><td>Opus entpacken, puffern, abspielen; Haptik auf das Tongerät des DualSense oder als Vibration</td><td><code>AudioDecoder::decode()</code>, <code>AudioBuffer</code>, <code>WasapiOutput</code>, <code>HapticsUpsampler</code>, <code>hapticsToRumble()</code></td><td><code>src/media</code>, <code>src/audio</code></td></tr>
+      <tr><td>Verbindungstest</td><td>Antwortzeiten messen, bewerten, Einstellung vorschlagen</td><td><code>ConnectionProbe::start()</code>, <code>rateLink()</code>, <code>adviceFor()</code></td><td><code>src/protocol/ConnectionProbe*</code>, <code>LatencyStats*</code></td></tr>
+      <tr><td>Updater</td><td>Neue Version finden, laden, prüfen, einrichten</td><td><code>Updater::check()</code>, <code>install()</code>, <code>extractZip()</code>, <code>swapInFiles()</code></td><td><code>src/update</code></td></tr>
+      <tr><td>Controller</td><td>Controller erkennen, einen auswählen, Zustand lesen</td><td><code>ControllerManager::update()</code>, <code>applyDeadzone()</code>, <code>mergeInputs()</code></td><td><code>src/input</code></td></tr>
+      <tr><td>Fernsteuerung</td><td>Befehle von Skripten annehmen</td><td><code>RemoteCommandProcessor::handle()</code>, <code>VirtualController</code></td><td><code>src/input/RemoteControl*</code></td></tr>
+      <tr><td>Einstellungen</td><td>Laden, prüfen, speichern, Schlüssel schützen</td><td><code>ConfigStore::load()</code>, <code>save()</code>, <code>sanitize()</code></td><td><code>src/app/Config*</code></td></tr>
+      <tr><td>Zustände</td><td>Festlegen, was wann erlaubt ist</td><td><code>AppStateMachine::handle()</code></td><td><code>src/app/AppState*</code></td></tr>
+      <tr><td>Darstellung</td><td>Fenster und Grafikausgabe</td><td><code>D3D11Device::create()</code>, <code>present()</code></td><td><code>src/render</code>, <code>src/app/Application*</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Controller</h3>
+  <p>Erkannt wird alles, was SDL3 als Gamepad kennt. Sind mehrere angeschlossen, gewinnt ein DualSense vor einem DualShock 4 vor einem Xbox-Controller, und Kabel vor Funk. Der einmal gewählte Controller bleibt aktiv, auch wenn später ein besserer dazukommt. Mit Steuerkreuz und Kreuz-Taste lässt sich die Oberfläche bedienen, Kreis schließt Dialoge.</p>
+  <p>Während einer Verbindung gehen Tasten, Sticks, Trigger, Touchpad und Bewegungssensor zur PS5, etwa 60-mal pro Sekunde abgeglichen. Zurück kommen drei Dinge: Vibration, der Widerstand der adaptiven Trigger und die Haptik des DualSense. Vibration und Trigger lassen sich in den Einstellungen einzeln abschalten. Beim Trennen gibt VeloPlay die Trigger wieder frei und stoppt die Motoren.</p>
+  <p>Am USB-Kabel gibt es alles drei. Für die Haptik muss das Tongerät „Wireless Controller“ in den Windows-Soundeinstellungen auf Quadrofonie stehen; steht es auf Stereo, schreibt VeloPlay das ins Protokoll und nimmt die Vibrationsmotoren. Über Bluetooth gibt es Trigger und Vibration.</p>
+
+  <h3>Fernsteuerung für Skripte</h3>
+  <p>Standardmäßig aus. Eingeschaltet nimmt VeloPlay auf <code>127.0.0.1:9876</code> Befehle als JSON per UDP an: <code>ping</code>, <code>status</code>, <code>press</code>, <code>set_state</code>, <code>release_all</code>, <code>action</code>. Während einer Verbindung landen gesendete Tasten bei der PS5, und die Aktionen <code>sleep</code> und <code>disconnect</code> beenden sie. Der echte Controller hat Vorrang: Ein Skript kann Tasten dazudrücken, aber keine loslassen, die du hältst. Alles, was ein Skript setzt, läuft von selbst ab. UDP statt WebSocket, weil eine Webseite im Browser kein UDP senden kann.</p>
+</section>
+
+<section id="updates">
+  <h2>Updates</h2>
+  <p>Für alle, die VeloPlay von GitHub geladen haben. Das Programm ersetzt sich selbst. Es braucht dafür keinen Installer und keine Administratorrechte, solange sein Ordner beschreibbar ist.</p>
+  <ol>
+    <li><strong>Nachsehen.</strong> Beim Start fragt VeloPlay bei GitHub nach der neuesten Version und vergleicht die Nummern.</li>
+    <li><strong>Fragen.</strong> Gibt es eine neuere, erscheint der Hinweis in der Übersicht. Bis du klickst, passiert nichts weiter.</li>
+    <li><strong>Laden.</strong> Die Datei <code>VeloPlay-windows-x64.zip</code> kommt über HTTPS von der Veröffentlichungsseite des Projekts.</li>
+    <li><strong>Prüfen.</strong> VeloPlay berechnet die SHA-256-Prüfsumme und vergleicht sie mit der, die GitHub zur Datei veröffentlicht. Passt sie nicht, wird die Datei verworfen.</li>
+    <li><strong>Entpacken.</strong> In einen Zwischenordner. Archive mit Pfaden, die aus dem Ordner herausführen, werden abgelehnt.</li>
+    <li><strong>Tauschen.</strong> Jede alte Datei wird in <code>Name.old</code> umbenannt, die neue nimmt ihren Platz ein. Geht dabei etwas schief, wird alles zurückgestellt.</li>
+    <li><strong>Neu starten.</strong> Die neue Version läuft und räumt die <code>.old</code>-Dateien weg.</li>
+  </ol>
+  <details><summary>Technik im Detail</summary>
+    <ul>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.7.0</code>.</li>
+      <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
+      <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
+      <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
+      <li>Abschalten: Einstellungen > Erweitert > Updates. Dort gibt es auch „Jetzt suchen“.</li>
+    </ul>
+  </details>
+  <div class="note">
+    <strong>Woher die Updates kommen</strong>
+    <span>Entwickelt wird in einem privaten Repository. Jede Version geht mit ihrem Quelltext an das öffentliche Repository <code>FynnXland/VeloPlay</code>, das sie selbst baut, testet und veröffentlicht. Dort sieht der Updater nach. Wer 0.6.1 oder älter hat, installiert die erste Version von dort einmal von Hand. Was sich geändert hat, steht in <code>CHANGELOG.md</code> und auf der Seite der Veröffentlichung.</span>
+  </div>
+</section>
+
+<section id="netzwerk">
+  <h2>Netzwerk und WLAN</h2>
+  <p>Remote Play läuft über das Heimnetz. Die schwächste Strecke entscheidet: Hängt die PS5 an schwachem WLAN, hilft ein PC am Kabel nicht. Typisch sind dann Eingaben, die sich eine Weile verzögert anfühlen, während die Verbindung sonst stabil wirkt.</p>
+  <h3>Wie die Messung bewertet</h3>
+  <p>Gemessen wird mit denselben Suchpaketen, auf die die PS5 ohnehin antwortet. Eine PS5 lässt sich dafür rund 100 ms Zeit, auch auf einer schnellen Strecke. Deshalb zählt nicht, wie lange die schnellste Antwort braucht, sondern wie viel später die langsamen kommen, wie stark die Zeiten schwanken und wie viele Antworten fehlen. Wie viel Datenrate die Strecke trägt, kann diese Messung nicht sehen; die Vorschläge sind deshalb vorsichtig.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Urteil</th><th>Verlust</th><th>Schwankung</th><th>Verzögerung über der schnellsten Antwort</th><th>Vorschlag</th></tr></thead>
+    <tbody>
+      <tr><td class="state ok">Sehr gut</td><td class="num">0 %</td><td class="num">bis 2 ms</td><td class="num">bis 12 ms</td><td class="num">30 Mbit/s, geringe Latenz</td></tr>
+      <tr><td class="state ok">Gut</td><td class="num">bis 1 %</td><td class="num">bis 5 ms</td><td class="num">bis 30 ms</td><td class="num">20 Mbit/s, geringe Latenz</td></tr>
+      <tr><td class="state soon">Mittel</td><td class="num">bis 4 %</td><td class="num">bis 12 ms</td><td class="num">bis 70 ms</td><td class="num">10 Mbit/s, stabil</td></tr>
+      <tr><td class="state" style="color:var(--bad)">Schlecht</td><td class="num">mehr</td><td class="num">mehr</td><td class="num">mehr</td><td class="num">6 Mbit/s, stabil</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small muted">Das schlechteste der drei Kriterien entscheidet. Die Antwortzeit enthält etwas Rechenzeit der PS5, deshalb zählen vor allem Schwankung und Verlust. Die Schwellen sind Erfahrungswerte und werden mit Messungen an echten Konsolen nachgeschärft.</p>
+  <h3>Was hilft, wenn kein Kabel bis zur PS5 reicht</h3>
+  <ol>
+    <li><strong>Kabel für die letzten Meter.</strong> Ein WLAN-Repeater oder Mesh-Punkt mit LAN-Buchse neben der PS5, verbunden mit einem kurzen Kabel. Seine Antennen halten die Strecke zum Router ruhiger als die der Konsole.</li>
+    <li><strong>Powerline.</strong> Adapter, die das Netzwerk über die Stromleitung führen. Hängt von der Elektrik ab, ist über mehrere Etagen aber oft ruhiger als WLAN.</li>
+    <li><strong>Das WLAN-Band festlegen.</strong> Auf der PS5 beide Bänder ausprobieren: 5 GHz ist schneller, 2,4 GHz kommt besser durch Decken. Nach jedem Wechsel neu messen.</li>
+    <li><strong>Weniger Last.</strong> Niedrigere Datenrate, der 30-fps-Modus (halb so viele Bilder), Netzwerkpuffer „Stabil“, große Downloads pausieren.</li>
+  </ol>
+  <p>Eine Verbindung zwischen PC und PS5 am Netzwerk vorbei gibt es nicht. Bluetooth und USB übertragen kein Remote Play.</p>
+</section>
+
+<section id="daten">
+  <h2>Daten und Sicherheit</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Was</th><th>Wo</th><th>Schutz</th></tr></thead>
+    <tbody>
+      <tr><td>Einstellungen, gekoppelte Konsolen</td><td><code>%APPDATA%\VeloPlay\config.json</code></td><td>Lesbarer Text ohne Geheimnisse</td></tr>
+      <tr><td>Schlüssel der Konsole</td><td>in derselben Datei</td><td>Windows DPAPI: nur dein Windows-Konto auf diesem PC kann sie lesen</td></tr>
+      <tr><td>Protokolle</td><td><code>%APPDATA%\VeloPlay\veloplay.log</code> für den laufenden Start, <code>veloplay.1.log</code> bis <code>veloplay.3.log</code> für die drei Starts davor</td><td>Enthalten keine Schlüssel. Die Schritte des Verbindungsaufbaus stehen drin, derzeit auch Rohdaten daraus. Für Fehlerberichte deshalb die betroffenen Zeilen kopieren, nicht die ganze Datei. Nach einem Hänger und Neustart ist <code>veloplay.1.log</code> die Datei dafür.</td></tr>
+      <tr><td>Anmelde-Code der PS5</td><td>nirgends</td><td>Geht nur an die laufende Sitzung</td></tr>
+      <tr><td>Heruntergeladenes Update</td><td><code>%APPDATA%\VeloPlay\update</code></td><td>Wird nach dem Einrichten gelöscht</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>VeloPlay spricht mit deiner PS5 im Heimnetz und, für Updates, mit GitHub. Sonst mit niemandem. Es gibt keine Telemetrie.</li>
+    <li>Die Fernsteuerung ist nur vom selben PC aus erreichbar und standardmäßig aus. Ein Kennwort lässt sich setzen.</li>
+    <li>Antworten aus dem Netz werden vor der Verarbeitung auf Länge und Form geprüft.</li>
+    <li>Die Update-Dateien sind nicht mit einem eigenen Zertifikat signiert. Die Sicherheit beruht auf HTTPS, der festen Adresse und der Prüfsumme.</li>
+  </ul>
+</section>
+
+<section id="pruefung">
+  <h2>Was wie geprüft ist</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
+    <tbody>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>234 automatische Tests unter Linux und 244 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
+      <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Sitzungsanfrage der eingebundenen Bibliothek</td><td>Die echte Bibliothek gegen eine Gegenstelle auf demselben Rechner: Anfrage im Wortlaut, Ablehnung, „Konsole belegt“, Abbruch mittendrin</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Alles nach der Sitzungsanfrage: Steuerverbindung, Stream, Eingaben</td><td>Am 21.11.2026 an einer echten PS5 mit 0.5.2: Steuerverbindung, Stream und Eingaben laufen über mehrere Minuten ohne Paketverlust.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Bild entpacken</td><td>Zwei kurze Testvideos (HEVC und H.264) durch den Dekoder auf dem Prozessor: Anzahl, Größe und Farbwerte der Bilder, auch mit einem beschädigten Bild mittendrin</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Bild zeichnen</td><td>Unter Windows mit dem Software-Renderer in ein Testbild gezeichnet und Pixel nachgemessen: Farben, Seitenverhältnis, Ränder, Wechsel der Bildgröße</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Ton, Haptik, Trigger</td><td>Opus-Paket entpackt, Puffer bei Lücken und Stau, Haptik auf vier Kanäle umgerechnet, Effektblock für die Trigger Byte für Byte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Ob Trigger und Haptik spürbar sind, ist noch nicht zurückgemeldet.</td><td class="state soon">Ton bestätigt, Rest offen</td></tr>
+      <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>
+      <tr><td>Updater</td><td>Mit nachgestellten Veröffentlichungen: neuere, ältere, falsche Prüfsumme, manipuliertes Archiv, abgebrochener Download</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Windows-Programm startet</td><td>Wird nach jedem Build gestartet und auf Grafik, Suche und Update-Abfrage geprüft</td><td class="state ok">läuft</td></tr>
+      <tr><td>Aussehen der Oberfläche</td><td>Jeder Bildschirm wird in beiden Sprachen als Bild gerendert und angesehen</td><td class="state ok">geprüft</td></tr>
+      <tr><td>Suche an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors: Die Konsole wird per Rundruf gefunden. Beim ersten Versuch hing sie im Gast-WLAN der FRITZ!Box, das vom Heimnetz getrennt ist; dort kann keine Suche sie erreichen.</td><td class="state ok">gefunden</td></tr>
+      <tr><td>Koppeln, Verbinden und Steuern an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors mit Version 0.4.0: Koppeln und Verbinden klappen, der Controller steuert die Konsole.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Bild an einer echten PS5</td><td>Mit 0.4.0 stand das Bild nach dem ersten (Issue 1), mit 0.4.2 war es verpixelt und ruckelte (Issue 2). Mit 0.5.2 am 21.11.2026: zwei Läufe über mehrere Minuten ohne verworfenes oder kaputtes Bild, für den Autor sehr flüssig.</td><td class="state ok">läuft mit 0.5.2</td></tr>
+      <tr><td>Eingabeverzögerung</td><td>Am 21.11.2026 spürbar stärker als mit PS Remote Play. Am Netz liegt es nicht (1 bis 4 ms Antwortzeit, kein Verlust). Vermutet: Die Einstellung stand auf 30 statt 60 Bildern pro Sekunde, und jedes Bild erscheint bis zu eine Bildperiode zu spät. Die Gegenprobe mit 60 Bildern steht aus.</td><td class="state no">offen</td></tr>
+      <tr><td>Zwischenbilder, Hochskalieren, Schärfen</td><td>Unter Windows auf dem Software-Renderer: Ein Muster, das sich zwischen zwei Bildern verschiebt, muss im berechneten Bild dort liegen, wo es zu dem Zeitpunkt hingehört, bei langsamer und schneller Bewegung und bei 2x und 4x. Flächen bleiben beim Skalieren, wie sie sind, Kanten werden steiler. Die Taktung ist mit eingespeister Zeit getestet. Am 21.11.2026 mit 0.6.0 auf der RTX 4070 des Autors: läuft und wirkt flüssig, kam aber nur auf 44 bis 50 statt 60 Bilder pro Sekunde. Die Ursache lag in der Taktung und ist in 0.6.1 behoben; ob dort 60 ankommen, ist noch zu bestätigen.</td><td class="state soon">läuft, volle Rate noch zu bestätigen</td></tr>
+      <tr><td>Fenster reagiert nicht („Keine Rückmeldung“, Issue 3)</td><td>Tritt mit 0.5.2 auf, wenn man im Stream mit Alt+Tab weg- und wieder zurückwechselt, nicht jedes Mal. Laut Protokoll läuft das Programm dabei weiter, nur das Fenster nimmt das Zurückholen nicht an. Deshalb meldet auch die eingebaute Hänger-Wache nichts, sie achtet auf ein stehendes Programm. Seit 0.6.0 fragt eine zweite Wache Windows selbst und schreibt beim nächsten Hänger auf, woran es liegt.</td><td class="state no">Ursache offen</td></tr>
+      <tr><td>Trigger, Haptik und Aufwecken an echten Geräten</td><td>Nur an Konsole und Controller möglich, Rückmeldung steht aus</td><td class="state no">offen</td></tr>
+      <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
+      <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Das öffentliche Repository gibt es seit dem 21.11.2026. Geprüft ist das Update erst, wenn dort zwei Versionen nacheinander erschienen sind und ein Programm sich von der einen auf die andere gebracht hat.</td><td class="state no">offen</td></tr>
+      <tr><td>RTX Video Super Resolution</td><td>Der Test läuft nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Ob es besser aussieht, kann kein Test sagen.</td><td class="state no">am Bild zu beurteilen</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="fahrplan">
+  <h2>Fahrplan</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Phase</th><th>Inhalt</th><th>Stand</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Gerüst, Suche, Kopplung, Aufwecken, Controller, Oberfläche, Verbindungstest, Updater</td><td class="state ok">fertig</td></tr>
+      <tr><td class="num">2</td><td>Sitzung und Empfang des Streams mit der Protokollbibliothek von chiaki-ng, Controller-Eingaben zur PS5, Vibration, Neuverbinden, Ruhemodus</td><td class="state ok">an der PS5 bestätigt, Aufwecken offen</td></tr>
+      <tr><td class="num">3</td><td>Bild auf der Grafikkarte entpacken und anzeigen, Ton, adaptive Trigger und Haptik des DualSense, Pausenmenü, Vollbild. Offen: HDR.</td><td class="state soon">Bild und Ton bestätigt, Trigger und Haptik offen</td></tr>
+      <tr><td class="num">4</td><td>Zwischenbilder und Hochskalierung. Das Verfahren für jede Direct3D-11-Karte, Lanczos und Schärfen sind in 0.6.0 gebaut. Es folgen die Beschleunigung von NVIDIA und RTX Video Super Resolution.</td><td class="state soon">erster Teil gebaut, am echten Spiel ungeprüft</td></tr>
+      <tr><td class="num">5</td><td>Restliche Fehlerfälle, Wechsel des Tongeräts im laufenden Stream, Veröffentlichungspaket</td><td class="state no">geplant</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>
+  <span>VeloPlay ist ein unabhängiges Open-Source-Projekt unter der AGPL-3.0 und stammt nicht von Sony.</span>
+  <span>Diese Seite wird mit jeder Änderung an den Funktionen nachgeführt. Quelle: <code>docs/overview/index.html</code> im Repository.</span>
+</footer>
+
+</div>
+
+<dialog class="viewer" id="viewer" aria-label="Bild in voller Größe"><img alt=""></dialog>
+<script>
+(() => {
+  const viewer = document.getElementById('viewer');
+  if (!viewer || typeof viewer.showModal !== 'function') return;
+  const large = viewer.querySelector('img');
+  const open = (image) => {
+    large.src = image.currentSrc || image.src;
+    large.alt = image.alt;
+    viewer.showModal();
+  };
+  document.querySelectorAll('img.shot').forEach((image) => {
+    image.tabIndex = 0;
+    image.setAttribute('role', 'button');
+    image.title = 'Anklicken zum Vergrößern';
+    image.addEventListener('click', () => open(image));
+    image.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open(image);
+      }
+    });
+  });
+  // A click anywhere closes it again; Esc does so on its own.
+  viewer.addEventListener('click', () => viewer.close());
+})();
+</script>

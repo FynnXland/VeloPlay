@@ -1,0 +1,198 @@
+name: Release
+
+# Builds, tests and publishes VeloPlay when a version tag arrives. The tag and
+# the source it points at are pushed here by the release of the development
+# repository; this file is generated there (tools/publish), so change it there.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, test and publish
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-cache
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # On the self-hosted runner the folder is kept between runs: vcpkg, the
+      # dependencies built with it and the build folder stay, so only what
+      # changed is compiled again.
+      - uses: actions/checkout@v4
+        with:
+          clean: ${{ runner.environment != 'self-hosted' }}
+
+      # The PC is someone's desk. Its build tools are not on the search path,
+      # and whoever sits there may be playing: everything started from here
+      # on runs with low priority.
+      - name: Prepare the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $root = & $vswhere -latest -products * -property installationPath
+          $cmake = Join-Path $root 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
+          if (-not (Test-Path (Join-Path $cmake 'cmake.exe'))) { throw 'The CMake that ships with Visual Studio is missing.' }
+          $cmake >> $env:GITHUB_PATH
+          'VELOPLAY_LOW_PRIORITY=1' >> $env:GITHUB_ENV
+
+      # vcpkg is checked out at the commit named in vcpkg.json, so CI and a
+      # developer machine build the dependencies from the same recipes.
+      - name: Set up vcpkg
+        shell: pwsh
+        run: |
+          $baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          # A runner that keeps its folder has vcpkg already; it only moves to the commit named now.
+          if (-not (Test-Path (Join-Path $env:VCPKG_ROOT '.git'))) {
+            git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          }
+          if ((git -C $env:VCPKG_ROOT rev-parse HEAD 2>$null) -ne $baseline) {
+            git -C $env:VCPKG_ROOT fetch --filter=blob:none origin $baseline
+            git -C $env:VCPKG_ROOT checkout $baseline
+            if ($LASTEXITCODE -ne 0) { throw 'vcpkg could not be moved to the commit named in vcpkg.json.' }
+            Remove-Item (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path (Join-Path $env:VCPKG_ROOT 'vcpkg.exe'))) {
+            & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          }
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+
+      # The key is unique per run and restore falls back to the newest cache
+      # with the same prefix. That way a cache can be saved again after the
+      # runner image changed compilers and vcpkg had to rebuild.
+      - name: Restore built dependencies
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache/restore@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}-
+            vcpkg-x64-windows-
+
+      - name: Configure
+        id: configure
+        shell: pwsh
+        run: |
+          if ($env:VELOPLAY_LOW_PRIORITY) { (Get-Process -Id $PID).PriorityClass = 'BelowNormal' }
+          $countPackages = { (Get-ChildItem $env:VCPKG_DEFAULT_BINARY_CACHE -Recurse -File | Measure-Object).Count }
+          $before = & $countPackages
+
+          # Source downloads sometimes fail with a server error. Packages built
+          # before the failure stay in the binary cache, so a retry is cheap.
+          $code = 1
+          foreach ($attempt in 1..3) {
+            cmake --preset windows
+            $code = $LASTEXITCODE
+            if ($code -eq 0) { break }
+            Write-Host "Configure failed on attempt $attempt."
+            if ($attempt -lt 3) { Start-Sleep -Seconds 30 }
+          }
+
+          $after = & $countPackages
+          Write-Host "Packages in the binary cache: $before before, $after after."
+          "changed=$(if ($after -ne $before) { 'yes' } else { 'no' })" >> $env:GITHUB_OUTPUT
+          exit $code
+
+      # Saved right after configuring, also when it failed halfway, so neither
+      # a compile error in our code nor a failed download throws away the
+      # dependency builds that did finish.
+      - name: Save built dependencies
+        if: always() && steps.configure.outputs.changed == 'yes' && runner.environment == 'github-hosted'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Build
+        run: |
+          if ($env:VELOPLAY_LOW_PRIORITY) { (Get-Process -Id $PID).PriorityClass = 'BelowNormal' }
+          cmake --build --preset windows
+          exit $LASTEXITCODE
+
+      - name: Package
+        run: |
+          # A folder that is kept between runs must not carry files of an older version into the package.
+          Remove-Item dist -Recurse -Force -ErrorAction SilentlyContinue
+          cmake --install build/windows --config Release --prefix dist/VeloPlay
+          exit $LASTEXITCODE
+
+      # The client is uploaded as soon as it is built, so it can be tried out
+      # while the tests still run. A failing test turns the run red afterwards;
+      # the release workflow only publishes when all of it passed.
+      - name: Upload client
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeloPlay-windows-x64
+          path: dist/VeloPlay
+          if-no-files-found: error
+
+      - name: Test
+        run: |
+          if ($env:VELOPLAY_LOW_PRIORITY) { (Get-Process -Id $PID).PriorityClass = 'BelowNormal' }
+          ctest --preset windows
+          exit $LASTEXITCODE
+
+      # Starts the packaged client the way a user would and checks that it gets
+      # as far as a window with a working renderer. The runner has no graphics
+      # card, so this exercises the software fallback.
+      # On the self-hosted runner there is a real graphics card, and a real
+      # person with their own VeloPlay: the client under test gets a data
+      # folder of its own, so it never sees their settings or logs, and its
+      # window stays hidden.
+      - name: Smoke test
+        run: |
+          $style = 'Normal'
+          if ($env:RUNNER_ENVIRONMENT -eq 'self-hosted') {
+            $env:APPDATA = Join-Path $env:RUNNER_TEMP 'veloplay-appdata'
+            Remove-Item $env:APPDATA -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
+            $style = 'Hidden'
+          }
+          $client = Start-Process -FilePath dist\VeloPlay\VeloPlay.exe -WindowStyle $style -PassThru
+          Start-Sleep -Seconds 8
+          $log = Join-Path $env:APPDATA 'VeloPlay\veloplay.log'
+          if (Test-Path $log) { Get-Content $log }
+          if ($client.HasExited) { throw "VeloPlay exited early with code $($client.ExitCode)" }
+          Stop-Process -Id $client.Id
+          if (-not (Select-String -Path $log -Pattern 'Graphics:' -Quiet)) { throw 'The renderer did not start.' }
+          if (-not (Select-String -Path $log -Pattern 'Discovery listening' -Quiet)) { throw 'Discovery did not start.' }
+          if (-not (Select-String -Path $log -Pattern 'Update:' -Quiet)) { throw 'The update check did not run.' }
+          # Talks to GitHub for real. The answer depends on what is published,
+          # so only the fact that it runs is checked here.
+          & dist\VeloPlay\veloplay-cli.exe check-update
+          & dist\VeloPlay\veloplay-cli.exe --help
+
+      - name: Upload vcpkg logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-logs
+          path: |
+            .vcpkg/buildtrees/*/*.log
+            build/windows/vcpkg-manifest-install.log
+          if-no-files-found: ignore
+
+      # The updater looks for a file with exactly this name and expects the
+      # program at the top level of the archive.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $take = $false
+          $notes = foreach ($line in Get-Content CHANGELOG.md) {
+            if ($line -match '^## ') { $take = ($line.Trim() -eq "## $version"); continue }
+            if ($take) { $line }
+          }
+          if (-not ($notes | Where-Object { $_.Trim() })) { throw "CHANGELOG.md has no section ## $version." }
+          $notes | Set-Content notes.md -Encoding utf8
+          Compress-Archive -Path dist\VeloPlay\* -DestinationPath VeloPlay-windows-x64.zip
+          gh release create $env:GITHUB_REF_NAME VeloPlay-windows-x64.zip --title "VeloPlay $version" --notes-file notes.md
+          exit $LASTEXITCODE
