@@ -105,8 +105,19 @@ struct SessionView {
     bool settingsChanged = false;
 };
 
+/// What the bar at the top of the window can ask of the window.
+enum class WindowAction { Minimize, ToggleMaximize, ToggleFullscreen, Close };
+
 struct UiModel {
     AppState state = AppState::Idle;
+    /// The window has no title bar from Windows; the screens draw their own
+    /// bar with the buttons for the window. False where the window keeps its
+    /// frame (and in tools that draw into a picture).
+    bool ownWindowBar = false;
+    bool windowFullscreen = false;
+    bool windowMaximized = false;
+    /// The time of day as the bar shows it, like "21:47"; empty shows none.
+    std::string clock;
     std::vector<ConsoleEntry> consoles;
     bool discoveryRunning = false;
 
@@ -184,6 +195,8 @@ public:
     /// and clears it.
     virtual void captureKey() = 0;
     virtual void endKeyCapture() = 0;
+    /// The bar at the top asks for something to be done with the window.
+    virtual void windowAction(WindowAction action) = 0;
     /// Lets the active controller vibrate for a moment, to try it out. Not during a session.
     virtual void testVibration() = 0;
     /// Puts a test effect on both adaptive triggers: 0 releases them, 1

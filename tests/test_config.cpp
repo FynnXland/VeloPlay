@@ -421,6 +421,23 @@ TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
     EXPECT_EQ(keys[static_cast<std::size_t>(input::PadControl::LeftStickUp)], 'W');
 }
 
+TEST(Config, StartsInFullScreenAndRemembersAWindow) {
+    test::FakeProtector protector;
+    AppConfig config;
+    EXPECT_TRUE(config.window.fullscreen);
+    // A file from before the setting existed starts in full screen as well.
+    const auto old = parseConfig(R"({"settings_version":4})", protector);
+    ASSERT_TRUE(old.ok());
+    EXPECT_TRUE(old->window.fullscreen);
+
+    config.window.fullscreen = false;
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text.ok());
+    const auto again = parseConfig(*text, protector);
+    ASSERT_TRUE(again.ok());
+    EXPECT_FALSE(again->window.fullscreen);
+}
+
 TEST(Config, TheMicrophoneStaysOffUntilAskedFor) {
     test::FakeProtector protector;
     AppConfig config;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <stop_token>
 #include <thread>
 #include <string>
@@ -48,7 +49,15 @@ private:
     bool createWindow();
     void applyScale(float scale);
     void frame();
-    void toggleFullscreen();
+    /// Switches between a window and the whole screen. With `remember` the choice is kept for the next start.
+    void toggleFullscreen(bool remember = true);
+    /// Carries out what the bar at the top of the window asked for in the frame before.
+    void applyWindowAction(WindowAction action);
+    /// In full screen the taskbar of Windows lies behind the window. It comes
+    /// forward while the pointer rests on the screen's edge where it sits.
+    void updateTaskbarPeek(std::chrono::steady_clock::time_point now);
+    /// Which part of the window a point belongs to, for a window that draws its own frame.
+    LRESULT hitTest(HWND window, LPARAM lParam) const;
     /// Gives keys and mouse to the game, or takes them back for the program.
     void setGameInput(bool on);
     /// True if the message was a key or mouse event that went to the game or to the settings.
@@ -99,6 +108,10 @@ private:
     double refreshMs_ = 0.0;                              // smoothed time between two refreshes
     std::chrono::steady_clock::time_point nextSummary_{};
     bool minimised_ = false;
+    std::optional<WindowAction> pendingWindowAction_; // asked for while drawing, done before the next frame
+    bool taskbarPeek_ = false;                         // the window has made room for the taskbar
+    std::chrono::steady_clock::time_point edgeSince_{}; // since when the pointer rests on the taskbar's edge
+    std::chrono::steady_clock::time_point awaySince_{}; // since when it has left the taskbar again
     // The stack reader has to outlive the watch that uses it.
     diag::ThreadStack threadStack_;
     diag::StallWatch stallWatch_;

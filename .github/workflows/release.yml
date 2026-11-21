@@ -143,7 +143,16 @@ jobs:
         run: |
           if ($env:VELOPLAY_LOW_PRIORITY) { (Get-Process -Id $PID).PriorityClass = 'BelowNormal' }
           ctest --preset windows
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {
+            # On one of GitHub's machines eight tests in a row once could not
+            # reach a socket on their own computer for 18 seconds, with the
+            # tests before and after fine (21.11.2026, the public build of
+            # 0.16.0). What failed runs once more. A test that is really
+            # broken fails again, and then the build fails.
+            Write-Host 'Some tests failed. Running those once more.'
+            ctest --preset windows --rerun-failed --output-on-failure
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           # On a machine with a real graphics card the tests for it measure
           # something: how far off computed pictures are and how long they
           # take. ctest hides what passing tests print, so they run once

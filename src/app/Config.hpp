@@ -79,6 +79,13 @@ struct AudioSettings {
     friend bool operator==(const AudioSettings&, const AudioSettings&) = default;
 };
 
+struct WindowSettings {
+    /// The window fills the screen, without a frame. F11 and the button in the bar switch it.
+    bool fullscreen = true;
+
+    friend bool operator==(const WindowSettings&, const WindowSettings&) = default;
+};
+
 struct UpdateSettings {
     bool checkAtStartup = true;
 
@@ -112,6 +119,7 @@ struct AppConfig {
     RemoteApiSettings remoteApi{};
     NetworkSettings network{};
     AudioSettings audio{};
+    WindowSettings window{};
     UpdateSettings updates{};
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast

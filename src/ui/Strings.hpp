@@ -327,6 +327,7 @@ struct Strings {
     const char* kbmUnassigned;
     const char* kbmReset;
     const char* padHints;
+    const char* consolesTitle;
     const char* padTestTitle;
     const char* padTestRate;      // {0} = reports per second, {1} = milliseconds between two
     const char* padTestVibration;

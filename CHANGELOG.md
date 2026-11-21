@@ -3,6 +3,28 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.17.0
+
+- **A window of its own.** VeloPlay no longer has the title bar of Windows. At the top it draws
+  its own bar: name, the time, and buttons for full screen, minimise, enlarge and close. The
+  window is dragged by that bar and resized at its edges as before, and snapping to the sides
+  of the screen still works.
+- **Starts in full screen.** VeloPlay now opens over the whole screen. F11 or the button in the
+  bar switches to a window, and it remembers which you chose. In full screen the taskbar of
+  Windows stays out of the way and comes forward when the pointer rests on the lower edge of
+  the screen for a moment; it leaves again when the pointer does.
+
+**Deutsch**
+
+- **Ein eigenes Fenster.** VeloPlay hat nicht mehr die Titelleiste von Windows. Oben zeichnet es
+  eine eigene Leiste: Name, Uhrzeit und Knöpfe für Vollbild, Minimieren, Vergrößern und
+  Schließen. An dieser Leiste verschiebst du das Fenster, an den Rändern änderst du wie bisher
+  die Größe, und das Andocken an die Bildschirmseiten geht weiter.
+- **Startet im Vollbild.** VeloPlay öffnet sich jetzt über den ganzen Bildschirm. F11 oder der
+  Knopf in der Leiste wechselt zum Fenster, und VeloPlay merkt sich deine Wahl. Im Vollbild
+  bleibt die Taskleiste von Windows aus dem Weg und kommt hervor, wenn der Mauszeiger einen
+  Moment am unteren Bildschirmrand ruht; sie verschwindet wieder, wenn er weg ist.
+
 ## 0.16.0
 
 - **VeloPlay can be steered with the controller.** On the start page and in the settings the

@@ -21,6 +21,9 @@ namespace {
 
 constexpr float kColumnWidth = 720.0f;
 constexpr float kPageMargin = 32.0f;
+// The bar at the top of a window without a frame from Windows, at 100 % scaling.
+constexpr float kWindowBarHeight = 36.0f;
+constexpr float kWindowBarButton = 46.0f;
 constexpr float kSheetPadding = 28.0f;
 
 const ImVec4& statusColor(const ConsoleEntry& console) {
@@ -450,6 +453,9 @@ void UiManager::draw(const UiModel& model) {
             keyOverlay_ = false; // a menu is open; the layout does not come back by itself
         }
         pictureOwnsInput_ = presenting && !pauseMenu_ && !settingsInGame;
+        // While the picture has the window to itself there is no bar: nothing but the game.
+        windowBarHeight_ = 0.0f;
+        if (!pictureOwnsInput_) drawWindowBar(model);
         return;
     }
     if (std::exchange(settingsFromGame_, false)) {
@@ -461,6 +467,7 @@ void UiManager::draw(const UiModel& model) {
     loginPin_.clear();
     drawDashboard(model);
     drawSheets(model);
+    drawWindowBar(model);
 }
 
 // ---- dashboard ---------------------------------------------------------
@@ -490,7 +497,7 @@ void UiManager::drawDashboard(const UiModel& model) {
                       ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
     pushExplicitSpacing();
 
-    space(28.0f);
+    space(model.ownWindowBar ? 28.0f + kWindowBarHeight : 28.0f);
     drawHeader(model);
     space(24.0f);
     drawUpdateBanner(model);
@@ -537,11 +544,17 @@ void UiManager::drawHeader(const UiModel& model) {
     const float height = px(36.0f);
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    const float mark = px(28.0f);
-    drawLogo(draw, ImVec2(start.x, start.y + (height - mark) * 0.5f), mark);
-    const ImVec2 nameSize = measure(TextStyle::Title, "VeloPlay");
-    drawText(draw, ImVec2(start.x + mark + px(10.0f), start.y + (height - nameSize.y) * 0.5f), TextStyle::Title, p.text,
-             "VeloPlay");
+    if (model.ownWindowBar) {
+        // Mark and name are in the bar at the top of the window; here stands what the page is about.
+        const ImVec2 titleSize = measure(TextStyle::Title, t.consolesTitle);
+        drawText(draw, ImVec2(start.x, start.y + (height - titleSize.y) * 0.5f), TextStyle::Title, p.text, t.consolesTitle);
+    } else {
+        const float mark = px(28.0f);
+        drawLogo(draw, ImVec2(start.x, start.y + (height - mark) * 0.5f), mark);
+        const ImVec2 nameSize = measure(TextStyle::Title, "VeloPlay");
+        drawText(draw, ImVec2(start.x + mark + px(10.0f), start.y + (height - nameSize.y) * 0.5f), TextStyle::Title, p.text,
+                 "VeloPlay");
+    }
 
     const ImVec2 settingsSize = buttonSize(t.settings);
     ImGui::SetCursorScreenPos(ImVec2(start.x + width - settingsSize.x, start.y));
@@ -1423,6 +1436,109 @@ void UiManager::drawMicrophoneBadge(const UiModel& model) {
     draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                           toU32(model.microphoneMissing ? p.standby : p.danger, shown));
     drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, text, shown);
+}
+
+/// The window's own bar: mark and name on the left, the time and the
+/// buttons for the window on the right. Windows draws no title bar for this
+/// window; whatever part of the bar is no button is where it is dragged by.
+void UiManager::drawWindowBar(const UiModel& model) {
+    windowBarHeight_ = 0.0f;
+    windowBarButtonsWidth_ = 0.0f;
+    if (!model.ownWindowBar) return;
+    const Palette& p = palette();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float height = px(kWindowBarHeight);
+    const float buttonWidth = px(kWindowBarButton);
+    // Full screen has nothing to maximise.
+    std::vector<WindowAction> buttons = {WindowAction::ToggleFullscreen, WindowAction::Minimize};
+    if (!model.windowFullscreen) buttons.push_back(WindowAction::ToggleMaximize);
+    buttons.push_back(WindowAction::Close);
+    const float buttonsWidth = buttonWidth * static_cast<float>(buttons.size());
+
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, height));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1.0f, 1.0f));
+    ImGui::Begin("window-bar", nullptr,
+                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImVec2 min = viewport->Pos;
+    draw->AddRectFilled(min, ImVec2(min.x + viewport->Size.x, min.y + height), toU32(p.background));
+
+    const float mark = px(18.0f);
+    drawLogo(draw, ImVec2(min.x + px(12.0f), min.y + (height - mark) * 0.5f), mark);
+    const ImVec2 nameSize = measure(TextStyle::Strong, "VeloPlay");
+    drawText(draw, ImVec2(min.x + px(12.0f) + mark + px(8.0f), min.y + (height - nameSize.y) * 0.5f), TextStyle::Strong, p.text,
+             "VeloPlay");
+
+    const float buttonsLeft = min.x + viewport->Size.x - buttonsWidth;
+    if (!model.clock.empty()) {
+        const ImVec2 clockSize = measure(TextStyle::Body, model.clock);
+        drawText(draw, ImVec2(buttonsLeft - px(14.0f) - clockSize.x, min.y + (height - clockSize.y) * 0.5f), TextStyle::Body,
+                 p.textSecondary, model.clock);
+    }
+
+    Animator& animator = context().animator;
+    for (std::size_t i = 0; i < buttons.size(); ++i) {
+        const WindowAction action = buttons[i];
+        const ImVec2 at(buttonsLeft + buttonWidth * static_cast<float>(i), min.y);
+        ImGui::SetCursorScreenPos(at);
+        ImGui::PushID(static_cast<int>(action));
+        // For the mouse only: with a controller there is nothing to do up here.
+        const bool clicked = ImGui::InvisibleButton("window-button", ImVec2(buttonWidth, height));
+        const bool hovered = ImGui::IsItemHovered();
+        const float lit = animator.to(ImGui::GetID("lit"), hovered ? 1.0f : 0.0f, 0.10f, 0.0f);
+        ImGui::PopID();
+        const bool closing = action == WindowAction::Close;
+        if (lit > 0.01f) {
+            draw->AddRectFilled(at, ImVec2(at.x + buttonWidth, at.y + height), toU32(closing ? p.danger : p.controlHover, lit));
+        }
+        // The signs are the ones every window on this system has, drawn with thin lines.
+        const ImU32 ink = toU32(closing ? mix(p.text, p.onAccent, lit) : p.text);
+        const ImVec2 c(std::floor(at.x + buttonWidth * 0.5f) + 0.5f, std::floor(at.y + height * 0.5f) + 0.5f);
+        const float r = std::floor(px(5.0f));
+        const float line = std::max(1.0f, px(1.0f));
+        switch (action) {
+            case WindowAction::Minimize: draw->AddLine(ImVec2(c.x - r, c.y), ImVec2(c.x + r, c.y), ink, line); break;
+            case WindowAction::ToggleMaximize:
+                if (model.windowMaximized) {
+                    // Two sheets, one behind the other: back to the size before.
+                    const float o = std::floor(px(2.0f));
+                    draw->AddRect(ImVec2(c.x - r + o, c.y - r), ImVec2(c.x + r, c.y + r - o), ink, 0.0f, 0, line);
+                    draw->AddRectFilled(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.background));
+                    if (lit > 0.01f) draw->AddRectFilled(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.controlHover, lit));
+                    draw->AddRect(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), ink, 0.0f, 0, line);
+                } else {
+                    draw->AddRect(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), ink, 0.0f, 0, line);
+                }
+                break;
+            case WindowAction::ToggleFullscreen: {
+                // Four corners: pointing out to fill the screen, pointing in to leave it.
+                const float k = std::floor(px(3.0f));
+                const float e = model.windowFullscreen ? r - k : r;
+                for (const float sx : {-1.0f, 1.0f}) {
+                    for (const float sy : {-1.0f, 1.0f}) {
+                        const ImVec2 corner(c.x + sx * e, c.y + sy * e);
+                        const float dir = model.windowFullscreen ? 1.0f : -1.0f;
+                        draw->AddLine(corner, ImVec2(corner.x + sx * dir * k, corner.y), ink, line);
+                        draw->AddLine(corner, ImVec2(corner.x, corner.y + sy * dir * k), ink, line);
+                    }
+                }
+                break;
+            }
+            case WindowAction::Close:
+                draw->AddLine(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), ink, line);
+                draw->AddLine(ImVec2(c.x - r, c.y + r), ImVec2(c.x + r, c.y - r), ink, line);
+                break;
+        }
+        if (clicked) actions_.windowAction(action);
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+    windowBarHeight_ = height;
+    windowBarButtonsWidth_ = buttonsWidth;
 }
 
 void UiManager::drawStreamOverlay(const UiModel& model) {

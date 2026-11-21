@@ -41,6 +41,7 @@ public:
     void dismissNotice(std::size_t) override {}
     void selectProfile(std::string_view) override {}
     void captureKey() override {}
+    void windowAction(WindowAction) override {}
     void testVibration() override {}
     void testTriggers(int) override {}
     void endKeyCapture() override {}
@@ -537,6 +538,9 @@ int main(int argc, char** argv) {
         UiModel model;
         model.config = &config;
         model.gpuName = "NVIDIA GeForce RTX 4070";
+        // The window as the client has it: without a frame from Windows, with the bar of its own.
+        model.ownWindowBar = true;
+        model.clock = "21:47";
         scene.setup(model, manager);
         // What the controller would fill in: the stream that is asked for and the screen's rate.
         model.requestedStream = effectiveStream(config, {});

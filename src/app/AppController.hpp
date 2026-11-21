@@ -74,6 +74,8 @@ public:
         /// is tried again, this often.
         std::chrono::milliseconds releaseWait{75'000};
         std::chrono::milliseconds releaseRetry{4'000};
+        /// Carries out what the bar at the top of the window asks for. Empty: the window has its own frame.
+        std::function<void(WindowAction)> windowAction;
         /// Records the microphone for voice chat. Null: there is none, and
         /// the setting is not offered. Must outlive the controller.
         media::IAudioInput* microphone = nullptr;
@@ -106,6 +108,7 @@ public:
     void sleepAndDisconnect() override;
     void applyStreamSettings() override;
     void captureKey() override;
+    void windowAction(WindowAction action) override;
     void testVibration() override;
     void testTriggers(int effect) override;
     void endKeyCapture() override;

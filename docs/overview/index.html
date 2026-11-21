@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.16.0</span>
+    <span class="pill">Version 0.17.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -397,10 +397,11 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <p class="muted">Jeder Bildschirm mit dem, was man darauf tun kann. Die Bilder stammen aus dem Vorschau-Werkzeug mit Beispieldaten. Ein Klick auf ein Bild zeigt es groß.</p>
 
   <div class="screen">
-    <img class="shot" src="img/uebersicht.png" alt="Übersicht mit drei Konsolen, Controller-Anzeige und Bildmodus" width="1100" height="720">
+    <img class="shot" src="img/uebersicht.png" alt="Übersicht: oben die eigene Leiste mit Name, Uhrzeit und den Knöpfen für das Fenster, darunter drei Konsolen, Controller-Anzeige und Bildmodus" width="1100" height="720">
     <div>
       <h3>Übersicht</h3>
       <ul>
+        <li><strong>Leiste ganz oben (seit 0.17.0):</strong> VeloPlay hat keine Titelleiste von Windows mehr, sondern eine eigene: Name, Uhrzeit und Knöpfe für Vollbild, Minimieren, Vergrößern und Schließen. An der Leiste verschiebst du das Fenster. VeloPlay startet im Vollbild; <kbd>F11</kbd> oder der Knopf wechselt zum Fenster, und die Wahl bleibt gemerkt. Im Vollbild kommt die Taskleiste von Windows hervor, wenn der Mauszeiger einen Moment am unteren Bildschirmrand ruht.</li>
         <li><strong>Konsolenzeile:</strong> Name, Zustand, laufendes Spiel, IP-Adresse.</li>
         <li><strong>Verbinden, Aufwecken, Koppeln:</strong> „Verbinden“ weckt eine schlafende Konsole gleich mit auf. Bei einer neuen Konsole steht dort „Koppeln“.</li>
         <li><strong>Drei Punkte:</strong> Verbindung prüfen, Kopplung entfernen (mit Rückfrage).</li>
@@ -756,7 +757,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.16.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.17.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -819,7 +820,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>281 automatische Tests unter Linux und 300 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>282 automatische Tests unter Linux und 301 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -848,6 +849,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Zwischenbilder, Hochskalieren, Schärfen</td><td>Unter Windows auf dem Software-Renderer: Ein Muster, das sich zwischen zwei Bildern verschiebt, muss im berechneten Bild dort liegen, wo es zu dem Zeitpunkt hingehört, bei langsamer und schneller Bewegung und bei 2x und 4x. Flächen bleiben beim Skalieren, wie sie sind, Kanten werden steiler. Die Taktung ist mit eingespeister Zeit getestet. Am 21.11.2026 mit 0.6.0 auf der RTX 4070 des Autors: läuft und wirkt flüssig, kam aber nur auf 44 bis 50 statt 60 Bilder pro Sekunde. Die Ursache lag in der Taktung und ist in 0.6.1 behoben; ob dort 60 ankommen, ist noch zu bestätigen.</td><td class="state soon">läuft, volle Rate noch zu bestätigen</td></tr>
       <tr><td>Fenster reagiert nicht („Keine Rückmeldung“, Issue 3)</td><td>Trat mit 0.5.2 auf, wenn man im Stream mit Alt+Tab weg- und wieder zurückwechselte, nicht jedes Mal. Die Ursache wurde nie gefunden. Rückmeldung vom 21.11.2026 mit 0.13.0: tritt nicht mehr auf. Seit 0.8.0 liest ein eigener Teil des Programms den Controller, das Fenster hat seitdem weniger zu tun; ob das der Grund ist, ist nicht belegt. Die Wache, die einen Hänger mitschreibt, bleibt eingebaut.</td><td class="state ok">tritt nicht mehr auf</td></tr>
       <tr><td>Aufwecken aus dem Ruhemodus</td><td>Rückmeldung vom 21.11.2026: funktioniert an der echten PS5.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Eigene Fensterleiste, Vollbild, Taskleiste am Rand</td><td>Bei jedem Build startet das Programm auf einem Windows-Rechner von GitHub und wird fotografiert: als Fenster, vergrößert und im Vollbild, dazu mit dem Mauszeiger am unteren Rand. Am 21.11.2026 auf den Fotos: keine Titelleiste von Windows, vergrößert genau über der Taskleiste, im Vollbild über allem, und die Taskleiste kommt hervor und verschwindet wieder. Verschieben, Größe ändern und Andocken sind nicht fotografiert.</td><td class="state soon">auf Fotos bestätigt, Bedienung offen</td></tr>
       <tr><td>Controller-Test und Bedienung mit dem Controller</td><td>Die drei Trigger-Effekte sind Byte für Byte gegen die veröffentlichte Beschreibung geprüft. Die Bedienung mit dem Steuerkreuz ist im Vorschau-Werkzeug mit nachgestellten Tastendrücken ausprobiert: Die Markierung wandert über Startseite und Einstellungen. Am echten Controller noch nicht zurückgemeldet.</td><td class="state soon">Logik bestanden, am Controller offen</td></tr>
       <tr><td>Mikrofon</td><td>Das Packen des Tons ist geprüft: Laute, leise und stille Blöcke ergeben alle genau 40 Bytes, und ein Dekoder bekommt den Ton zurück. Wann aufgenommen und gesendet wird, ist mit einer nachgestellten Sitzung und einem nachgestellten Mikrofon getestet. Die Aufnahme selbst läuft nur unter Windows; ob die anderen in einer Party dich hören, hat noch niemand ausprobiert.</td><td class="state soon">Logik bestanden, an der PS5 offen</td></tr>
       <tr><td>Haptik am echten Controller</td><td>Nur am Controller zu spüren, Rückmeldung steht aus</td><td class="state no">offen</td></tr>

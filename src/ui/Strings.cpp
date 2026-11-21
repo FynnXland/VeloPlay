@@ -346,6 +346,7 @@ constexpr Strings kGerman = {
     .kbmReset = "Standardbelegung",
     .padHints = "Mit dem Controller: Steuerkreuz oder linker Stick bewegt die Markierung, Kreuz wählt aus, Kreis geht "
                 "zurück, Options öffnet die Einstellungen, L1 und R1 blättern darin.",
+    .consolesTitle = "Konsolen",
     .padTestTitle = "Controller testen",
     .padTestRate = "meldet {0}-mal pro Sekunde, also alle {1} ms",
     .padTestVibration = "Vibration testen",
@@ -734,6 +735,7 @@ constexpr Strings kEnglish = {
     .kbmReset = "Default layout",
     .padHints = "With the controller: the directional pad or the left stick moves the mark, Cross selects, Circle goes "
                 "back, Options opens the settings, L1 and R1 turn their pages.",
+    .consolesTitle = "Consoles",
     .padTestTitle = "Try the controller",
     .padTestRate = "reports {0} times a second, every {1} ms",
     .padTestVibration = "Try vibration",

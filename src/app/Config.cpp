@@ -207,6 +207,9 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
     root["audio"] = {
         {"microphone", config.audio.microphone},
     };
+    root["window"] = {
+        {"fullscreen", config.window.fullscreen},
+    };
 
     root["updates"] = {
         {"check_at_startup", config.updates.checkAtStartup},
@@ -309,6 +312,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(network, "stats_overlay", config.network.statsOverlay);
     read(network, "stats_compact", config.network.statsCompact);
     read(section(root, "audio"), "microphone", config.audio.microphone);
+    read(section(root, "window"), "fullscreen", config.window.fullscreen);
 
     read(section(root, "updates"), "check_at_startup", config.updates.checkAtStartup);
 

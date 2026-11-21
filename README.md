@@ -156,7 +156,7 @@ connecting.
 | Key | Effect |
 | --- | --- |
 | Esc | Menu that shows how picture, connection and controls are doing, with quick switches and **Resume**, **Disconnect** and **Put PS5 in rest mode** |
-| F11 | Full screen on and off |
+| F11 | Full screen on and off. VeloPlay starts in full screen and remembers if you prefer a window. In full screen, rest the pointer on the lower edge of the screen to bring the taskbar forward |
 | F9 | Steps through the display in the corner: off, a small one with the essentials, all figures |
 | F8 | Steps through the ways the picture is enlarged (off, Lanczos, RTX Video on NVIDIA cards), to compare them while playing |
 | F1 | With keys and mouse: shows your key layout over the picture, and hides it again |

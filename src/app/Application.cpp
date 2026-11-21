@@ -12,6 +12,9 @@
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cstdio>
+#include <optional>
 #include <utility>
 
 #include "app/HangProbe.hpp"
@@ -157,6 +160,9 @@ int Application::run() {
     options.protector = protector_.get();
     options.controllerBackend = input::createSdlControllerBackend();
     options.openHelp = [this](std::string_view topic) { openHelp(topic); };
+    // Asked for from inside the drawing of a frame; resizing the window there would pull the
+    // picture away under the drawing. It is done before the next frame instead.
+    options.windowAction = [this](WindowAction action) { pendingWindowAction_ = action; };
     options.sessionFactory = session::chiakiSessionFactory();
     // The controller is read every two milliseconds on a thread of its own.
     // Read once per picture, a press waited up to a whole refresh of the
@@ -246,6 +252,8 @@ int Application::run() {
 
     ShowWindow(window_, SW_SHOWDEFAULT);
     UpdateWindow(window_);
+    // Full screen is how it starts, unless the user left it as a window the last time.
+    if (controller_->config().window.fullscreen && !IsIconic(window_)) toggleFullscreen(false);
 
     // The second watch asks Windows itself. A window can count as "not
     // responding" while its loop runs (issue 3); the first watch cannot see that.
@@ -318,9 +326,12 @@ bool Application::createWindow() {
                               nullptr, instance, this);
     if (!window_) return false;
 
-    // Dark title bar to match the content (Windows 10 2004 and later).
+    // Dark frame to match the content (Windows 10 2004 and later).
     const BOOL dark = TRUE;
     DwmSetWindowAttribute(window_, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark, sizeof(dark));
+    // The window has no title bar from Windows (see WM_NCCALCSIZE); it draws
+    // a bar of its own. Its size is worked out again so that holds before it is shown.
+    SetWindowPos(window_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     return true;
 }
 
@@ -341,6 +352,12 @@ void Application::frame() {
         return;
     }
 
+    if (const std::optional<WindowAction> action = std::exchange(pendingWindowAction_, std::nullopt)) {
+        applyWindowAction(*action);
+        if (!window_ || IsIconic(window_)) return;
+    }
+    updateTaskbarPeek(std::chrono::steady_clock::now());
+
     // The controller decides which notes show over the picture; what the decoder threw away it learns here.
     if (pipeline_) controller_->noteDroppedFrames(pipeline_->stats().droppedFrames);
     controller_->update();
@@ -349,6 +366,16 @@ void Application::frame() {
     model_.gpuName = device_.adapterName();
     model_.reducedMotion = reducedMotion();
     model_.rtxVideoAvailable = videoRenderer_.rtxAvailable();
+    model_.ownWindowBar = true;
+    model_.windowFullscreen = fullscreen_;
+    model_.windowMaximized = IsZoomed(window_) != FALSE;
+    {
+        SYSTEMTIME local{};
+        GetLocalTime(&local);
+        char clock[8] = {};
+        std::snprintf(clock, sizeof(clock), "%02u:%02u", static_cast<unsigned>(local.wHour), static_cast<unsigned>(local.wMinute));
+        model_.clock = clock;
+    }
     // The window can be moved to another screen at any time; once a second is often enough.
     if (const auto now = std::chrono::steady_clock::now(); now >= nextDisplayCheck_) {
         nextDisplayCheck_ = now + std::chrono::seconds(1);
@@ -690,7 +717,7 @@ bool Application::routeInput(UINT message, WPARAM wParam, LPARAM lParam) {
     return !system;
 }
 
-void Application::toggleFullscreen() {
+void Application::toggleFullscreen(bool remember) {
     // Borderless window over the whole monitor: no mode switch, and Alt+Tab stays instant.
     const LONG_PTR style = GetWindowLongPtrW(window_, GWL_STYLE);
     if (!fullscreen_) {
@@ -710,6 +737,113 @@ void Application::toggleFullscreen() {
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
     fullscreen_ = !fullscreen_;
+    taskbarPeek_ = false;
+    edgeSince_ = {};
+    awaySince_ = {};
+    spdlog::info("Window is {}", fullscreen_ ? "full screen" : "a window");
+    if (remember && controller_ && controller_->config().window.fullscreen != fullscreen_) {
+        controller_->config().window.fullscreen = fullscreen_;
+        controller_->configChanged();
+    }
+}
+
+void Application::applyWindowAction(WindowAction action) {
+    switch (action) {
+        case WindowAction::Minimize: ShowWindow(window_, SW_MINIMIZE); break;
+        case WindowAction::ToggleMaximize:
+            if (!fullscreen_) ShowWindow(window_, IsZoomed(window_) ? SW_RESTORE : SW_MAXIMIZE);
+            break;
+        case WindowAction::ToggleFullscreen: toggleFullscreen(); break;
+        // The same way the cross of a title bar takes: the window is asked to close and tidies up.
+        case WindowAction::Close: PostMessageW(window_, WM_CLOSE, 0, 0); break;
+    }
+}
+
+void Application::updateTaskbarPeek(std::chrono::steady_clock::time_point now) {
+    using std::chrono::milliseconds;
+    // Only in full screen, and never while mouse and keys belong to the game.
+    MONITORINFO monitor{sizeof(monitor)};
+    if (!fullscreen_ || gameInput_ || !GetMonitorInfoW(MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST), &monitor)) {
+        edgeSince_ = {};
+        return;
+    }
+    const RECT& all = monitor.rcMonitor;
+    const RECT& work = monitor.rcWork;
+    // Where the two differ is where the taskbar sits. If they do not differ,
+    // this screen has none, or it hides by itself and Windows brings it out.
+    const bool bottom = work.bottom < all.bottom;
+    const bool top = work.top > all.top;
+    const bool left = work.left > all.left;
+    const bool right = work.right < all.right;
+    if (!bottom && !top && !left && !right) return;
+    POINT pointer{};
+    if (!GetCursorPos(&pointer)) return;
+    const bool onScreen = pointer.x >= all.left && pointer.x < all.right && pointer.y >= all.top && pointer.y < all.bottom;
+    const bool atEdge = onScreen && ((bottom && pointer.y >= all.bottom - 1) || (top && pointer.y <= all.top) ||
+                                     (left && pointer.x <= all.left) || (right && pointer.x >= all.right - 1));
+    const bool overTaskbar = onScreen && ((bottom && pointer.y >= work.bottom) || (top && pointer.y < work.top) ||
+                                          (left && pointer.x < work.left) || (right && pointer.x >= work.right));
+
+    if (!taskbarPeek_) {
+        if (!atEdge) {
+            edgeSince_ = {};
+            return;
+        }
+        if (edgeSince_ == std::chrono::steady_clock::time_point{}) edgeSince_ = now;
+        // A moment of resting there, so that brushing the edge in passing does nothing.
+        if (now - edgeSince_ < milliseconds(300)) return;
+        taskbarPeek_ = true;
+        awaySince_ = {};
+        // The window steps back to the area beside the taskbar; Windows then puts the taskbar in front.
+        SetWindowPos(window_, nullptr, work.left, work.top, work.right - work.left, work.bottom - work.top,
+                     SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
+        return;
+    }
+    if (overTaskbar) {
+        awaySince_ = {};
+        return;
+    }
+    if (awaySince_ == std::chrono::steady_clock::time_point{}) awaySince_ = now;
+    if (now - awaySince_ < milliseconds(700)) return;
+    // Left alone: back over the whole screen. Not while another window is in
+    // front, opened from the taskbar; then this happens once ours is in front again.
+    if (GetForegroundWindow() != window_) return;
+    taskbarPeek_ = false;
+    edgeSince_ = {};
+    SetWindowPos(window_, HWND_TOP, all.left, all.top, all.right - all.left, all.bottom - all.top,
+                 SWP_NOOWNERZORDER | SWP_NOACTIVATE);
+}
+
+LRESULT Application::hitTest(HWND window, LPARAM lParam) const {
+    POINT point{static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam))};
+    RECT client{};
+    if (!ScreenToClient(window, &point) || !GetClientRect(window, &client)) return HTCLIENT;
+    // Filling the screen there is nothing to drag or to resize.
+    if (fullscreen_) return HTCLIENT;
+    const float barHeight = ui_ ? ui_->windowBarHeight() : 0.0f;
+    const float buttonsWidth = ui_ ? ui_->windowBarButtonsWidth() : 0.0f;
+    const bool overButtons = barHeight > 0.0f && static_cast<float>(point.y) < barHeight &&
+                             static_cast<float>(point.x) >= static_cast<float>(client.right) - buttonsWidth;
+    if (!IsZoomed(window)) {
+        // The edges resize, as a frame from Windows would. Over the buttons only a hair's breadth, so they stay easy to hit.
+        const int grip = std::max(4, static_cast<int>(6.0f * scale_));
+        const int topGrip = overButtons ? std::max(1, static_cast<int>(2.0f * scale_)) : grip;
+        const bool onLeft = point.x < grip;
+        const bool onRight = point.x >= client.right - grip;
+        const bool onTop = point.y < topGrip;
+        const bool onBottom = point.y >= client.bottom - grip;
+        if (onTop && onLeft) return HTTOPLEFT;
+        if (onTop && onRight) return HTTOPRIGHT;
+        if (onBottom && onLeft) return HTBOTTOMLEFT;
+        if (onBottom && onRight) return HTBOTTOMRIGHT;
+        if (onLeft) return HTLEFT;
+        if (onRight) return HTRIGHT;
+        if (onTop) return HTTOP;
+        if (onBottom) return HTBOTTOM;
+    }
+    // The bar, where it is no button: the window is dragged by it, and a double click enlarges it.
+    if (barHeight > 0.0f && static_cast<float>(point.y) < barHeight && !overButtons) return HTCAPTION;
+    return HTCLIENT;
 }
 
 void Application::openHelp(std::string_view topic) {
@@ -734,6 +868,22 @@ LRESULT Application::handleMessage(HWND window, UINT message, WPARAM wParam, LPA
     if (imguiReady_ && ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam)) return 1;
 
     switch (message) {
+        case WM_NCCALCSIZE:
+            // The whole window is ours to draw in: no title bar and no frame
+            // from Windows. Returning 0 for the request with sizes says so.
+            if (wParam == TRUE) {
+                // Enlarged to the screen, Windows makes the window larger than
+                // the screen by the frame it expects it to have. It has none,
+                // so it gets exactly the area beside the taskbar.
+                if (!fullscreen_ && IsZoomed(window)) {
+                    auto* sizes = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+                    MONITORINFO monitor{sizeof(monitor)};
+                    if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) sizes->rgrc[0] = monitor.rcWork;
+                }
+                return 0;
+            }
+            break;
+        case WM_NCHITTEST: return hitTest(window, lParam);
         case WM_SIZE:
             if (wParam != SIZE_MINIMIZED) device_.resize(LOWORD(lParam), HIWORD(lParam));
             // In the log, so a hang can be placed: before or after the window was put away?

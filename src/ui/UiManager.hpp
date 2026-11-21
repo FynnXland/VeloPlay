@@ -45,6 +45,12 @@ public:
     /// True while the picture of the game is all there is on screen: no
     /// menu, no settings. Keys and mouse can go to the game then.
     [[nodiscard]] bool pictureOwnsInput() const { return pictureOwnsInput_; }
+    /// Height in pixels of the bar the screens drew at the top of the window
+    /// in the last frame, and how much of its right end the buttons take.
+    /// The rest of the bar is where the window is dragged by. Zero while no
+    /// bar is shown.
+    [[nodiscard]] float windowBarHeight() const { return windowBarHeight_; }
+    [[nodiscard]] float windowBarButtonsWidth() const { return windowBarButtonsWidth_; }
     /// Scrolls the open settings to a place on their page, 0 = top, 1 = end.
     /// For pictures of what lies below the fold.
     void scrollSettingsTo(float share) { settingsScrollTo_ = share; }
@@ -69,6 +75,7 @@ private:
     void drawUpscalingNote(const UiModel& model);
     void drawKeyOverlay(const UiModel& model);
     void drawMicrophoneBadge(const UiModel& model);
+    void drawWindowBar(const UiModel& model);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);
@@ -110,6 +117,8 @@ private:
     bool adviceApplied_ = false;
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
     bool pictureOwnsInput_ = false;
+    float windowBarHeight_ = 0.0f;
+    float windowBarButtonsWidth_ = 0.0f;
     float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
     double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to

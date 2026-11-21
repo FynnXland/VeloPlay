@@ -955,6 +955,10 @@ void AppController::addNotice(Notice::Kind kind, Notice::Topic topic, std::strin
     notices_.push_back({kind, topic, std::move(detail), std::move(technical)});
 }
 
+void AppController::windowAction(WindowAction action) {
+    if (options_.windowAction) options_.windowAction(action);
+}
+
 void AppController::testVibration() {
     if (session_) return; // the console owns the controller's effects then
     // Both motors, clearly felt, short enough not to annoy.
