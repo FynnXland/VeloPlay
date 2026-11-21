@@ -209,6 +209,8 @@ void AppController::fillModel(UiModel& model) {
 
     model.session = SessionView{};
     model.stream.reset();
+    model.alerts.clear();
+    if (session_ && session_->connected) model.alerts = session_->alerts.active(Clock::now());
     if (session_) {
         const auto now = Clock::now();
         model.session.hostId = session_->hostId;
@@ -476,14 +478,17 @@ void AppController::updateSession(Clock::time_point now) {
         if (options_.inputInterval.count() > 0) attachPump(session_->session.get());
         else session_->session->setControllerState(sessionInput(), now);
 
-        // A stream that stands still does not recover by waiting: on a link
-        // that cannot carry the bitrate, the requests for repair get lost
-        // too. Start over at half the rate instead.
-        const std::uint64_t frames = session_->session->stats(now).videoFrames;
+        const session::SessionStats stats = session_->session->stats(now);
+        const std::uint64_t frames = stats.videoFrames;
         if (frames != session_->videoFrames) {
             session_->videoFrames = frames;
             session_->lastPicture = now;
-        } else if (!session_->stalled && now - session_->lastPicture >= options_.stallTimeout) {
+        }
+        updateAlerts(stats, now);
+        // A stream that stands still does not recover by waiting: on a link
+        // that cannot carry the bitrate, the requests for repair get lost
+        // too. Start over at half the rate instead.
+        if (!session_->stalled && now - session_->lastPicture >= options_.stallTimeout) {
             const int current = session_->requested.bitrateKbps;
             spdlog::warn("No picture for {} ms at {} kbit/s; reconnecting", options_.stallTimeout.count(), current);
             session_->stalled = true;
@@ -499,6 +504,7 @@ void AppController::updateSession(Clock::time_point now) {
                 session_->connected = true;
                 session_->everConnected = true;
                 session_->connectedAt = now;
+                session_->alerts.reset(now);
                 session_->lastPicture = now;
                 session_->videoFrames = 0;
                 session_->attempt = 1;
@@ -594,6 +600,30 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
         return;
     }
     failSession(reason, detail);
+}
+
+void AppController::updateAlerts(const session::SessionStats& stats, Clock::time_point now) {
+    StreamObservation observation;
+    observation.sincePicture = std::chrono::duration_cast<milliseconds>(now - session_->lastPicture);
+    observation.framesLost = stats.framesLost;
+    observation.framesDropped = droppedFrames_;
+    observation.streamFps = stats.streamFps;
+    observation.requestedFps = session_->requested.fps;
+    observation.controllerConnected = controllers_.active().has_value();
+    session_->alerts.update(observation, now);
+    // Into the log as well: afterwards it says what the user saw and when.
+    for (const StreamAlert alert : session_->alerts.raised()) {
+        const char* what = "";
+        switch (alert) {
+            case StreamAlert::NoController: what = "no controller connected"; break;
+            case StreamAlert::ConnectionStalls: what = "no picture for a moment"; break;
+            case StreamAlert::PicturesLost: what = "pictures lost on the way"; break;
+            case StreamAlert::DecoderBehind: what = "the decoder threw pictures away"; break;
+            case StreamAlert::FewerPictures: what = "the console sends fewer pictures than asked for"; break;
+        }
+        spdlog::info("Note over the picture: {} ({} ms since the last picture, {:.0f} fps, {} lost, {} dropped)", what,
+                     observation.sincePicture.count(), stats.streamFps, stats.framesLost, droppedFrames_);
+    }
 }
 
 void AppController::rememberLink(Clock::time_point now) {

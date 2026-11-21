@@ -339,6 +339,8 @@ void Application::frame() {
         return;
     }
 
+    // The controller decides which notes show over the picture; what the decoder threw away it learns here.
+    if (pipeline_) controller_->noteDroppedFrames(pipeline_->stats().droppedFrames);
     controller_->update();
     diag::setStep("collecting what to show");
     controller_->fillModel(model_);
@@ -378,6 +380,7 @@ void Application::frame() {
             inputRate_.reset(model_.requestedStream.fps);
             cadence_.reset();
             skipRepeats_ = false;
+            loggedGenerator_.clear();
             nextRateSample_ = {};
         } else if (model_.stream && now >= nextRateSample_) {
             // Once a second: is it a 30 or a 60 fps stream that arrives?
@@ -445,6 +448,7 @@ void Application::frame() {
     if (pipeline_ && streaming) {
         diag::setStep("taking over a picture");
         const auto now = std::chrono::steady_clock::now();
+        videoRenderer_.wantGeneration(pacer_.factor() > 1);
         for (const media::VideoFrame& picture : pipeline_->takeFrames()) {
             // The repeats of a game that runs at half the stream's rate are compared and left out.
             const bool repeat = skipRepeats_ && cadence_.isRepeat(videoRenderer_.submitted() + 1);
@@ -455,6 +459,13 @@ void Application::frame() {
             const bool stamped = picture.decodedAt != std::chrono::steady_clock::time_point{};
             pacer_.onFrame(videoRenderer_.newestId(), stamped ? picture.decodedAt : now);
             arrivals_[arrivalsNext_++ % arrivals_.size()] = {videoRenderer_.newestId(), picture.receivedAt};
+            // Which method computes the pictures in between, once per stream and whenever it changes.
+            if (videoRenderer_.frameGenerationAvailable() && loggedGenerator_ != videoRenderer_.frameGeneratorName()) {
+                loggedGenerator_ = videoRenderer_.frameGeneratorName();
+                const std::string why = videoRenderer_.cardMotionError();
+                spdlog::info("Frame generation: {}{}{}", loggedGenerator_,
+                             why.empty() ? "" : " (the graphics card's own motion search is not used: ", why.empty() ? "" : why + ")");
+            }
             if (!videoRenderer_.frameGenerationAvailable() && !generatorFailureLogged_) {
                 generatorFailureLogged_ = true;
                 spdlog::warn("Frame generation is not available: {}", videoRenderer_.frameGeneratorError());

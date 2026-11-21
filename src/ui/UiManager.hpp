@@ -54,6 +54,7 @@ private:
     void drawNotices(const UiModel& model);
     void drawConnection(const UiModel& model);
     void drawStreamOverlay(const UiModel& model);
+    void drawStreamAlerts(const UiModel& model);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);

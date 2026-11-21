@@ -293,6 +293,11 @@ constexpr Strings kGerman = {
     .frameGenerationCapped = "Dein Bildschirm zeigt {0} Bilder pro Sekunde. Bei {2} fps von der PS5 passen nur {1}x "
                              "hinein, mehr würde das Bild nur verzögern. VeloPlay rechnet deshalb mit {1}x.",
     .hudGame = "Spiel",
+    .alertNoController = "Kein Controller verbunden",
+    .alertConnection = "Die Verbindung hakt",
+    .alertLost = "Bilder gehen unterwegs verloren",
+    .alertDecoder = "Dein PC kommt mit dem Entpacken der Bilder nicht nach",
+    .alertFewer = "Die PS5 schickt gerade weniger Bilder",
 };
 
 constexpr Strings kEnglish = {
@@ -576,6 +581,11 @@ constexpr Strings kEnglish = {
     .frameGenerationCapped = "Your screen shows {0} pictures per second. At {2} fps from the PS5 only {1}x fit in; "
                              "more would only delay the picture. VeloPlay therefore uses {1}x.",
     .hudGame = "Game",
+    .alertNoController = "No controller connected",
+    .alertConnection = "The connection is stalling",
+    .alertLost = "Pictures are getting lost on the way",
+    .alertDecoder = "Your PC cannot keep up with unpacking the pictures",
+    .alertFewer = "The PS5 is sending fewer pictures right now",
 };
 
 } // namespace

@@ -9,6 +9,8 @@
 
 namespace veloplay::render {
 
+class NvofMotion;
+
 /// Computes a picture that lies between two pictures from the console.
 /// One interface, several ways to do it: the built-in one below runs on any
 /// Direct3D 11 card; ones that use a vendor's hardware can follow.
@@ -28,6 +30,13 @@ public:
     /// which has the size of the pictures. Leaves no render target bound.
     virtual bool generate(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to,
                           float phase, ID3D11RenderTargetView* target) = 0;
+
+    /// True while the graphics card's own motion search is in use.
+    [[nodiscard]] virtual bool usesHardwareMotion() const { return false; }
+    /// Lets a caller leave the card's motion search aside, to compare the two ways.
+    virtual void allowHardwareMotion(bool allowed) { (void)allowed; }
+    /// Why the card's motion search is not in use; empty if it is, or was never an option.
+    [[nodiscard]] virtual std::string hardwareMotionError() const { return {}; }
 };
 
 /// The built-in method. It follows how things move between the two pictures
@@ -44,11 +53,26 @@ public:
 ///    into view or the search was wrong, it falls back to a plain mix.
 ///
 /// Pixel shaders only, so it runs on every Direct3D 11 card.
+///
+/// On NVIDIA cards step 2 is done by the card's optical flow engine instead
+/// (NvofMotion): hardware made for this search, which also gets right what a
+/// search from coarse to fine gets wrong, like the rungs of a ladder that
+/// all look the same. Its vectors say where each part of the earlier
+/// picture goes; they are carried over to the moment in between, and each
+/// place then picks, among the vectors around it, the one that fits the two
+/// pictures best. Step 3 is the same. If the engine is missing or fails,
+/// the built-in search takes over.
 class FlowFrameGenerator final : public IFrameGenerator {
 public:
+    FlowFrameGenerator();
+    ~FlowFrameGenerator() override;
+
     bool create(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error);
 
-    [[nodiscard]] const char* name() const override { return "VeloPlay Flow"; }
+    [[nodiscard]] const char* name() const override { return usesHardwareMotion() ? "NVIDIA Optical Flow" : "VeloPlay Flow"; }
+    [[nodiscard]] bool usesHardwareMotion() const override { return nvof_ != nullptr && nvofAllowed_; }
+    void allowHardwareMotion(bool allowed) override { nvofAllowed_ = allowed; }
+    [[nodiscard]] std::string hardwareMotionError() const override { return nvofError_; }
     bool prepare(int slot, ID3D11ShaderResourceView* picture, int width, int height) override;
     bool generate(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to, float phase,
                   ID3D11RenderTargetView* target) override;
@@ -66,6 +90,9 @@ private:
 
     bool ensureSize(int width, int height);
     bool makeFlow(Level& level);
+    bool makeVectors(Level& level, int width, int height);
+    bool hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView*& flow);
+    void dropHardwareMotion(const std::string& reason);
     void pass(ID3D11PixelShader* shader, ID3D11RenderTargetView* target, int width, int height,
               ID3D11ShaderResourceView* const* views, UINT viewCount);
 
@@ -88,6 +115,19 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> lumaTarget_[2];
     std::vector<Level> levels_; // index 0 is the finest
     Level refined_;             // the finest level once more, with half steps
+
+    // The card's own motion search, where there is one.
+    std::unique_ptr<NvofMotion> nvof_;
+    bool nvofAllowed_ = true;
+    std::string nvofError_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> projectShader_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> chooseShader_;
+    Level carried_;             // the card's vectors, carried over to the moment in between
+    Level chosen_;              // per place the best of the vectors around it
+    bool nvofInput_[2] = {false, false}; // the engine has the picture of this slot
+    ID3D11ShaderResourceView* nvofVectors_ = nullptr; // result of the search for the pair in the slots
+    int nvofFrom_ = -1;         // which pair that result belongs to
+    int nvofTo_ = -1;
 };
 
 } // namespace veloplay::render

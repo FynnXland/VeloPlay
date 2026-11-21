@@ -3,6 +3,38 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.10.0
+
+- **Notes over the running picture.** VeloPlay now says what is wrong while it is wrong: no
+  controller connected, the connection stalls, pictures get lost on the way, the PC cannot keep
+  up with unpacking, or the PS5 sends fewer pictures than asked for. A note appears at the top of
+  the picture and goes a few seconds after the cause is gone. Each one is also written to the
+  log.
+- **Frame generation with NVIDIA Optical Flow.** On NVIDIA cards from the RTX 20 series on, the
+  motion between two pictures is now found by the card's own engine for that, which is part of
+  the driver. It copes with things the built-in search got wrong, such as the rungs of a ladder
+  or a fence while the camera moves. The display names the method ("NVIDIA Optical Flow" or
+  "VeloPlay Flow"). On other cards, and whenever the engine is missing or reports an error, the
+  built-in search keeps working as before. Nothing has to be set. New, and when this version was
+  made it had not yet run on a real NVIDIA card: if pictures in between look worse than before,
+  that is worth a report.
+
+**Deutsch**
+
+- **Hinweise über dem laufenden Bild.** VeloPlay sagt jetzt, was nicht stimmt, solange es nicht
+  stimmt: kein Controller verbunden, die Verbindung hakt, Bilder gehen unterwegs verloren, der PC
+  kommt mit dem Entpacken nicht nach, oder die PS5 schickt weniger Bilder als verlangt. Der
+  Hinweis erscheint oben im Bild und verschwindet ein paar Sekunden, nachdem die Ursache weg ist.
+  Jeder Hinweis steht auch im Protokoll.
+- **Zwischenbilder mit NVIDIA Optical Flow.** Auf NVIDIA-Karten ab der RTX-20-Serie sucht jetzt
+  der dafür gebaute Teil der Grafikkarte die Bewegung zwischen zwei Bildern; er gehört zum
+  Treiber. Er kommt mit Dingen zurecht, bei denen die eigene Suche danebenlag, etwa den Sprossen
+  einer Leiter oder einem Zaun, während sich die Kamera bewegt. Die Anzeige nennt das Verfahren
+  („NVIDIA Optical Flow“ oder „VeloPlay Flow“). Auf anderen Karten, und immer wenn der Teil fehlt
+  oder einen Fehler meldet, arbeitet die eigene Suche wie bisher. Einstellen muss man nichts.
+  Neu, und beim Bau dieser Version noch auf keiner echten NVIDIA-Karte gelaufen: Sehen
+  Zwischenbilder schlechter aus als vorher, ist das eine Meldung wert.
+
 ## 0.9.0
 
 The input sets itself:

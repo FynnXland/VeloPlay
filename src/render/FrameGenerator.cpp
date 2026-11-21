@@ -1,5 +1,7 @@
 #include "render/FrameGenerator.hpp"
 
+#include "render/NvofMotion.hpp"
+
 #include <algorithm>
 
 #include <d3dcompiler.h>
@@ -32,7 +34,7 @@ Output main(uint id : SV_VertexID) {
     "    float radius;         // shifts are tried from -radius to +radius steps\n"                                    \
     "    float hasPrediction;  // 1 if the level above has a result to start from\n"                                   \
     "    float2 frameSize;     // size of the pictures in pixels\n"                                                    \
-    "    float2 unused;\n"                                                                                             \
+    "    float2 cells;         // size of the texture of vectors a pass reads, where it reads one\n"                                                                                             \
     "};\n"
 
 // Brightness of the picture at half its size. Reading between four pixels
@@ -89,6 +91,76 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
             float2 shift = predicted + float2(dx, dy) * stepSize;
             float penalty = 0.04 * (abs(dx) + abs(dy));
             float c = cost(centre, shift) * (1.0 + penalty) + penalty * 0.001;
+            if (c < bestCost) {
+                bestCost = c;
+                best = shift;
+            }
+        }
+    }
+    return float4(best, bestCost, 1.0);
+}
+)";
+
+// The card's motion search says where each part of the earlier picture is
+// in the later one. The new picture needs it the other way round: for a
+// place in the new picture, which part arrives there? Looked up in three
+// steps: take the vector at the place, go back along it by the share of
+// the way already done, and take the vector found there.
+const char kCarryShader[] = VELOPLAY_FLOW_CONSTANTS R"(
+Texture2D<int2> vectors : register(t0);
+
+// One vector per cell of `scale` by `scale` picture pixels, in 1/32 pixel.
+float2 vectorAt(float2 pixel) {
+    int2 cell = clamp(int2(floor(pixel / scale)), int2(0, 0), int2(lumaSize) - 1);
+    return float2(vectors.Load(int3(cell, 0))) / 32.0;
+}
+
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float2 here = uv * frameSize;
+    float2 v = vectorAt(here);
+    v = vectorAt(here - phase * v);
+    v = vectorAt(here - phase * v);
+    return float4(v, 0.0, 1.0);
+}
+)";
+
+// At the edge of something that moves, the vector carried over to a place
+// can belong to the other side of the edge. So every place tries the
+// vectors of the cells around it as well, and standing still, and keeps the
+// one with which the two pictures agree best there. Compared as in the
+// built-in search: sixteen samples of brightness around the moment in between.
+const char kChooseShader[] = VELOPLAY_FLOW_CONSTANTS R"(
+Texture2D lumaA : register(t0);
+Texture2D lumaB : register(t1);
+Texture2D carried : register(t2);
+SamplerState linearSampler : register(s0);
+SamplerState pointSampler : register(s1);
+
+float cost(float2 centre, float2 shift) {
+    float2 back = -phase * shift / scale;
+    float2 forward = (1.0 - phase) * shift / scale;
+    float sum = 0.0;
+    [loop] for (int j = 0; j < 4; ++j) {
+        [loop] for (int i = 0; i < 4; ++i) {
+            float2 at = centre + (float2(i, j) - 1.5) * 2.0;
+            float a = lumaA.SampleLevel(linearSampler, (at + back) / lumaSize, mip).r;
+            float b = lumaB.SampleLevel(linearSampler, (at + forward) / lumaSize, mip).r;
+            sum += abs(a - b);
+        }
+    }
+    return sum / 16.0;
+}
+
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float2 centre = uv * lumaSize;
+    // Standing still is always tried: a scoreboard over a moving background must not be dragged along.
+    float2 best = float2(0.0, 0.0);
+    float bestCost = cost(centre, best) * 1.02 + 0.00002;
+    [loop] for (int dy = -1; dy <= 1; ++dy) {
+        [loop] for (int dx = -1; dx <= 1; ++dx) {
+            float2 shift = carried.SampleLevel(pointSampler, uv + float2(dx, dy) / cells, 0).xy;
+            // The place's own vector wins where the others are no better.
+            float c = cost(centre, shift) * (1.0 + 0.02 * (abs(dx) + abs(dy)));
             if (c < bestCost) {
                 bestCost = c;
                 best = shift;
@@ -158,7 +230,7 @@ struct Constants {
     float radius;
     float hasPrediction;
     float frameSize[2];
-    float unused[2];
+    float cells[2];
 };
 
 bool compile(const char* source, std::size_t length, const char* target, ComPtr<ID3DBlob>& code, std::string& error) {
@@ -189,6 +261,19 @@ bool makePixelShader(ID3D11Device* device, const char* source, std::size_t lengt
 constexpr int kMaxLevels = 6;
 
 } // namespace
+
+FlowFrameGenerator::FlowFrameGenerator() = default;
+FlowFrameGenerator::~FlowFrameGenerator() = default;
+
+void FlowFrameGenerator::dropHardwareMotion(const std::string& reason) {
+    nvofError_ = reason.empty() ? std::string("the optical flow engine failed") : reason;
+    nvof_.reset();
+    nvofVectors_ = nullptr;
+    nvofFrom_ = -1;
+    nvofTo_ = -1;
+    nvofInput_[0] = false;
+    nvofInput_[1] = false;
+}
 
 bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error) {
     device_ = device;
@@ -234,12 +319,27 @@ bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* conte
         error = "render states could not be created";
         return false;
     }
+
+    // The card's own motion search is an extra on top. Without it, or
+    // without the two shaders that use its result, the built-in search does the work.
+    // The shaders come first, on every card: a mistake in them then shows
+    // on the machines that build and test, which have no NVIDIA card.
+    if (!makePixelShader(device, kCarryShader, sizeof(kCarryShader) - 1, projectShader_, nvofError_) ||
+        !makePixelShader(device, kChooseShader, sizeof(kChooseShader) - 1, chooseShader_, nvofError_)) {
+        return true;
+    }
+    auto nvof = std::make_unique<NvofMotion>();
+    if (nvof->create(device, context, nvofError_)) nvof_ = std::move(nvof);
     return true;
 }
 
 bool FlowFrameGenerator::makeFlow(Level& level) {
-    level.flowWidth = std::max(1, (level.lumaWidth + 3) / 4);
-    level.flowHeight = std::max(1, (level.lumaHeight + 3) / 4);
+    return makeVectors(level, std::max(1, (level.lumaWidth + 3) / 4), std::max(1, (level.lumaHeight + 3) / 4));
+}
+
+bool FlowFrameGenerator::makeVectors(Level& level, int width, int height) {
+    level.flowWidth = width;
+    level.flowHeight = height;
     D3D11_TEXTURE2D_DESC desc{};
     desc.Width = static_cast<UINT>(level.flowWidth);
     desc.Height = static_cast<UINT>(level.flowHeight);
@@ -261,6 +361,12 @@ bool FlowFrameGenerator::ensureSize(int width, int height) {
     width_ = 0;
     height_ = 0;
     levels_.clear();
+    // Pictures of the old size are of no use to the card's search either.
+    nvofInput_[0] = false;
+    nvofInput_[1] = false;
+    nvofVectors_ = nullptr;
+    nvofFrom_ = -1;
+    nvofTo_ = -1;
 
     const int lumaWidth = std::max(1, width / 2);
     const int lumaHeight = std::max(1, height / 2);
@@ -349,6 +455,68 @@ bool FlowFrameGenerator::prepare(int slot, ID3D11ShaderResourceView* picture, in
     ID3D11ShaderResourceView* views[1] = {picture};
     pass(lumaShader_.Get(), lumaTarget_[slot].Get(), levels_[0].lumaWidth, levels_[0].lumaHeight, views, 1);
     context_->GenerateMips(lumaView_[slot].Get());
+
+    if (usesHardwareMotion()) {
+        // The card's search gets the picture as well, as brightness at full size.
+        if (ID3D11RenderTargetView* input = nvof_->input(slot, width, height)) {
+            pass(lumaShader_.Get(), input, width, height, views, 1);
+            nvofInput_[slot] = true;
+            nvofVectors_ = nullptr; // what was found belongs to the pair before
+        } else {
+            dropHardwareMotion(nvof_->error());
+        }
+    }
+    return true;
+}
+
+bool FlowFrameGenerator::hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView*& flow) {
+    if (!nvofInput_[slotFrom] || !nvofInput_[slotTo]) return false;
+    // The search runs once per pair of pictures, however many pictures are computed between the two.
+    if (!nvofVectors_ || nvofFrom_ != slotFrom || nvofTo_ != slotTo) {
+        nvofVectors_ = nvof_->motion(slotFrom, slotTo);
+        if (!nvofVectors_) {
+            dropHardwareMotion(nvof_->error());
+            return false;
+        }
+        nvofFrom_ = slotFrom;
+        nvofTo_ = slotTo;
+    }
+    const int cellsWide = nvof_->cellsWide();
+    const int cellsHigh = nvof_->cellsHigh();
+    if (carried_.flowWidth != cellsWide || carried_.flowHeight != cellsHigh || !carried_.flow || !chosen_.flow) {
+        if (!makeVectors(carried_, cellsWide, cellsHigh) || !makeVectors(chosen_, cellsWide, cellsHigh)) {
+            dropHardwareMotion("the textures for the card's motion vectors could not be created");
+            return false;
+        }
+    }
+
+    Constants constants{};
+    constants.phase = phase;
+    constants.frameSize[0] = static_cast<float>(width_);
+    constants.frameSize[1] = static_cast<float>(height_);
+    constants.cells[0] = static_cast<float>(cellsWide);
+    constants.cells[1] = static_cast<float>(cellsHigh);
+
+    // To the moment in between.
+    constants.lumaSize[0] = static_cast<float>(cellsWide);
+    constants.lumaSize[1] = static_cast<float>(cellsHigh);
+    constants.scale = static_cast<float>(nvof_->grid());
+    context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+    {
+        ID3D11ShaderResourceView* views[1] = {nvofVectors_};
+        pass(projectShader_.Get(), carried_.flowTarget.Get(), cellsWide, cellsHigh, views, 1);
+    }
+    // Per place the best of the vectors around it, judged on the brightness at half size.
+    constants.lumaSize[0] = static_cast<float>(levels_[0].lumaWidth);
+    constants.lumaSize[1] = static_cast<float>(levels_[0].lumaHeight);
+    constants.scale = 2.0f;
+    constants.mip = 0.0f;
+    context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+    {
+        ID3D11ShaderResourceView* views[3] = {lumaView_[slotFrom].Get(), lumaView_[slotTo].Get(), carried_.flowView.Get()};
+        pass(chooseShader_.Get(), chosen_.flowTarget.Get(), cellsWide, cellsHigh, views, 3);
+    }
+    flow = chosen_.flowView.Get();
     return true;
 }
 
@@ -361,6 +529,16 @@ bool FlowFrameGenerator::generate(int slotFrom, ID3D11ShaderResourceView* from, 
     constants.phase = std::clamp(phase, 0.0f, 1.0f);
     constants.frameSize[0] = static_cast<float>(width_);
     constants.frameSize[1] = static_cast<float>(height_);
+
+    if (usesHardwareMotion()) {
+        ID3D11ShaderResourceView* flow = nullptr;
+        if (hardwareFlow(slotFrom, slotTo, constants.phase, flow)) {
+            ID3D11ShaderResourceView* views[3] = {from, to, flow};
+            pass(synthesisShader_.Get(), target, width_, height_, views, 3);
+            return true;
+        }
+        // Not this time, or never again: the built-in search below does it.
+    }
 
     // From the smallest copies to the largest, each level starting from the one above.
     ID3D11ShaderResourceView* previous = nullptr;

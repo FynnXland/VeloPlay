@@ -74,6 +74,20 @@ public:
     [[nodiscard]] bool frameGenerationAvailable() const { return generator_ != nullptr; }
     [[nodiscard]] const char* frameGeneratorName() const { return generator_ ? generator_->name() : ""; }
     [[nodiscard]] const std::string& frameGeneratorError() const { return generatorError_; }
+    /// True while the motion between pictures is found by the graphics card's own engine (NVIDIA Optical Flow).
+    [[nodiscard]] bool usesCardMotion() const { return generator_ && generator_->usesHardwareMotion(); }
+    /// Why it is not; empty while it is.
+    [[nodiscard]] std::string cardMotionError() const { return generator_ ? generator_->hardwareMotionError() : std::string{}; }
+    /// Whether pictures in between will be asked for. While they are not,
+    /// nothing is prepared for them: a 60 fps game shown as it is costs no
+    /// motion search, and with frame generation switched off the card's
+    /// engine is never touched.
+    void wantGeneration(bool wanted) { generationWanted_ = wanted; }
+    /// Leaves the card's engine aside, to compare the two ways of finding motion.
+    void allowCardMotion(bool allowed) {
+        if (generator_) generator_->allowHardwareMotion(allowed);
+        generatedFor_ = {};
+    }
     /// True on NVIDIA cards with a video processor. Whether the driver really
     /// applies its network depends on NVIDIA's own settings.
     [[nodiscard]] bool rtxAvailable() const { return rtx_ != nullptr; }
@@ -138,6 +152,8 @@ private:
     Target scaled_;        // the picture at window size, when sharpening needs one
     std::unique_ptr<IFrameGenerator> generator_;
     std::string generatorError_;
+    bool generationWanted_ = true;
+    bool prepared_[2] = {false, false}; // the generator has seen the picture in this slot
     std::unique_ptr<RtxVideoScaler> rtx_;
     std::string rtxError_;
     const char* scalerName_ = "";

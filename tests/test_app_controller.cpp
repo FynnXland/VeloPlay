@@ -772,6 +772,38 @@ TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
     EXPECT_TRUE(h.model.notices.empty());
 }
 
+TEST(AppControllerSession, SaysOverThePictureWhatIsWrong) {
+    test::MockConsole console({});
+    // No controller is connected in this one, and the stream will stand still.
+    Harness h(console, "session_notes.json", true, 60s);
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_TRUE(h.model.alerts.empty());
+
+    const auto shows = [&](StreamAlert alert) {
+        return std::find(h.model.alerts.begin(), h.model.alerts.end(), alert) != h.model.alerts.end();
+    };
+    // Pictures keep coming; the missing controller is said after a moment.
+    ASSERT_TRUE(h.runUntil(
+        [&] {
+            h.sessions->stats.videoFrames += 1;
+            return shows(StreamAlert::NoController);
+        },
+        4000ms));
+    EXPECT_FALSE(shows(StreamAlert::ConnectionStalls));
+
+    // Then no picture comes any more.
+    ASSERT_TRUE(h.runUntil([&] { return shows(StreamAlert::ConnectionStalls); }, 6000ms));
+    EXPECT_EQ(h.model.alerts.front(), StreamAlert::NoController);
+
+    // With the session gone, so are the notes.
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    EXPECT_TRUE(h.model.alerts.empty());
+}
+
 TEST(AppControllerSession, AutomaticChoosesTheStreamAndLearnsFromAStall) {
     test::MockConsole console({});
     Harness h(console, "session_auto.json", true, 700ms);

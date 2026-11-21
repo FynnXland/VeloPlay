@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 0.9.0
+    VERSION 0.10.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -75,6 +75,7 @@ add_library(veloplay_core STATIC
     src/input/DualSenseEffects.cpp
     src/session/ChiakiSession.cpp
     src/app/AutoStream.cpp
+    src/app/StreamAlerts.cpp
     src/app/StreamProfile.cpp
     src/app/Config.cpp
     src/app/AppState.cpp
@@ -120,10 +121,13 @@ if(WIN32)
         src/render/D3D11Device.cpp
         src/render/VideoRenderer.cpp
         src/render/FrameGenerator.cpp
+        src/render/NvofMotion.cpp
         src/render/RtxVideoScaler.cpp
         src/audio/WasapiOutput.cpp
     )
     target_link_libraries(veloplay_platform PUBLIC veloplay_core d3d11 dxgi d3dcompiler ole32 avrt)
+    # The interface of NVIDIA's optical flow engine: headers only, the library is part of the driver.
+    target_include_directories(veloplay_platform PRIVATE third_party/nvof)
 endif()
 
 # ---- Windows client ---------------------------------------------------------

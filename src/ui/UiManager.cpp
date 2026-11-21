@@ -399,6 +399,8 @@ void UiManager::draw(const UiModel& model) {
             drawText(draw, ImVec2(min.x + px(12.0f), min.y + px(6.0f)), TextStyle::Caption, p.text, text_->streamKeys);
         }
         if (model.stream) drawStreamOverlay(model);
+        // Over the picture only; the screens before and around it say more than a note could.
+        if (presenting && !pauseMenu_ && !settingsInGame) drawStreamAlerts(model);
         return;
     }
     if (std::exchange(settingsFromGame_, false)) {
@@ -1175,6 +1177,47 @@ void UiManager::drawConnection(const UiModel& model) {
 }
 
 // ---- in-stream display -----------------------------------------------------
+
+void UiManager::drawStreamAlerts(const UiModel& model) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    Animator& animator = context().animator;
+
+    // Every note has its place in the row and fades in and out there, so
+    // one that leaves does not make the others jump at once.
+    const std::array<std::pair<StreamAlert, const char*>, 5> notes = {{
+        {StreamAlert::NoController, t.alertNoController},
+        {StreamAlert::ConnectionStalls, t.alertConnection},
+        {StreamAlert::PicturesLost, t.alertLost},
+        {StreamAlert::DecoderBehind, t.alertDecoder},
+        {StreamAlert::FewerPictures, t.alertFewer},
+    }};
+    const float padX = px(14.0f);
+    const float padY = px(8.0f);
+    const float dot = px(8.0f);
+    const float gap = px(8.0f);
+    float y = viewport->Pos.y + px(16.0f);
+    for (const auto& [alert, text] : notes) {
+        const bool on = std::find(model.alerts.begin(), model.alerts.end(), alert) != model.alerts.end();
+        // No window is open here to take ids from; these only have to differ from each other.
+        const ImGuiID id = static_cast<ImGuiID>(0x5A1E7000 + static_cast<int>(alert));
+        const float shown = animator.to(id, on ? 1.0f : 0.0f, 0.22f, 0.0f);
+        if (shown < 0.02f) continue;
+        const ImVec2 size = measure(TextStyle::Body, text);
+        const float width = padX * 2.0f + dot + gap + size.x;
+        const float height = padY * 2.0f + size.y;
+        const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, y - (1.0f - shown) * px(6.0f));
+        draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, 0.86f * shown), height * 0.5f);
+        draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
+                              toU32(p.standby, shown));
+        ImVec4 ink = p.text;
+        ink.w *= shown;
+        drawText(draw, ImVec2(min.x + padX + dot + gap, min.y + padY), TextStyle::Body, ink, text);
+        y += (height + px(8.0f)) * shown;
+    }
+}
 
 void UiManager::drawStreamOverlay(const UiModel& model) {
     const Strings& t = *text_;

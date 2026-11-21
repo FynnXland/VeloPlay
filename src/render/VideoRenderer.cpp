@@ -243,6 +243,8 @@ void VideoRenderer::clear() {
     lastGenerated_ = false;
     slots_[0].id = 0;
     slots_[1].id = 0;
+    prepared_[0] = false;
+    prepared_[1] = false;
     generatedFor_ = {};
     for (ProbeCopy& copy : probeCopies_) copy.pending = false;
     probeBefore_.clear();
@@ -495,9 +497,14 @@ bool VideoRenderer::submit(const media::VideoFrame& frame, bool keep) {
 
     slots_[slot].id = nextId_++;
     newest_ = slot;
-    if (generator_ && !generator_->prepare(slot, slots_[slot].rgb.view.Get(), width_, height_)) {
-        generatorError_ = "the textures for frame generation could not be created";
-        generator_.reset();
+    prepared_[slot] = false;
+    if (generator_ && generationWanted_) {
+        if (generator_->prepare(slot, slots_[slot].rgb.view.Get(), width_, height_)) {
+            prepared_[slot] = true;
+        } else {
+            generatorError_ = "the textures for frame generation could not be created";
+            generator_.reset();
+        }
     }
     hasPicture_ = true;
     return true;
@@ -510,7 +517,7 @@ ID3D11ShaderResourceView* VideoRenderer::pictureFor(const media::FrameChoice& ch
     if (!choice.valid) return newer.rgb.view.Get();
 
     if (choice.step > 0 && choice.steps > 1 && generator_ && older.id != 0 && choice.base == older.id &&
-        choice.next == newer.id) {
+        choice.next == newer.id && prepared_[0] && prepared_[1]) {
         // Stage two. A computed picture is kept until another one is asked for.
         if (!(generatedFor_ == choice) || !generated_.texture) {
             if (!ensureTarget(generated_, width_, height_)) return newer.rgb.view.Get();

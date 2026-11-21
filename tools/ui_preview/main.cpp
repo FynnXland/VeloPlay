@@ -273,6 +273,15 @@ std::vector<Scene> scenes() {
              model.update.current = {0, 5, 0};
              ui.openSettings(UiManager::SettingsTab::Advanced);
          }},
+        {"29-stream-notes",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
+         }},
         {"26-stream-playing",
          [](UiModel& model, UiManager&) {
              withConsoles(model);

@@ -628,6 +628,164 @@ TEST(OnTheGraphicsCard, GeneratesFramesLikeTheSoftwareRenderer) {
     EXPECT_LT(off, 2.5);
 }
 
+/// A ladder in front of a background, both moving with the camera: bright
+/// rungs sixteen pixels apart. Moved by nearly a rung's distance, every rung
+/// fits the next one just as well, which is where a search from coarse to
+/// fine goes wrong.
+struct LadderFrame {
+    PatternFrame picture;
+
+    LadderFrame(int width, int height, double dx, double dy) : picture(width, height, dx, dy) {
+        const double left = width * 0.35 + dx;
+        const double right = width * 0.65 + dx;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                if (x + 0.5 < left || x + 0.5 >= right) continue;
+                const double along = std::fmod(y + 0.5 - dy + 1600.0, 16.0);
+                const bool rail = x + 0.5 < left + 6.0 || x + 0.5 >= right - 6.0;
+                const double value = (rail || along < 5.0) ? 0.85 : 0.12;
+                picture.luma[static_cast<std::size_t>(y * width + x)] =
+                    static_cast<std::uint8_t>(std::lround(16.0 + 219.0 * value));
+            }
+        }
+    }
+};
+
+/// How far the picture computed between `first` and `second` is from `expected`, in grey levels,
+/// and how long computing one takes. With `card` false the built-in motion search is used.
+struct Generated {
+    double error = 0.0;
+    double mixError = 0.0;
+    double milliseconds = 0.0;
+};
+Generated generateBetween(Surface& surface, render::VideoRenderer& renderer, const media::VideoFrame& first,
+                          const media::VideoFrame& second, const media::VideoFrame& expected, int width, int height) {
+    renderer.clear();
+    EXPECT_TRUE(renderer.submit(expected));
+    surface.begin();
+    renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height));
+    const std::vector<int> wanted = surface.read();
+
+    render::VideoRenderer::Output output;
+    output.choice.valid = true;
+    const auto show = [&](const media::VideoFrame& frame) {
+        renderer.clear();
+        EXPECT_TRUE(renderer.submit(frame));
+        surface.begin();
+        renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height));
+        return surface.read();
+    };
+    const std::vector<int> a = show(first);
+    const std::vector<int> b = show(second);
+
+    Generated result;
+    std::vector<int> between;
+    // Several rounds: the first one includes setting things up.
+    constexpr int kRounds = 12;
+    LARGE_INTEGER frequency{};
+    QueryPerformanceFrequency(&frequency);
+    double best = 1e9;
+    for (int round = 0; round < kRounds; ++round) {
+        renderer.clear();
+        EXPECT_TRUE(renderer.submit(first));
+        const std::uint64_t firstId = renderer.newestId();
+        surface.begin();
+        renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height));
+        (void)surface.read(); // the card is done with everything before the clock starts
+        LARGE_INTEGER start{};
+        QueryPerformanceCounter(&start);
+        EXPECT_TRUE(renderer.submit(second));
+        output.choice.base = firstId;
+        output.choice.next = renderer.newestId();
+        output.choice.step = 1;
+        output.choice.steps = 2;
+        surface.begin();
+        renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height), output);
+        between = surface.read(); // waits for the card
+        LARGE_INTEGER end{};
+        QueryPerformanceCounter(&end);
+        EXPECT_TRUE(renderer.lastDrawWasGenerated());
+        best = std::min(best, static_cast<double>(end.QuadPart - start.QuadPart) * 1000.0 / static_cast<double>(frequency.QuadPart));
+    }
+    std::vector<int> mixed(a.size());
+    for (std::size_t i = 0; i < a.size(); ++i) mixed[i] = (a[i] + b[i] + 1) / 2;
+    result.error = meanDifference(between, wanted, width, height, 24);
+    result.mixError = meanDifference(mixed, wanted, width, height, 24);
+    result.milliseconds = best;
+    return result;
+}
+
+TEST(FrameGeneration, TheShadersForTheCardsMotionSearchCompile) {
+    // No NVIDIA card here, so the card's search is not used. The reason has
+    // to be the card and not a shader that did not compile: the shaders are
+    // built on every machine for exactly this check.
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(canvas.device.Get(), canvas.context.Get(), error)) << error;
+    ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+    EXPECT_FALSE(renderer.usesCardMotion());
+    EXPECT_EQ(renderer.cardMotionError(), "not an NVIDIA graphics card");
+    EXPECT_STREQ(renderer.frameGeneratorName(), "VeloPlay Flow");
+}
+
+TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
+    constexpr int kWidth = 640;
+    constexpr int kHeight = 360;
+    Surface surface;
+    if (!surface.create(kWidth, kHeight, true)) GTEST_SKIP() << "no graphics card in this machine";
+    if (surface.vendor != 0x10DE) GTEST_SKIP() << "not an NVIDIA graphics card";
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+    ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+    if (!renderer.usesCardMotion()) {
+        // An NVIDIA card without the engine (older than the RTX 20 series) or without its library.
+        GTEST_SKIP() << "the card's motion search is not available: " << renderer.cardMotionError();
+    }
+
+    struct Scene {
+        const char* name;
+        bool ladder;
+        double dx, dy;
+    };
+    const Scene scenes[] = {
+        {"textured picture, slow", false, 6, -2},
+        {"textured picture, fast", false, 26, -8},
+        {"ladder, camera moving down", true, 2, 14},
+        {"ladder, camera moving sideways", true, 18, 0},
+    };
+    for (const Scene& scene : scenes) {
+        const auto frame = [&](double share) {
+            return scene.ladder ? LadderFrame(kWidth, kHeight, scene.dx * share, scene.dy * share).picture
+                                : PatternFrame(kWidth, kHeight, scene.dx * share, scene.dy * share);
+        };
+        PatternFrame first = frame(0.0);
+        PatternFrame second = frame(1.0);
+        PatternFrame expected = frame(0.5);
+        // PatternFrame holds pointers into itself; after the copies above they have to be set again.
+        for (PatternFrame* p : {&first, &second, &expected}) {
+            p->frame.planes[0] = p->luma.data();
+            p->frame.planes[1] = p->u.data();
+            p->frame.planes[2] = p->v.data();
+        }
+
+        renderer.allowCardMotion(true);
+        const Generated card = generateBetween(surface, renderer, first.frame, second.frame, expected.frame, kWidth, kHeight);
+        // The engine has to have done it, not the fallback after a failure.
+        ASSERT_TRUE(renderer.usesCardMotion()) << renderer.cardMotionError();
+        renderer.allowCardMotion(false);
+        const Generated own = generateBetween(surface, renderer, first.frame, second.frame, expected.frame, kWidth, kHeight);
+        std::printf("motion search, %s: NVIDIA off by %.2f grey levels in %.2f ms, built-in off by %.2f in %.2f ms, "
+                    "a plain mix off by %.2f\n",
+                    scene.name, card.error, card.milliseconds, own.error, own.milliseconds, card.mixError);
+        // It has to be right, and not clearly worse than what it replaces.
+        EXPECT_LT(card.error, card.mixError * 0.6) << scene.name;
+        EXPECT_LT(card.error, own.error * 1.25 + 0.5) << scene.name;
+    }
+}
+
 TEST(OnTheGraphicsCard, EnlargesWithNvidiasScalerWhereThereIsOne) {
     constexpr int kWidth = 256;
     constexpr int kHeight = 144;

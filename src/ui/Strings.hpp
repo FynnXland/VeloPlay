@@ -280,6 +280,12 @@ struct Strings {
     const char* inputAutoHdr;            // what "automatic" does about HDR
     const char* frameGenerationCapped;   // {0} = refresh rate of the screen, {1} = factor used, {2} = input fps
     const char* hudGame;                 // row label: the rate the game itself runs at
+    // Notes over the running picture.
+    const char* alertNoController;
+    const char* alertConnection;
+    const char* alertLost;
+    const char* alertDecoder;
+    const char* alertFewer;
 };
 
 const Strings& strings(Language language);

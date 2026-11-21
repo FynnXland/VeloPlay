@@ -93,6 +93,10 @@ public:
     void disconnect() override;
     void sleepAndDisconnect() override;
     void applyStreamSettings() override;
+
+    /// Pictures the decoder threw away since the stream began, as the media
+    /// pipeline counts them. The controller cannot see that itself.
+    void noteDroppedFrames(std::uint64_t total) { droppedFrames_ = total; }
     void submitLoginPin(std::string_view digits) override;
     void forgetConsole(std::string_view hostId) override;
     void startPairing(std::string_view address, std::string_view accountId, std::string_view pin) override;
@@ -148,6 +152,7 @@ private:
         int stalls = 0;
         bool restart = false;          // we stopped it to connect again with new settings
         StreamSettings requested{};    // what the running attempt asked the console for
+        StreamAlerts alerts;           // what is wrong with the stream right now
     };
 
     void addNotice(Notice::Kind kind, Notice::Topic topic, std::string detail, std::string technical = {});
@@ -159,6 +164,7 @@ private:
     void failSession(session::QuitReason reason, const std::string& detail);
     /// Before a session object goes: what it showed about the link, for "automatic".
     void rememberLink(Clock::time_point now);
+    void updateAlerts(const session::SessionStats& stats, Clock::time_point now);
     void handleQuickAction(input::QuickAction action);
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();
@@ -217,6 +223,7 @@ private:
     void attachPump(session::ISession* session);
     std::mutex pumpMutex_;
     session::ISession* pumpSession_ = nullptr;
+    std::uint64_t droppedFrames_ = 0; // see noteDroppedFrames()
     std::jthread pump_; // last member: stops first
     std::vector<input::QuickAction> pendingActions_;
     std::string remoteStatusJson_ = "{}";

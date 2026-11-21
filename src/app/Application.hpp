@@ -80,6 +80,7 @@ private:
     std::chrono::steady_clock::time_point nextRateSample_{};
     media::FrameChoice lastChoice_{};     // what the last refresh showed
     bool generatorFailureLogged_ = false;
+    std::string loggedGenerator_;         // the method for pictures in between that the log names last
     bool rtxFailureLogged_ = false;
     // Which picture arrived when, for the newest few; and from that, how long pictures take through this PC.
     std::array<std::pair<std::uint64_t, std::chrono::steady_clock::time_point>, 8> arrivals_{};

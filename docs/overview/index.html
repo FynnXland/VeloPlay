@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.9.0</span>
+    <span class="pill">Version 0.10.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -189,6 +189,9 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
         <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
         <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
+        <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen oder kein Controller da ist</li>
+        <li>Zwischenbilder, auf NVIDIA-Karten mit deren eigener Bewegungssuche (Optical Flow)</li>
+        <li>Eingang automatisch: Auflösung, Bildrate und Datenrate wählt das Programm</li>
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
         <li>Skripte auf dem PC Tasten senden lassen</li>
@@ -198,8 +201,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Zwischenbilder schneller und genauer mit der Hardware von NVIDIA (Optical Flow)</li>
-        <li>Erkennen, wenn ein Spiel in einem 60-fps-Stream nur 30 Bilder liefert</li>
+        <li>Schnitte im Spiel erkennen und die Spielanzeige in berechneten Bildern ruhig halten</li>
+        <li>Steuern mit Maus und Tastatur</li>
         <li>HDR</li>
       </ul>
       <p class="small muted">Neu in 0.6.0 und bisher nur auf einem Software-Renderer geprüft: Zwischenbilder (aus 30 Bildern pro Sekunde werden 60), Hochskalieren mit Lanczos und Schärfen. Auf einer echten Grafikkarte ist diese Version der erste Versuch.</p>
@@ -346,7 +349,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Drei Stufen:</strong> Jedes Bild wird einmal von YUV nach RGB umgerechnet, die zwei neuesten bleiben auf der Karte. Daraus entsteht bei Bedarf das Bild dazwischen. Zum Schluss wird auf Fenstergröße skaliert und geschärft.</li>
           <li><strong>Verfahren „VeloPlay Flow“:</strong> Beide Bilder werden auf Helligkeit in halber Größe reduziert, mit immer kleineren Kopien darunter. Von der kleinsten Kopie zur größten sucht jeder Block die Verschiebung, bei der beide Bilder am besten zusammenpassen, ausgehend vom Ergebnis der Stufe darüber. Gesucht wird um den Zeitpunkt dazwischen herum, deshalb entstehen im neuen Bild keine Löcher.</li>
           <li><strong>Zusammensetzen:</strong> Jeder Bildpunkt wird entlang dieser Verschiebung aus beiden Bildern geholt und gemischt. Wo die beiden nicht zusammenpassen (etwas kommt ins Bild oder die Suche lag falsch), wird stattdessen schlicht überblendet.</li>
-          <li><strong>Für jede Karte:</strong> nur Pixel-Shader, kein Compute, nichts von einem Hersteller. Die Schnittstelle <code>IFrameGenerator</code> lässt Platz für schnellere Verfahren mit Hardware von NVIDIA.</li>
+          <li><strong>Für jede Karte:</strong> „VeloPlay Flow“ braucht nur Pixel-Shader, kein Compute, nichts von einem Hersteller.</li>
+          <li><strong>Auf NVIDIA-Karten ab der RTX-20-Serie (seit 0.10.0):</strong> Die Suche nach der Bewegung übernimmt der dafür gebaute Teil der Grafikkarte („NVIDIA Optical Flow“, im Treiber enthalten, ein Vektor pro vier mal vier Bildpunkte). Er liegt auch dort richtig, wo eine Suche von grob nach fein danebengreift, etwa bei Leitersprossen, die alle gleich aussehen. Seine Vektoren werden auf den Zeitpunkt dazwischen umgerechnet; jede Stelle wählt dann unter den Vektoren ihrer Nachbarn den, mit dem beide Bilder dort am besten zusammenpassen. Das Zusammensetzen bleibt gleich. Fehlt der Teil oder meldet er einen Fehler, übernimmt „VeloPlay Flow“. Die Anzeige im Spiel nennt, welches Verfahren läuft.</li>
           <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln. Kommen Bilder aus dem WLAN ungleichmäßig an, werden sie trotzdem in gleichmäßigen Abständen gezeigt.</li>
           <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
           <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
@@ -469,6 +473,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Spiel:</strong> erscheint, wenn das Spiel nur mit 30 Bildern läuft, während die PS5 60 schickt. Sie sendet dann jedes Bild doppelt; VeloPlay lässt die Wiederholungen weg und berechnet die Bilder dazwischen.</li>
         <li><strong>Zwischenbilder, Zusatzverzögerung:</strong> der Faktor mit dem Namen des Verfahrens, und wie viel später das Bild dadurch erscheint.</li>
         <li><strong>Datenrate, Antwortzeit, Verlust:</strong> wie es der Verbindung geht.</li>
+        <li><strong>Hinweise oben in der Mitte:</strong> erscheinen nur, wenn etwas nicht stimmt, auch bei ausgeblendeter Anzeige. „Kein Controller verbunden“, „Die Verbindung hakt“ (über 0,3 Sekunden kein Bild), „Bilder gehen unterwegs verloren“ (mehrere in fünf Sekunden), „Dein PC kommt mit dem Entpacken der Bilder nicht nach“ und „Die PS5 schickt gerade weniger Bilder“. So lässt sich ein Ruckler im Spiel von einem im Netz unterscheiden.</li>
         <li><strong>Dekoder:</strong> „D3D11VA“ heißt, die Grafikkarte entpackt. Dahinter die mittlere Zeit pro Bild.</li>
         <li><strong>Langsamstes Bild:</strong> das Bild der letzten ein bis zwei Sekunden, das am längsten zum Entpacken brauchte. Liegt der Wert weit über dem Mittel, ruckelt es, auch wenn das Mittel gut aussieht.</li>
         <li><strong>Im PC:</strong> wie lange ein Bild vom Eintreffen der Daten bis zum Zeichnen braucht. Mit Zwischenbildern ist die halbe Bildperiode Wartezeit darin enthalten.</li>
@@ -610,7 +615,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.9.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.10.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -673,7 +678,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>246 automatische Tests unter Linux und 257 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>254 automatische Tests unter Linux und 267 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -684,6 +689,8 @@ flowchart LR
       <tr><td>Ton, Haptik, Trigger</td><td>Opus-Paket entpackt, Puffer bei Lücken und Stau, Haptik auf vier Kanäle umgerechnet, Effektblock für die Trigger Byte für Byte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Erkennen eines Spiels mit 30 Bildern in einem Stream mit 60</td><td>Die Entscheidung mit erfundenen Bildfolgen: gleichmäßiger Wechsel, Stillstand, Stolpern eines 60er-Spiels, ein verlorenes Bild. Der Vergleich der Bilder unter Windows auf dem Software-Renderer mit einem Muster, das jedes zweite Mal fast unverändert wiederkommt. An einem echten Spiel noch nicht gesehen.</td><td class="state soon">Logik bestanden, echtes Spiel offen</td></tr>
       <tr><td>Automatische Datenrate</td><td>Die Regeln mit erfundenen Sitzungen: sauber, mit Verlust, zu kurz, mit stehendem Stream. Ob 15 bis 30 Mbit/s das Bild einer PS5 im WLAN sichtbar verbessern, ist nicht gemessen.</td><td class="state soon">Logik bestanden, Wirkung offen</td></tr>
+      <tr><td>Hinweise über dem Bild</td><td>Die Regeln mit eingespeister Zeit: wann ein Hinweis kommt, wie lange er bleibt, was in den ersten Sekunden eines Streams ignoriert wird. Dazu eine nachgestellte Sitzung ohne Controller und mit stehendem Bild.</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Zwischenbilder mit NVIDIA Optical Flow</td><td>Die Grafikprogramme dafür werden auf jedem Rechner übersetzt. Die Suche selbst läuft nur auf einer NVIDIA-Karte: Dort vergleicht ein Test sie mit der eigenen Suche an vier Bildfolgen, darunter eine Leiter bei bewegter Kamera, und misst die Rechenzeit.</td><td class="state soon">gebaut, an echter Karte noch nicht gelaufen</td></tr>
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Ob Trigger und Haptik spürbar sind, ist noch nicht zurückgemeldet.</td><td class="state soon">Ton bestätigt, Rest offen</td></tr>
       <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>

@@ -9,6 +9,7 @@
 #include "app/AppState.hpp"
 #include "app/Config.hpp"
 #include "app/ConsoleList.hpp"
+#include "app/StreamAlerts.hpp"
 #include "app/StreamStats.hpp"
 #include "input/ControllerState.hpp"
 #include "input/IControllerBackend.hpp"
@@ -132,6 +133,8 @@ struct UiModel {
 
     SessionView session;
 
+    /// What is wrong with the running stream right now, most pressing first. Shown over the picture.
+    std::vector<StreamAlert> alerts;
     /// Present while a stream is running; drives the in-stream display.
     std::optional<StreamStats> stream;
 
