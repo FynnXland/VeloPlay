@@ -31,6 +31,10 @@ struct StreamProfile {
     int frameGenerationFactor; // 0 = automatic, 1 = off, 2..4 = output frames per stream frame
 };
 
+/// The program chooses what to ask the console for (see AutoStream.hpp).
+/// The values in StreamSettings are kept for when the user switches it off.
+inline constexpr std::string_view kProfileAuto = "auto";
+
 /// 30 fps from the console, interpolated to 60 fps on the PC. For games that
 /// run at 30 fps on the console: every stream frame is a real game frame, and
 /// each one gets twice the bits of a 60 fps stream.

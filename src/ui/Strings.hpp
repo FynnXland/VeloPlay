@@ -273,6 +273,13 @@ struct Strings {
     const char* pauseOverlay;
     const char* hudUnavailable;          // frame generation could not be started
     const char* hudInsidePc;             // row label: how long a picture takes from arriving to being drawn
+    const char* modeAuto;                // the program chooses what to ask the console for
+    const char* modeAutoHint;
+    const char* inputAuto;               // switch on the input tab
+    const char* inputAutoHint;
+    const char* inputAutoHdr;            // what "automatic" does about HDR
+    const char* frameGenerationCapped;   // {0} = refresh rate of the screen, {1} = factor used, {2} = input fps
+    const char* hudGame;                 // row label: the rate the game itself runs at
 };
 
 const Strings& strings(Language language);

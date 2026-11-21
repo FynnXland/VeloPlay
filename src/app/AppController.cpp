@@ -1,6 +1,7 @@
 #include "app/AppController.hpp"
 
 #include <algorithm>
+#include <array>
 #include <utility>
 
 #include <nlohmann/json.hpp>
@@ -241,6 +242,12 @@ void AppController::fillModel(UiModel& model) {
 
     model.remoteApiRunning = remoteServer_.running();
     model.config = &config_;
+    // What a session asks for: with the console of the running session, or
+    // else the first paired one. The settings screen shows it.
+    model.requestedStream = effectiveStream(config_, session_ ? std::string_view(session_->hostId)
+                                            : config_.consoles.empty() ? std::string_view{}
+                                                                       : std::string_view(config_.consoles.front().hostId));
+    model.requestedStream.hdr = false;
 }
 
 void AppController::attachPump(session::ISession* session) {
@@ -392,7 +399,8 @@ void AppController::beginSession(std::string_view hostId, bool afterWake) {
 }
 
 StreamSettings AppController::streamSettingsForAttempt() const {
-    StreamSettings stream = config_.stream;
+    // With "automatic" the program's choice for this console, the stored settings otherwise.
+    StreamSettings stream = effectiveStream(config_, session_ ? std::string_view(session_->hostId) : std::string_view{});
     // HDR needs a display path that does not exist yet; the settings say so.
     stream.hdr = false;
     if (session_ && session_->bitrateKbps > 0) stream.bitrateKbps = session_->bitrateKbps;
@@ -476,7 +484,7 @@ void AppController::updateSession(Clock::time_point now) {
             session_->videoFrames = frames;
             session_->lastPicture = now;
         } else if (!session_->stalled && now - session_->lastPicture >= options_.stallTimeout) {
-            const int current = session_->bitrateKbps > 0 ? session_->bitrateKbps : config_.stream.bitrateKbps;
+            const int current = session_->requested.bitrateKbps;
             spdlog::warn("No picture for {} ms at {} kbit/s; reconnecting", options_.stallTimeout.count(), current);
             session_->stalled = true;
             ++session_->stalls;
@@ -529,6 +537,7 @@ void AppController::updateSession(Clock::time_point now) {
 void AppController::handleQuit(session::QuitReason reason, const std::string& detail, Clock::time_point now) {
     spdlog::info("Session ended: {} ({})", session::toString(reason), detail);
     attachPump(nullptr);
+    rememberLink(now);
     session_->session.reset(); // joins the session thread
     if (options_.mediaSink) options_.mediaSink->end();
     if (session_->connected) {
@@ -587,6 +596,30 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
     failSession(reason, detail);
 }
 
+void AppController::rememberLink(Clock::time_point now) {
+    // Only "automatic" learns, and only from an attempt that reached the stream.
+    if (!isAutomatic(config_) || !session_ || !session_->session || !session_->connected) return;
+    const auto console = std::find_if(config_.consoles.begin(), config_.consoles.end(),
+                                      [&](const RegisteredConsole& c) { return c.hostId == session_->hostId; });
+    if (console == config_.consoles.end()) return;
+
+    const session::SessionStats stats = session_->session->stats(now);
+    SessionOutcome outcome;
+    outcome.bitrateKbps = session_->requested.bitrateKbps;
+    outcome.streamed = std::chrono::duration_cast<std::chrono::seconds>(now - session_->connectedAt);
+    outcome.frames = stats.videoFrames;
+    outcome.framesLost = stats.framesLost;
+    outcome.stalled = session_->stalled;
+    const LinkMemory learned = learn(console->link, outcome);
+    if (learned == console->link) return;
+    spdlog::info("Automatic bitrate for {}: {} kbit/s next time (this session {} kbit/s, {} of {} pictures lost{})",
+                 console->name, learned.bitrateKbps, outcome.bitrateKbps, outcome.framesLost,
+                 outcome.frames + outcome.framesLost, outcome.stalled ? ", stream stood still" : "");
+    console->link = learned;
+    configDirty_ = true;
+    saveAfter_ = Clock::now() + kSaveDelay;
+}
+
 void AppController::failSession(session::QuitReason reason, const std::string& detail) {
     addNotice(Notice::Kind::Error, noticeTopicFor(reason, session_->everConnected), session_->name, detail);
     const AppState state = stateMachine_.state();
@@ -600,12 +633,13 @@ void AppController::failSession(session::QuitReason reason, const std::string& d
 void AppController::handleQuickAction(input::QuickAction action) {
     switch (action) {
         case input::QuickAction::NextProfile: {
-            const auto profiles = builtInProfiles();
+            // Automatic, then the two fixed ones, then automatic again.
+            const std::array<std::string_view, 3> profiles = {kProfileAuto, kProfileSmooth30, kProfileNative60};
             std::size_t next = 0;
             for (std::size_t i = 0; i < profiles.size(); ++i) {
-                if (profiles[i].id == config_.activeProfile) next = (i + 1) % profiles.size();
+                if (profiles[i] == config_.activeProfile) next = (i + 1) % profiles.size();
             }
-            selectProfile(profiles[next].id);
+            selectProfile(profiles[next]);
             break;
         }
         case input::QuickAction::Sleep: sleepAndDisconnect(); break;
@@ -713,6 +747,12 @@ void AppController::applyStreamAdvice() {
     if (quality == protocol::LinkQuality::Unknown) return;
     const protocol::StreamAdvice advice = protocol::adviceFor(quality);
     config_.stream.bitrateKbps = advice.bitrateKbps;
+    // A fresh measurement replaces what "automatic" learned about this console.
+    for (RegisteredConsole& console : config_.consoles) {
+        if (console.hostId != probeHostId_) continue;
+        console.link.bitrateKbps = std::min(advice.bitrateKbps, kAutoMaxBitrateKbps);
+        console.link.ceilingKbps = 0;
+    }
     config_.network.jitter = advice.stableBuffer ? JitterMode::Stable : JitterMode::LowLatency;
     configChanged();
 }

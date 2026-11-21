@@ -85,6 +85,18 @@ std::filesystem::path executablePath() {
     return std::filesystem::path(std::wstring(buffer, length));
 }
 
+/// Refreshes per second of the screen a window is on; 0 if Windows does not say.
+double refreshRateOf(HWND window) {
+    MONITORINFOEXW monitor{};
+    monitor.cbSize = sizeof(monitor);
+    if (!GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) return 0.0;
+    DEVMODEW mode{};
+    mode.dmSize = sizeof(mode);
+    if (!EnumDisplaySettingsW(monitor.szDevice, ENUM_CURRENT_SETTINGS, &mode)) return 0.0;
+    // 0 and 1 stand for "whatever the hardware does by default".
+    return mode.dmDisplayFrequency > 1 ? static_cast<double>(mode.dmDisplayFrequency) : 0.0;
+}
+
 bool reducedMotion() {
     BOOL animations = TRUE;
     SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0);
@@ -333,6 +345,12 @@ void Application::frame() {
     model_.gpuName = device_.adapterName();
     model_.reducedMotion = reducedMotion();
     model_.rtxVideoAvailable = videoRenderer_.rtxAvailable();
+    // The window can be moved to another screen at any time; once a second is often enough.
+    if (const auto now = std::chrono::steady_clock::now(); now >= nextDisplayCheck_) {
+        nextDisplayCheck_ = now + std::chrono::seconds(1);
+        displayHz_ = refreshRateOf(window_);
+    }
+    model_.displayHz = displayHz_;
 
     const bool streaming = model_.state == AppState::Streaming;
     // Windows wakes sleeping threads only every 15 ms unless asked for more.
@@ -357,7 +375,9 @@ void Application::frame() {
             refreshMs_ = 0.0;
             insideMs_ = 0.0;
             arrivals_ = {};
-            inputRate_.reset(config.stream.fps);
+            inputRate_.reset(model_.requestedStream.fps);
+            cadence_.reset();
+            skipRepeats_ = false;
             nextRateSample_ = {};
         } else if (model_.stream && now >= nextRateSample_) {
             // Once a second: is it a 30 or a 60 fps stream that arrives?
@@ -366,9 +386,14 @@ void Application::frame() {
         }
         // What arrives decides what is made of it: the factor for frame
         // generation follows the measured rate when it is set to automatic.
-        const int wanted = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, inputRate_.fps());
+        // A game at 30 fps in a 60 fps stream counts as 30: the console sends each of its pictures twice.
+        const bool halved = streaming && inputRate_.fps() == 60 && cadence_.halved();
+        const int gameFps = halved ? 30 : inputRate_.fps();
+        const int wanted = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, gameFps, displayHz_);
         const bool available = videoRenderer_.frameGenerationAvailable();
-        pacer_.configure(available ? wanted : 1, std::chrono::microseconds(1'000'000 / inputRate_.fps()));
+        // Without pictures to compute in between, the repeats may as well be shown.
+        skipRepeats_ = halved && available && wanted > 1;
+        pacer_.configure(available ? wanted : 1, std::chrono::microseconds(1'000'000 / (skipRepeats_ ? 30 : inputRate_.fps())));
 
         // A console on Wi-Fi delivers in bursts with gaps of tens of milliseconds
         // between them; chiaki-ng keeps about 100 ms of sound for that reason.
@@ -381,6 +406,7 @@ void Application::frame() {
             StreamStats& stats = *model_.stream;
             stats.presenting = true;
             stats.outputFps = static_cast<float>(shownMeter_.rates(now).framesPerSecond);
+            stats.gameFps = halved ? 30 : 0;
             stats.inputWidth = videoRenderer_.width();
             stats.inputHeight = videoRenderer_.height();
             stats.outputWidth = videoRenderer_.shownWidth();
@@ -420,7 +446,11 @@ void Application::frame() {
         diag::setStep("taking over a picture");
         const auto now = std::chrono::steady_clock::now();
         for (const media::VideoFrame& picture : pipeline_->takeFrames()) {
-            if (!videoRenderer_.submit(picture)) continue;
+            // The repeats of a game that runs at half the stream's rate are compared and left out.
+            const bool repeat = skipRepeats_ && cadence_.isRepeat(videoRenderer_.submitted() + 1);
+            const bool taken = videoRenderer_.submit(picture, !repeat);
+            while (const auto change = videoRenderer_.takeChange()) cadence_.add(change->picture, change->share);
+            if (!taken || repeat) continue;
             // Laid out by when the decoder finished, not by when this loop came around.
             const bool stamped = picture.decodedAt != std::chrono::steady_clock::time_point{};
             pacer_.onFrame(videoRenderer_.newestId(), stamped ? picture.decodedAt : now);
@@ -534,10 +564,13 @@ void Application::logStreamSummary(std::chrono::steady_clock::time_point now) {
     const StreamStats& stream = *model_.stream;
     const media::MediaPipeline::Stats media = pipeline_ ? pipeline_->stats() : media::MediaPipeline::Stats{};
     spdlog::info("Stream: console {:.1f} fps, shown {:.1f} fps, {:.1f} Mbit/s, loss {:.1f} %, decoder {:.1f} ms "
-                 "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x, {:.0f} ms inside the PC{}",
+                 "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x, {:.0f} ms inside the PC, "
+                 "screen {:.0f} Hz{}{}",
                  stream.streamFps, stream.outputFps, stream.bitrateMbps,
                  stream.packetLossPercent, media.decodeMs, media.decodeMaxMs, media.decodedFrames, media.droppedFrames,
-                 media.failedFrames, pacer_.factor(), insideMs_, IsIconic(window_) ? ", window minimised" : "");
+                 media.failedFrames, pacer_.factor(), insideMs_, displayHz_,
+                 cadence_.halved() ? ", game at 30 fps (every other picture repeats)" : "",
+                 IsIconic(window_) ? ", window minimised" : "");
 }
 
 void Application::toggleFullscreen() {

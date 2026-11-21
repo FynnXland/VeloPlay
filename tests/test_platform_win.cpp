@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
 #include <string>
 #include <thread>
 #include <vector>
@@ -436,6 +437,55 @@ TEST(FrameGeneration, PutsMovingContentWhereItBelongsInBetween) {
         EXPECT_LT(error, 2.5);
         if (test.dx != 0 || test.dy != 0) EXPECT_LT(error, mixError * 0.4);
     }
+}
+
+TEST(VideoRenderer, TellsARepeatedPictureFromANewOne) {
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(canvas.device.Get(), canvas.context.Get(), error)) << error;
+
+    // A game at 30 fps in a 60 fps stream: every picture comes twice. The
+    // second time it went through the encoder again and is a level off here and there.
+    constexpr int kWidth = 320;
+    constexpr int kHeight = 180;
+    std::map<std::uint64_t, double> shares; // by picture, counted from 1
+    for (int i = 0; i < 12; ++i) {
+        PatternFrame picture(kWidth, kHeight, 6.0 * (i / 2), 2.0 * (i / 2));
+        if (i % 2 == 1) {
+            for (std::size_t at = 0; at < picture.luma.size(); at += 7) {
+                picture.luma[at] = static_cast<std::uint8_t>(picture.luma[at] + (at % 2 == 0 ? 1 : -1));
+            }
+        }
+        // The repeats are only measured, not kept: the picture shown stays the one before.
+        const std::uint64_t shownBefore = renderer.newestId();
+        ASSERT_TRUE(renderer.submit(picture.frame, i % 2 == 0));
+        EXPECT_EQ(renderer.submitted(), static_cast<std::uint64_t>(i + 1));
+        if (i % 2 == 1) EXPECT_EQ(renderer.newestId(), shownBefore);
+        canvas.context->Flush();
+        while (const auto change = renderer.takeChange()) shares[change->picture] = change->share;
+    }
+    // The comparisons come a few pictures late; most of them are there by now.
+    ASSERT_GE(shares.size(), 6u);
+    double repeated = 0.0;
+    double fresh = 1.0;
+    for (const auto& [picture, share] : shares) {
+        // Pictures 2, 4, 6, ... repeat the one before; 3, 5, 7, ... are new.
+        if (picture % 2 == 0) {
+            EXPECT_LT(share, media::CadenceDetector::kRepeatBelow) << "picture " << picture;
+            repeated = std::max(repeated, share);
+        } else {
+            EXPECT_GT(share, 0.2) << "picture " << picture;
+            fresh = std::min(fresh, share);
+        }
+    }
+
+    // Fed to the detector, that is a game at half the stream's rate.
+    media::CadenceDetector detector;
+    for (std::uint64_t picture = 2; picture < 26; ++picture) detector.add(picture, picture % 2 == 0 ? repeated : fresh);
+    EXPECT_TRUE(detector.halved());
+    EXPECT_TRUE(detector.isRepeat(100));
 }
 
 TEST(VideoRenderer, ShowsThePictureThatIsAskedFor) {

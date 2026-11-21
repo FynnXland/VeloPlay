@@ -1,7 +1,9 @@
 #include "render/VideoRenderer.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
+#include <iterator>
 
 #include <d3dcompiler.h>
 
@@ -33,6 +35,21 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float2 c = chromaTexture.Sample(linearSampler, uv).rg;
     float4 yuv = float4(y, c.x, c.y, 1.0);
     return float4(saturate(float3(dot(row0, yuv), dot(row1, yuv), dot(row2, yuv))), 1.0);
+}
+)";
+
+// A small copy of the brightness, for telling a repeated picture from a new
+// one. Four samples a quarter of a cell apart; each reads four pixels.
+const char kProbeShader[] = R"(
+Texture2D lumaTexture : register(t0);
+SamplerState linearSampler : register(s0);
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float2 d = float2(0.25 / 96.0, 0.25 / 54.0);
+    float y = lumaTexture.SampleLevel(linearSampler, uv + float2(-d.x, -d.y), 0).r +
+              lumaTexture.SampleLevel(linearSampler, uv + float2(d.x, -d.y), 0).r +
+              lumaTexture.SampleLevel(linearSampler, uv + float2(-d.x, d.y), 0).r +
+              lumaTexture.SampleLevel(linearSampler, uv + float2(d.x, d.y), 0).r;
+    return float4(y * 0.25, 0.0, 0.0, 1.0);
 }
 )";
 
@@ -207,6 +224,10 @@ bool VideoRenderer::create(ID3D11Device* device, ID3D11DeviceContext* context, s
         return false;
     }
 
+    // So is the comparison of pictures; without it a halved game rate goes unnoticed.
+    std::string probeError;
+    if (!makePixelShader(device, kProbeShader, sizeof(kProbeShader) - 1, probeShader_, probeError)) probeShader_.Reset();
+
     // Frame generation is an extra. If the card cannot set it up, pictures
     // are shown as they arrive and the reason is kept for the log.
     auto generator = std::make_unique<FlowFrameGenerator>();
@@ -223,6 +244,72 @@ void VideoRenderer::clear() {
     slots_[0].id = 0;
     slots_[1].id = 0;
     generatedFor_ = {};
+    for (ProbeCopy& copy : probeCopies_) copy.pending = false;
+    probeBefore_.clear();
+    probeBeforePicture_ = 0;
+    changes_.clear();
+}
+
+std::optional<VideoRenderer::Change> VideoRenderer::takeChange() {
+    if (changes_.empty()) return std::nullopt;
+    const Change change = changes_.front();
+    changes_.pop_front();
+    return change;
+}
+
+void VideoRenderer::probe() {
+    if (!probeShader_ || !lumaView_ || !ensureTarget(probeTarget_, kProbeWidth, kProbeHeight)) return;
+    ProbeCopy& copy = probeCopies_[submitted_ % std::size(probeCopies_)];
+
+    // What this place holds is three pictures old. Read it before it is written again.
+    if (copy.pending && copy.staging) {
+        copy.pending = false;
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (SUCCEEDED(context_->Map(copy.staging.Get(), 0, D3D11_MAP_READ, D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped))) {
+            std::vector<std::uint8_t> now(static_cast<std::size_t>(kProbeWidth) * kProbeHeight);
+            for (int y = 0; y < kProbeHeight; ++y) {
+                const auto* row = static_cast<const std::uint8_t*>(mapped.pData) + static_cast<std::size_t>(y) * mapped.RowPitch;
+                for (int x = 0; x < kProbeWidth; ++x) now[static_cast<std::size_t>(y * kProbeWidth + x)] = row[x * 4];
+            }
+            context_->Unmap(copy.staging.Get(), 0);
+            if (probeBeforePicture_ + 1 == copy.picture && probeBefore_.size() == now.size()) {
+                // A repeat that went through the encoder again differs by a level or two
+                // here and there. More than three levels is a real change.
+                std::size_t changed = 0;
+                for (std::size_t i = 0; i < now.size(); ++i) {
+                    if (std::abs(static_cast<int>(now[i]) - static_cast<int>(probeBefore_[i])) > 3) ++changed;
+                }
+                changes_.push_back({copy.picture, static_cast<double>(changed) / static_cast<double>(now.size())});
+                if (changes_.size() > 64) changes_.pop_front();
+            }
+            probeBefore_ = std::move(now);
+            probeBeforePicture_ = copy.picture;
+        }
+    }
+
+    if (!copy.staging) {
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = kProbeWidth;
+        desc.Height = kProbeHeight;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (FAILED(device_->CreateTexture2D(&desc, nullptr, copy.staging.GetAddressOf()))) return;
+    }
+    D3D11_VIEWPORT viewport{};
+    viewport.Width = static_cast<float>(kProbeWidth);
+    viewport.Height = static_cast<float>(kProbeHeight);
+    viewport.MaxDepth = 1.0f;
+    ID3D11ShaderResourceView* views[1] = {lumaView_.Get()};
+    pass(probeShader_.Get(), probeTarget_.target.Get(), viewport, views, 1, colorConstants_.Get());
+    ID3D11RenderTargetView* noTarget = nullptr;
+    context_->OMSetRenderTargets(1, &noTarget, nullptr);
+    context_->CopyResource(copy.staging.Get(), probeTarget_.texture.Get());
+    copy.picture = submitted_;
+    copy.pending = true;
 }
 
 bool VideoRenderer::ensureTarget(Target& target, int width, int height) {
@@ -359,7 +446,8 @@ bool VideoRenderer::upload(const media::VideoFrame& frame) {
     return true;
 }
 
-bool VideoRenderer::submit(const media::VideoFrame& frame) {
+bool VideoRenderer::submit(const media::VideoFrame& frame, bool keep) {
+    ++submitted_;
     if (!device_ || frame.width <= 0 || frame.height <= 0) return false;
     const bool onCard = frame.layout == media::PixelLayout::D3D11Nv12;
     if (!ensureTextures(frame.width, frame.height, onCard)) {
@@ -379,6 +467,8 @@ bool VideoRenderer::submit(const media::VideoFrame& frame) {
     } else if (!upload(frame)) {
         return false;
     }
+    probe();
+    if (!keep) return true;
 
     if (!colorSet_ || !(color_ == frame.color)) {
         const media::ColorMatrix matrix = media::yuvToRgb(frame.color);

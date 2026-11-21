@@ -273,14 +273,26 @@ constexpr Strings kGerman = {
     .frameGenerationAutoOn = "Automatisch: Die PS5 sendet {0} fps, dein PC berechnet die Bilder dazwischen und zeigt {1} fps. "
                              "Das Bild erscheint dafür etwa {2} ms später. Einen Stream mit 60 fps zeigt VeloPlay, wie er "
                              "ankommt.",
-    .frameGenerationAutoOff = "Automatisch: Die PS5 sendet {0} fps, das wird unverändert gezeigt. Bei einem Stream mit "
-                              "30 fps berechnet dein PC Bilder dazwischen.",
+    .frameGenerationAutoOff = "Automatisch: Die PS5 sendet {0} fps. Läuft dein Spiel mit 60, wird es unverändert "
+                              "gezeigt. Läuft es mit 30, berechnet dein PC die Bilder dazwischen.",
     .inputApplyHint = "Die PS5 sendet noch mit den alten Werten. Die neuen gelten nach dem Neuverbinden. Das Bild setzt "
                       "dabei ein paar Sekunden aus, das Spiel läuft weiter.",
     .inputApply = "Jetzt neu verbinden",
     .pauseOverlay = "Anzeige oben links",
     .hudUnavailable = "nicht verfügbar",
     .hudInsidePc = "Im PC",
+    .modeAuto = "Automatisch",
+    .modeAutoHint = "VeloPlay wählt Auflösung, Bildrate und Datenrate selbst und erkennt, ob dein Spiel mit 30 oder "
+                    "60 Bildern pro Sekunde läuft.",
+    .inputAuto = "Automatisch",
+    .inputAutoHint = "VeloPlay fordert die beste Auflösung mit 60 Bildern pro Sekunde an. Läuft dein Spiel nur mit 30, "
+                     "erkennt VeloPlay das und berechnet die Bilder dazwischen. Die Datenrate merkt sich VeloPlay pro "
+                     "PS5: Nach einer Sitzung ohne Aussetzer gibt es beim nächsten Mal etwas mehr, nach Aussetzern "
+                     "weniger.",
+    .inputAutoHdr = "HDR wird noch nicht angezeigt und bleibt deshalb aus.",
+    .frameGenerationCapped = "Dein Bildschirm zeigt {0} Bilder pro Sekunde. Bei {2} fps von der PS5 passen nur {1}x "
+                             "hinein, mehr würde das Bild nur verzögern. VeloPlay rechnet deshalb mit {1}x.",
+    .hudGame = "Spiel",
 };
 
 constexpr Strings kEnglish = {
@@ -545,14 +557,25 @@ constexpr Strings kEnglish = {
     .automatic2 = "Auto",
     .frameGenerationAutoOn = "Automatic: the PS5 sends {0} fps, your PC computes the frames in between and shows {1} fps. "
                              "The picture appears about {2} ms later in return. A 60 fps stream is shown as it arrives.",
-    .frameGenerationAutoOff = "Automatic: the PS5 sends {0} fps, which is shown unchanged. For a 30 fps stream your PC "
-                              "computes frames in between.",
+    .frameGenerationAutoOff = "Automatic: the PS5 sends {0} fps. A game that runs at 60 is shown unchanged. For one "
+                              "that runs at 30 your PC computes the frames in between.",
     .inputApplyHint = "The PS5 still sends with the old values. The new ones apply after connecting again. The picture "
                       "pauses for a few seconds while the game keeps running.",
     .inputApply = "Connect again now",
     .pauseOverlay = "Display in the top left corner",
     .hudUnavailable = "not available",
     .hudInsidePc = "Inside the PC",
+    .modeAuto = "Automatic",
+    .modeAutoHint = "VeloPlay chooses resolution, frame rate and bitrate itself and notices whether your game runs "
+                    "at 30 or 60 frames per second.",
+    .inputAuto = "Automatic",
+    .inputAutoHint = "VeloPlay asks for the best resolution at 60 frames per second. If your game only runs at 30, "
+                     "VeloPlay notices and computes the frames in between. The bitrate is remembered per PS5: after "
+                     "a session without dropouts the next one gets a little more, after dropouts less.",
+    .inputAutoHdr = "HDR is not shown yet and therefore stays off.",
+    .frameGenerationCapped = "Your screen shows {0} pictures per second. At {2} fps from the PS5 only {1}x fit in; "
+                             "more would only delay the picture. VeloPlay therefore uses {1}x.",
+    .hudGame = "Game",
 };
 
 } // namespace

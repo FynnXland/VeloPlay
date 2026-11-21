@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.8.0</span>
+    <span class="pill">Version 0.9.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -300,7 +300,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <ul>
           <li>Diesen Teil übernimmt <code>libchiaki</code> aus dem Projekt chiaki-ng, weil er an vielen echten Konsolen erprobt ist. VeloPlay bindet nur den Teil für das Heimnetz ein, ohne den Weg über Sonys Server.</li>
           <li>Ablauf: Sitzungsanfrage per TCP an Port <code>9295</code>, Steuerverbindung auf demselben Port, eine kurze Messstrecke per UDP auf <code>9297</code> (Antwortzeit und Paketgröße), dann der Stream per UDP auf <code>9296</code> mit Fehlerkorrektur.</li>
-          <li>Angefragt wird, was in den Einstellungen steht: 1080p, 30 oder 60 Bilder pro Sekunde, HEVC oder H.264, 5 bis 60 Mbit/s. Voreingestellt sind 15 Mbit/s bei 30 und 20 Mbit/s bei 60 Bildern pro Sekunde; 15 Mbit/s nutzt auch die offizielle App für 1080p. Lehnt die Konsole das Profil ab, wird automatisch eine Stufe tiefer verhandelt.</li>
+          <li>Mit „Automatisch“ (Voreinstellung seit 0.9.0) fragt VeloPlay 1080p mit 60 Bildern pro Sekunde und HEVC an. Die Datenrate beginnt bei 15 Mbit/s, so viel nutzt auch die offizielle App für 1080p. Nach einer Sitzung von mindestens zwei Minuten ohne Aussetzer gibt es beim nächsten Mal ein Viertel mehr, bis 30 Mbit/s. Gingen mehr als fünf von tausend Bildern verloren oder stand der Stream, gibt es weniger, und VeloPlay merkt sich pro Konsole, ab wo es schiefging. Unter 7 Mbit/s wird 720p angefragt.</li>
+          <li>Ohne „Automatisch“ gilt, was in den Einstellungen steht: 1080p oder 720p, 30 oder 60 Bilder pro Sekunde, HEVC oder H.264, 5 bis 60 Mbit/s. Lehnt die Konsole das Profil ab, wird automatisch eine Stufe tiefer verhandelt.</li>
           <li>Kommt sechs Sekunden lang kein Bild an, trägt die Strecke die Datenrate nicht. VeloPlay verbindet dann neu mit der halben Rate, bis hinunter zu 5 Mbit/s, und sagt das nach der Sitzung in einem Hinweis.</li>
           <li>Nach dem Aufwecken nimmt die PS5 erst nach einigen Sekunden Verbindungen an. VeloPlay versucht es bis zu sechsmal im Abstand von zwei Sekunden.</li>
           <li>Bricht der Stream ab, folgen drei neue Versuche. Erst danach erscheint ein Hinweis. Geht die PS5 selbst in den Ruhemodus, gilt das als normales Ende.</li>
@@ -372,7 +373,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Verbinden, Aufwecken, Koppeln:</strong> „Verbinden“ weckt eine schlafende Konsole gleich mit auf. Bei einer neuen Konsole steht dort „Koppeln“.</li>
         <li><strong>Drei Punkte:</strong> Verbindung prüfen, Kopplung entfernen (mit Rückfrage).</li>
         <li><strong>Oben rechts:</strong> angeschlossener Controller mit Verbindungsart, daneben die Einstellungen.</li>
-        <li><strong>Bildmodus:</strong> „30-fps-Spiel“ fordert 30 Bilder an und berechnet die Bilder dazwischen, „60-fps-Spiel“ fordert 60 an und zeigt sie, wie sie sind.</li>
+        <li><strong>Bildmodus:</strong> „Automatisch“ wählt Auflösung, Bildrate und Datenrate selbst und erkennt, ob das Spiel mit 30 oder 60 Bildern läuft. „30-fps-Spiel“ fordert 30 Bilder an und berechnet die Bilder dazwischen, „60-fps-Spiel“ fordert 60 an und zeigt sie, wie sie sind.</li>
         <li><strong>Konsole hinzufügen:</strong> für Konsolen, die die Suche nicht findet.</li>
       </ul>
     </div>
@@ -423,7 +424,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div>
       <h3>Einstellungen</h3>
       <ul>
-        <li><strong>Eingang:</strong> was die PS5 schickt. Bildrate (30 oder 60), Auflösung, Codec, HDR, Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
+        <li><strong>Eingang:</strong> was die PS5 schickt. Ein Schalter „Automatisch“; ist er aus, erscheinen Bildrate (30 oder 60), Auflösung, Codec, HDR und Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
         <li><strong>Controller:</strong> welcher Controller, Totzone der Sticks, Vibration, adaptive Trigger.</li>
         <li><strong>Erweitert:</strong> Sprache, Updates, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
@@ -438,7 +439,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Eingang und Ausgabe</h3>
       <ul>
         <li><strong>Die Zeile oben:</strong> links, was die PS5 sendet, rechts, was auf dem Bildschirm ankommt. Der umrandete Kasten gehört zum offenen Reiter.</li>
-        <li><strong>Zwischenbilder:</strong> „Auto“ verdoppelt 30 Bilder pro Sekunde und lässt 60 in Ruhe. Darunter steht, was das gerade heißt und wie viel später das Bild dadurch erscheint.</li>
+        <li><strong>Zwischenbilder:</strong> „Auto“ verdoppelt 30 Bilder pro Sekunde und lässt 60 in Ruhe. Darunter steht, was das gerade heißt und wie viel später das Bild dadurch erscheint. Mehr Bilder, als der Bildschirm pro Sekunde zeigen kann, berechnet VeloPlay nicht: 3x und 4x wirken erst auf Bildschirmen mit 90 oder 120 Hz.</li>
         <li><strong>Hochskalierung:</strong> „Lanczos“ ist ein schärferer Filter beim Vergrößern auf das Fenster. Auf NVIDIA-Karten gibt es zusätzlich „RTX Video“: Das neuronale Netz von NVIDIA vergrößert und glättet dabei Klötzchen. Dafür muss in der NVIDIA-App die RTX-Video-Verbesserung eingeschaltet sein.</li>
         <li><strong>Schärfe:</strong> 0 % lässt das Bild, wie es ist.</li>
       </ul>
@@ -465,6 +466,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>PS5 / Bildschirm:</strong> Bilder pro Sekunde, die ankommen, und Bilder, die gezeigt werden.</li>
         <li><strong>PS5 und Bildschirm:</strong> davor jeweils die Größe des Bildes, wie es ankommt und wie es auf dem Bildschirm liegt.</li>
+        <li><strong>Spiel:</strong> erscheint, wenn das Spiel nur mit 30 Bildern läuft, während die PS5 60 schickt. Sie sendet dann jedes Bild doppelt; VeloPlay lässt die Wiederholungen weg und berechnet die Bilder dazwischen.</li>
         <li><strong>Zwischenbilder, Zusatzverzögerung:</strong> der Faktor mit dem Namen des Verfahrens, und wie viel später das Bild dadurch erscheint.</li>
         <li><strong>Datenrate, Antwortzeit, Verlust:</strong> wie es der Verbindung geht.</li>
         <li><strong>Dekoder:</strong> „D3D11VA“ heißt, die Grafikkarte entpackt. Dahinter die mittlere Zeit pro Bild.</li>
@@ -608,7 +610,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.8.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.9.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -671,7 +673,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>237 automatische Tests unter Linux und 247 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>246 automatische Tests unter Linux und 257 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -680,6 +682,8 @@ flowchart LR
       <tr><td>Bild entpacken</td><td>Zwei kurze Testvideos (HEVC und H.264) durch den Dekoder auf dem Prozessor: Anzahl, Größe und Farbwerte der Bilder, auch mit einem beschädigten Bild mittendrin</td><td class="state ok">bestanden</td></tr>
       <tr><td>Bild zeichnen</td><td>Unter Windows mit dem Software-Renderer in ein Testbild gezeichnet und Pixel nachgemessen: Farben, Seitenverhältnis, Ränder, Wechsel der Bildgröße</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ton, Haptik, Trigger</td><td>Opus-Paket entpackt, Puffer bei Lücken und Stau, Haptik auf vier Kanäle umgerechnet, Effektblock für die Trigger Byte für Byte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Erkennen eines Spiels mit 30 Bildern in einem Stream mit 60</td><td>Die Entscheidung mit erfundenen Bildfolgen: gleichmäßiger Wechsel, Stillstand, Stolpern eines 60er-Spiels, ein verlorenes Bild. Der Vergleich der Bilder unter Windows auf dem Software-Renderer mit einem Muster, das jedes zweite Mal fast unverändert wiederkommt. An einem echten Spiel noch nicht gesehen.</td><td class="state soon">Logik bestanden, echtes Spiel offen</td></tr>
+      <tr><td>Automatische Datenrate</td><td>Die Regeln mit erfundenen Sitzungen: sauber, mit Verlust, zu kurz, mit stehendem Stream. Ob 15 bis 30 Mbit/s das Bild einer PS5 im WLAN sichtbar verbessern, ist nicht gemessen.</td><td class="state soon">Logik bestanden, Wirkung offen</td></tr>
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Ob Trigger und Haptik spürbar sind, ist noch nicht zurückgemeldet.</td><td class="state soon">Ton bestätigt, Rest offen</td></tr>
       <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>

@@ -93,13 +93,25 @@ void sanitize(AppConfig& config) {
     config.manualHosts.erase(std::unique(config.manualHosts.begin(), config.manualHosts.end()), config.manualHosts.end());
 
     std::erase_if(config.consoles, [](const RegisteredConsole& console) { return console.hostId.empty(); });
+    for (RegisteredConsole& console : config.consoles) {
+        if (console.link.bitrateKbps != 0) {
+            console.link.bitrateKbps = std::clamp(console.link.bitrateKbps, kMinBitrateKbps, kAutoMaxBitrateKbps);
+        }
+        console.link.ceilingKbps = std::clamp(console.link.ceilingKbps, 0, kMaxBitrateKbps);
+    }
     detectProfile(config);
 }
 
 // Raised when defaults change in a way that old files have to follow.
-constexpr int kSettingsVersion = 3;
+constexpr int kSettingsVersion = 4;
 
 bool applyProfile(AppConfig& config, std::string_view profileId) {
+    if (profileId == kProfileAuto) {
+        // The stored stream settings stay as they are, for switching back.
+        config.graphics.frameGenerationFactor = 0;
+        config.activeProfile = std::string(kProfileAuto);
+        return true;
+    }
     const StreamProfile* profile = findProfile(profileId);
     if (!profile) return false;
     config.stream = profile->stream;
@@ -108,7 +120,16 @@ bool applyProfile(AppConfig& config, std::string_view profileId) {
     return true;
 }
 
+StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId) {
+    if (!isAutomatic(config)) return config.stream;
+    for (const RegisteredConsole& console : config.consoles) {
+        if (console.hostId == hostId) return automaticStream(console.link);
+    }
+    return automaticStream(LinkMemory{});
+}
+
 void detectProfile(AppConfig& config) {
+    if (isAutomatic(config)) return;
     for (const StreamProfile& profile : builtInProfiles()) {
         if (config.stream == profile.stream && config.graphics.frameGenerationFactor == profile.frameGenerationFactor) {
             config.activeProfile = std::string(profile.id);
@@ -165,6 +186,8 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             {"host_id", console.hostId},
             {"last_address", console.lastAddress},
             {"rp_key_type", console.rpKeyType},
+            {"auto_bitrate_kbps", console.link.bitrateKbps},
+            {"auto_ceiling_kbps", console.link.ceilingKbps},
         };
         // A console whose keys could not be read keeps its place in the list
         // (the user sees "pair again"), but there is nothing to encrypt.
@@ -233,6 +256,8 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             read(entry, "host_id", console.hostId);
             read(entry, "last_address", console.lastAddress);
             read(entry, "rp_key_type", console.rpKeyType);
+            read(entry, "auto_bitrate_kbps", console.link.bitrateKbps);
+            read(entry, "auto_ceiling_kbps", console.link.ceilingKbps);
             std::string credentials;
             read(entry, "credentials", credentials);
             console.credentialsValid = unprotectCredentials(credentials, protector, console);
@@ -261,6 +286,11 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
         }
         config.graphics.superResolutionLevel = 1;
     }
+
+    // Since 0.9 the program chooses what to ask the console for. Files from
+    // before start with that once; the values they hold stay stored and come
+    // back when "automatic" is switched off.
+    if (version < 4) config.activeProfile = std::string(kProfileAuto);
 
     sanitize(config);
     return config;

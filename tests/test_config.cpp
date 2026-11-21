@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <fstream>
 
 #include <nlohmann/json.hpp>
@@ -72,11 +73,25 @@ TEST(StreamProfiles, SanitizeClampsToWhatTheConsoleOffers) {
     EXPECT_EQ(settings.fps, 30);
 }
 
-TEST(Config, DefaultsUseTheSmoothProfile) {
+TEST(Config, DefaultsAreAutomatic) {
     AppConfig config;
     sanitize(config);
-    EXPECT_EQ(config.activeProfile, kProfileSmooth30);
+    EXPECT_EQ(config.activeProfile, kProfileAuto);
+    EXPECT_TRUE(isAutomatic(config));
+    // What is stored underneath is what switching "automatic" off brings back.
     EXPECT_EQ(config.stream.fps, 30);
+    // An unknown console gets the choice for a link nothing is known about.
+    const StreamSettings asked = effectiveStream(config, "001122334455");
+    EXPECT_EQ(asked.fps, 60);
+    EXPECT_EQ(asked.height, 1080);
+    EXPECT_EQ(asked.codec, VideoCodec::Hevc);
+    EXPECT_EQ(asked.bitrateKbps, kAutoStartBitrateKbps);
+
+    // Switched off, the stored values apply and name their profile.
+    config.activeProfile = std::string(kProfileCustom);
+    sanitize(config);
+    EXPECT_EQ(config.activeProfile, kProfileSmooth30);
+    EXPECT_EQ(effectiveStream(config, "001122334455"), config.stream);
     EXPECT_EQ(config.graphics.frameGenerationFactor, 0); // automatic
     EXPECT_EQ(config.graphics.superResolutionLevel, 1);
     EXPECT_FALSE(config.remoteApi.enabled); // the API is opt-in
@@ -290,6 +305,74 @@ TEST(Config, MovesOldDefaultBitratesToTheCarefulOnes) {
     EXPECT_EQ(again->stream.bitrateKbps, 40'000);
 }
 
+TEST(AutoStream, StartsCarefullyAndKeepsWhatItLearned) {
+    const StreamSettings first = automaticStream({});
+    EXPECT_EQ(first.width, 1920);
+    EXPECT_EQ(first.fps, 60);
+    EXPECT_FALSE(first.hdr);
+    EXPECT_EQ(first.bitrateKbps, 15'000);
+    EXPECT_EQ(automaticStream({22'500, 0}).bitrateKbps, 22'500);
+    // A link that only carries very little gets the smaller picture.
+    const StreamSettings weak = automaticStream({5'000, 9'000});
+    EXPECT_EQ(weak.height, 720);
+    EXPECT_EQ(weak.bitrateKbps, 5'000);
+    // Whatever the file says, never beyond the limits.
+    EXPECT_EQ(automaticStream({90'000, 0}).bitrateKbps, kAutoMaxBitrateKbps);
+}
+
+TEST(AutoStream, RaisesAfterACleanSessionAndLowersAfterTrouble) {
+    using std::chrono::seconds;
+    // Twenty minutes without a lost picture: a step up, at most to the limit.
+    LinkMemory memory = learn({}, {15'000, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.bitrateKbps, 19'000);
+    EXPECT_EQ(memory.ceilingKbps, 0);
+    memory = learn(memory, {19'000, seconds(1200), 72'000, 3, false});
+    EXPECT_EQ(memory.bitrateKbps, 24'000);
+    memory = learn(memory, {24'000, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.bitrateKbps, 30'000);
+    memory = learn(memory, {30'000, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.bitrateKbps, 30'000);
+
+    // One picture in a hundred lost: that was too much. Back, and remember where the trouble began.
+    memory = learn(memory, {30'000, seconds(1200), 71'280, 720, false});
+    EXPECT_EQ(memory.bitrateKbps, 22'500);
+    EXPECT_EQ(memory.ceilingKbps, 27'000);
+    // Clean again: up, but not past that mark.
+    memory = learn(memory, {22'500, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.bitrateKbps, 27'000);
+    memory = learn(memory, {27'000, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.bitrateKbps, 27'000);
+
+    // A little loss is neither good nor bad: stay.
+    EXPECT_EQ(learn({20'000, 0}, {20'000, seconds(1200), 72'000, 100, false}).bitrateKbps, 20'000);
+    // A short session says nothing.
+    EXPECT_EQ(learn({20'000, 0}, {20'000, seconds(30), 1'800, 0, false}), (LinkMemory{20'000, 0}));
+    EXPECT_EQ(learn({20'000, 0}, {20'000, seconds(30), 1'500, 300, false}), (LinkMemory{20'000, 0}));
+    // A stream that stood still does, however short it was.
+    const LinkMemory stalled = learn({}, {15'000, seconds(5), 60, 0, true});
+    EXPECT_EQ(stalled.bitrateKbps, 7'500);
+    EXPECT_EQ(stalled.ceilingKbps, 13'500);
+    // Never below what the console accepts.
+    EXPECT_EQ(learn({}, {5'000, seconds(5), 60, 0, true}).bitrateKbps, kMinBitrateKbps);
+}
+
+TEST(Config, KeepsWhatAutomaticLearnedAboutAConsole) {
+    test::FakeProtector protector;
+    AppConfig config;
+    RegisteredConsole console;
+    console.name = "PS5";
+    console.hostId = "001122334455";
+    console.link = {22'500, 27'000};
+    config.consoles.push_back(console);
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text.ok());
+    const auto again = parseConfig(*text, protector);
+    ASSERT_TRUE(again.ok());
+    ASSERT_EQ(again->consoles.size(), 1u);
+    EXPECT_EQ(again->consoles[0].link, (LinkMemory{22'500, 27'000}));
+    EXPECT_EQ(effectiveStream(*again, "001122334455").bitrateKbps, 22'500);
+}
+
 TEST(Config, OldFilesGetAutomaticFrameGenerationAndUpscaling) {
     test::FakeProtector protector;
     // What the profiles stored before 0.6 did nothing yet. It becomes "automatic", which does the same.
@@ -299,14 +382,23 @@ TEST(Config, OldFilesGetAutomaticFrameGenerationAndUpscaling) {
     ASSERT_TRUE(old30.ok());
     EXPECT_EQ(old30->graphics.frameGenerationFactor, 0);
     EXPECT_EQ(old30->graphics.superResolutionLevel, 1);
-    EXPECT_EQ(old30->activeProfile, kProfileSmooth30);
+    // Files from before 0.9 start with "automatic" once; their values stay underneath.
+    EXPECT_EQ(old30->activeProfile, kProfileAuto);
+    EXPECT_EQ(old30->stream.fps, 30);
 
     const auto old60 = parseConfig(
         R"({"settings_version":2,"stream":{"fps":60,"bitrate_kbps":20000},"graphics":{"frame_generation_factor":1}})",
         protector);
     ASSERT_TRUE(old60.ok());
     EXPECT_EQ(old60->graphics.frameGenerationFactor, 0);
-    EXPECT_EQ(old60->activeProfile, kProfileNative60);
+    EXPECT_EQ(old60->activeProfile, kProfileAuto);
+    EXPECT_EQ(old60->stream.bitrateKbps, 20'000);
+
+    // A file from this version keeps a profile chosen by hand.
+    const auto chosen = parseConfig(
+        R"({"settings_version":4,"active_profile":"native60","stream":{"fps":60,"bitrate_kbps":20000}})", protector);
+    ASSERT_TRUE(chosen.ok());
+    EXPECT_EQ(chosen->activeProfile, kProfileNative60);
 
     // A factor nobody gets by picking a profile was set by hand and stays.
     const auto byHand = parseConfig(

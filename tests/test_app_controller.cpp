@@ -245,7 +245,7 @@ TEST(AppController, RemoteApiFollowsSettingsAndReportsStatus) {
     const auto status = ask(R"({"cmd":"status"})");
     ASSERT_TRUE(status.value("ok", false)) << status.dump();
     EXPECT_EQ(status["status"]["state"], "idle");
-    EXPECT_EQ(status["status"]["profile"], "smooth30");
+    EXPECT_EQ(status["status"]["profile"], "auto");
 
     // Scripted input reaches the session input.
     ask(R"({"cmd":"press","buttons":["cross"],"duration_ms":3000})");
@@ -253,7 +253,7 @@ TEST(AppController, RemoteApiFollowsSettingsAndReportsStatus) {
 
     // Profile switching works without a session, the rest says why it cannot.
     ASSERT_TRUE(ask(R"({"cmd":"action","name":"next_profile"})").value("ok", false));
-    ASSERT_TRUE(h.runUntil([&] { return h.app->config().activeProfile == "native60"; }));
+    ASSERT_TRUE(h.runUntil([&] { return h.app->config().activeProfile == "smooth30"; }));
     EXPECT_EQ(ask(R"({"cmd":"action","name":"sleep"})").value("error", ""), "no_active_session");
 
     h.app->config().remoteApi.enabled = false;
@@ -293,6 +293,8 @@ TEST(AppControllerSession, ConnectsStreamsAndDisconnects) {
     test::MockConsole console({});
     Harness h(console, "session_basic.json");
     ASSERT_TRUE(h.pair());
+    // Settings chosen by hand are passed on as they are.
+    h.app->config().activeProfile = std::string(kProfileCustom);
     h.app->config().stream.bitrateKbps = 12'000;
     h.app->config().stream.fps = 60;
 
@@ -740,6 +742,7 @@ TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
     test::MockConsole console({});
     Harness h(console, "session_apply.json");
     ASSERT_TRUE(h.pair());
+    h.app->selectProfile(kProfileSmooth30);
     h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
     h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
     h.app->connect(Harness::kHostId);
@@ -769,6 +772,30 @@ TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
     EXPECT_TRUE(h.model.notices.empty());
 }
 
+TEST(AppControllerSession, AutomaticChoosesTheStreamAndLearnsFromAStall) {
+    test::MockConsole console({});
+    Harness h(console, "session_auto.json", true, 700ms);
+    ASSERT_TRUE(h.pair());
+    ASSERT_TRUE(isAutomatic(h.app->config()));
+    h.app->config().stream.bitrateKbps = 6'000; // a value from before "automatic"; it plays no part
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_EQ(h.sessions->configs[0].stream.fps, 60);
+    EXPECT_EQ(h.sessions->configs[0].stream.height, 1080);
+    EXPECT_EQ(h.sessions->configs[0].stream.bitrateKbps, kAutoStartBitrateKbps);
+    EXPECT_EQ(h.model.requestedStream.bitrateKbps, kAutoStartBitrateKbps);
+    EXPECT_FALSE(h.model.session.settingsChanged);
+
+    // No picture arrives: the next attempt asks for half, and that is remembered for this console.
+    ASSERT_TRUE(h.runUntil([&] { return h.sessions->configs.size() == 2; }));
+    EXPECT_EQ(h.sessions->configs[1].stream.bitrateKbps, 7'500);
+    EXPECT_EQ(h.app->config().consoles[0].link.bitrateKbps, 7'500);
+    EXPECT_EQ(h.app->config().consoles[0].link.ceilingKbps, 13'500);
+    EXPECT_EQ(h.app->config().stream.bitrateKbps, 6'000);
+}
+
 TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
     test::MockConsole console({});
     // The timeout is real time. It has to be long against how late a sleep can
@@ -776,6 +803,7 @@ TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
     // priority while its owner plays, and 150 ms was not enough there.
     Harness h(console, "session_stall.json", true, 700ms);
     ASSERT_TRUE(h.pair());
+    h.app->config().activeProfile = std::string(kProfileCustom);
     h.app->config().stream.bitrateKbps = 40'000;
     h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
     h.sessions->scripts.push_back({test::FakeSessionHub::connected()});

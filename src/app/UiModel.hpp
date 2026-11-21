@@ -108,6 +108,11 @@ struct UiModel {
 
     /// The graphics card offers NVIDIA's RTX Video Super Resolution as a way to enlarge the picture.
     bool rtxVideoAvailable = false;
+    /// What a session asks the console for right now: the stored settings,
+    /// or the program's own choice with "automatic".
+    StreamSettings requestedStream;
+    /// Refreshes per second of the screen the window is on; 0 = unknown.
+    double displayHz = 0.0;
     bool controllerConnected = false;
     input::ControllerInfo controller;
     std::vector<input::ControllerInfo> controllers;

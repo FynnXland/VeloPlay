@@ -1,8 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -37,7 +40,23 @@ public:
     bool create(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error);
 
     /// Takes over a picture. Returns false if it could not be brought onto the card.
-    bool submit(const media::VideoFrame& frame);
+    ///
+    /// Every picture is also compared with the one before it, coarsely; the
+    /// results come out of takeChange() a few pictures later. With `keep`
+    /// false that is all that happens: the picture is measured and not shown.
+    /// That is for a game at 30 fps in a 60 fps stream, whose every other
+    /// picture repeats the one before.
+    bool submit(const media::VideoFrame& frame, bool keep = true);
+
+    /// How much of a picture differs from the one before it.
+    struct Change {
+        std::uint64_t picture = 0; // counted like submitted()
+        double share = 0.0;        // 0 = the same picture again, 1 = everything changed
+    };
+    /// The next finished comparison, oldest first.
+    std::optional<Change> takeChange();
+    /// Pictures handed to submit() so far, kept or not.
+    [[nodiscard]] std::uint64_t submitted() const { return submitted_; }
 
     [[nodiscard]] bool hasPicture() const { return hasPicture_; }
     [[nodiscard]] int width() const { return width_; }
@@ -89,6 +108,7 @@ private:
     void pass(ID3D11PixelShader* shader, ID3D11RenderTargetView* target, const D3D11_VIEWPORT& viewport,
               ID3D11ShaderResourceView* const* views, UINT viewCount, ID3D11Buffer* constants);
     ID3D11ShaderResourceView* pictureFor(const media::FrameChoice& choice);
+    void probe();
 
     Microsoft::WRL::ComPtr<ID3D11Device> device_;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> context_;
@@ -124,6 +144,25 @@ private:
     bool lastGenerated_ = false;
     int shownWidth_ = 0;
     int shownHeight_ = 0;
+
+    // The comparison of each picture with the one before. A small copy of
+    // its brightness is drawn, copied to a texture the CPU can read, and
+    // read three pictures later, when the card is certainly done with it:
+    // reading at once would make the whole pipeline wait for the card.
+    static constexpr int kProbeWidth = 96;
+    static constexpr int kProbeHeight = 54;
+    struct ProbeCopy {
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> staging;
+        std::uint64_t picture = 0;
+        bool pending = false;
+    };
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> probeShader_;
+    Target probeTarget_;
+    ProbeCopy probeCopies_[3];
+    std::vector<std::uint8_t> probeBefore_; // the small copy of the picture read last
+    std::uint64_t probeBeforePicture_ = 0;
+    std::deque<Change> changes_;
+    std::uint64_t submitted_ = 0;
 
     int width_ = 0;
     int height_ = 0;

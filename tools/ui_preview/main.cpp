@@ -302,6 +302,8 @@ std::vector<Scene> scenes() {
              model.session.connectedSeconds = 240;
              model.session.settingsChanged = true;
              model.controllerConnected = true;
+             // Values chosen by hand, so the controls behind "automatic" show as well.
+             model.config->activeProfile = std::string(kProfileCustom);
              model.config->stream.fps = 60;
              model.stream = playingStats();
              ui.showSettingsInGame(UiManager::SettingsTab::Stream);
@@ -429,6 +431,9 @@ int main(int argc, char** argv) {
         model.config = &config;
         model.gpuName = "NVIDIA GeForce RTX 4070";
         scene.setup(model, manager);
+        // What the controller would fill in: the stream that is asked for and the screen's rate.
+        model.requestedStream = effectiveStream(config, {});
+        model.displayHz = 60.0;
 
         // Enough frames for every spring to settle.
         for (int frame = 0; frame < 90; ++frame) {

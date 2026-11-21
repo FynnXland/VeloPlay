@@ -157,6 +157,8 @@ private:
     void updateSession(Clock::time_point now);
     void handleQuit(session::QuitReason reason, const std::string& detail, Clock::time_point now);
     void failSession(session::QuitReason reason, const std::string& detail);
+    /// Before a session object goes: what it showed about the link, for "automatic".
+    void rememberLink(Clock::time_point now);
     void handleQuickAction(input::QuickAction action);
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();

@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "app/AutoStream.hpp"
 #include "app/StreamProfile.hpp"
 #include "protocol/Crypto.hpp"
 #include "protocol/Registration.hpp"
@@ -81,6 +82,7 @@ struct RegisteredConsole {
     std::string registKey;   // secret
     crypto::Key128 rpKey{};  // secret
     std::uint32_t rpKeyType = 0;
+    LinkMemory link;         // what "automatic" learned about the way to this console
     /// False when the stored keys could not be decrypted, for example after the
     /// file was copied to another PC. The console then needs to be paired again.
     bool credentialsValid = true;
@@ -92,7 +94,7 @@ struct RegisteredConsole {
 
 struct AppConfig {
     std::string language = "auto"; // "auto", "de", "en"
-    std::string activeProfile{kProfileSmooth30};
+    std::string activeProfile{kProfileAuto};
     StreamSettings stream{};
     GraphicsSettings graphics{};
     ControllerSettings controller{};
@@ -113,8 +115,15 @@ void sanitize(AppConfig& config);
 bool applyProfile(AppConfig& config, std::string_view profileId);
 
 /// Sets activeProfile to the built-in profile matching the current values, or
-/// to "custom" if none does.
+/// to "custom" if none does. "Automatic" stays: it does not depend on the values.
 void detectProfile(AppConfig& config);
+
+[[nodiscard]] inline bool isAutomatic(const AppConfig& config) { return config.activeProfile == kProfileAuto; }
+
+/// What a session with this console asks for: the program's choice with
+/// "automatic", the stored settings otherwise. An unknown console gets the
+/// choice for a link nothing is known about.
+[[nodiscard]] StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId);
 
 Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& protector);
 

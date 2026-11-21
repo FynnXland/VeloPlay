@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iterator>
@@ -524,6 +525,91 @@ TEST(FrameGenerationFactor, AutomaticDoublesThirtyAndLeavesSixtyAlone) {
     EXPECT_EQ(media::frameGenerationFactorFor(3, 30), 3);
     EXPECT_EQ(media::frameGenerationFactorFor(4, 60), 4);
     EXPECT_EQ(media::frameGenerationFactorFor(9, 30), 4);
+}
+
+TEST(FrameGenerationFactor, StaysWithinWhatTheScreenCanShow) {
+    // 3x and 4x on a 60 Hz screen would only add delay.
+    EXPECT_EQ(media::frameGenerationFactorFor(4, 30, 60.0), 2);
+    EXPECT_EQ(media::frameGenerationFactorFor(3, 30, 59.0), 2); // Windows reports 59 for 59.94 Hz
+    EXPECT_EQ(media::frameGenerationFactorFor(2, 60, 60.0), 1);
+    EXPECT_EQ(media::frameGenerationFactorFor(0, 30, 60.0), 2);
+    // A fast screen has room for more.
+    EXPECT_EQ(media::frameGenerationFactorFor(4, 30, 144.0), 4);
+    EXPECT_EQ(media::frameGenerationFactorFor(4, 30, 100.0), 3);
+    EXPECT_EQ(media::frameGenerationFactorFor(2, 60, 120.0), 2);
+    // Automatic stays at doubling a 30 fps stream, however fast the screen is.
+    EXPECT_EQ(media::frameGenerationFactorFor(0, 30, 144.0), 2);
+    EXPECT_EQ(media::frameGenerationFactorFor(0, 60, 144.0), 1);
+    // 30 fps do not go into 50 Hz evenly; nothing is computed then.
+    EXPECT_EQ(media::frameGenerationFactorFor(2, 30, 50.0), 1);
+    // An unknown screen limits nothing.
+    EXPECT_EQ(media::frameGenerationFactorFor(4, 30, 0.0), 4);
+}
+
+TEST(CadenceDetector, NoticesAGameAtHalfTheRateOfTheStream) {
+    media::CadenceDetector detector;
+    EXPECT_FALSE(detector.halved());
+    // Odd pictures are new, even ones repeat them: a 30 fps game in a 60 fps stream.
+    std::uint64_t picture = 1;
+    for (int i = 0; i < 16; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0005);
+    ASSERT_TRUE(detector.halved());
+    EXPECT_TRUE(detector.isRepeat(picture + (picture % 2 == 0 ? 0 : 1)));  // the next even one
+    EXPECT_FALSE(detector.isRepeat(picture + (picture % 2 == 1 ? 0 : 1))); // the next odd one
+
+    // The game stands still for a moment (a menu): everything repeats. That says nothing.
+    for (int i = 0; i < 30; ++i, ++picture) detector.add(picture, 0.0);
+    EXPECT_TRUE(detector.halved());
+
+    // It runs at the full rate now: every picture is new.
+    for (int i = 0; i < 6; ++i, ++picture) detector.add(picture, 0.3);
+    EXPECT_FALSE(detector.halved());
+    EXPECT_FALSE(detector.isRepeat(picture));
+}
+
+TEST(CadenceDetector, LeavesASixtyFpsGameAlone) {
+    media::CadenceDetector detector;
+    std::uint64_t picture = 1;
+    // Moving all the time.
+    for (int i = 0; i < 40; ++i, ++picture) detector.add(picture, 0.25);
+    EXPECT_FALSE(detector.halved());
+    // It stumbles: a repeat now and then, without a rhythm.
+    const int stumbles[] = {3, 4, 9, 17, 18, 19, 26};
+    for (int i = 0; i < 30; ++i, ++picture) {
+        const bool repeat = std::find(std::begin(stumbles), std::end(stumbles), i) != std::end(stumbles);
+        detector.add(picture, repeat ? 0.0 : 0.25);
+    }
+    EXPECT_FALSE(detector.halved());
+    // Standing still and barely moving say nothing either.
+    for (int i = 0; i < 30; ++i, ++picture) detector.add(picture, i % 2 == 0 ? 0.0 : 0.01);
+    EXPECT_FALSE(detector.halved());
+}
+
+TEST(CadenceDetector, FollowsARhythmThatShiftsByOnePicture) {
+    media::CadenceDetector detector;
+    std::uint64_t picture = 1;
+    for (int i = 0; i < 16; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
+    ASSERT_TRUE(detector.halved());
+    ASSERT_TRUE(detector.isRepeat(100));
+    // A picture got lost on the way: from here on the even ones are new.
+    for (int i = 0; i < 4; ++i, ++picture) detector.add(picture, picture % 2 == 0 ? 0.4 : 0.0);
+    EXPECT_TRUE(detector.halved()); // never left in between
+    EXPECT_TRUE(detector.isRepeat(101));
+    EXPECT_FALSE(detector.isRepeat(100));
+    for (int i = 0; i < 20; ++i, ++picture) detector.add(picture, picture % 2 == 0 ? 0.4 : 0.0);
+    EXPECT_TRUE(detector.halved());
+    EXPECT_TRUE(detector.isRepeat(101));
+}
+
+TEST(CadenceDetector, GetsByWithComparisonsThatAreMissing) {
+    media::CadenceDetector detector;
+    // Every fifth comparison never arrives; the rhythm shows all the same.
+    for (std::uint64_t picture = 1; picture < 60; ++picture) {
+        if (picture % 5 == 0) continue;
+        detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
+    }
+    EXPECT_FALSE(detector.halved()); // never a full window: stays careful
+    for (std::uint64_t picture = 60; picture < 80; ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
+    EXPECT_TRUE(detector.halved());
 }
 
 TEST(FramePacer, ShowsEveryPictureAtOnceWithoutGeneration) {

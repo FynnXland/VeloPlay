@@ -25,9 +25,55 @@ void InputRateDetector::addSample(double fps) {
     }
 }
 
-int frameGenerationFactorFor(int setting, int inputFps) {
-    if (setting <= 0) return inputFps <= 30 ? 2 : 1;
-    return std::clamp(setting, 1, 4);
+int frameGenerationFactorFor(int setting, int inputFps, double refreshHz) {
+    int factor = setting <= 0 ? (inputFps <= 30 ? 2 : 1) : std::clamp(setting, 1, 4);
+    if (refreshHz > 1.0 && inputFps > 0) {
+        // A 59.94 Hz screen still fits two pictures per picture of a 30 fps stream.
+        const int fits = static_cast<int>((refreshHz + 3.0) / inputFps);
+        factor = std::min(factor, std::max(1, fits));
+    }
+    return factor;
+}
+
+void CadenceDetector::reset() { *this = CadenceDetector{}; }
+
+void CadenceDetector::add(std::uint64_t picture, double changed) {
+    const std::size_t at = static_cast<std::size_t>(picture % kWindow);
+    kinds_[at] = changed < kRepeatBelow ? Kind::Repeat : changed > kNewAbove ? Kind::New : Kind::Unknown;
+    numbers_[at] = picture;
+    filled_[at] = true;
+
+    // Count over the pictures right before this one, by even and odd number.
+    int repeats[2] = {0, 0};
+    int news[2] = {0, 0};
+    int seen[2] = {0, 0};
+    int lately[2][2] = {{0, 0}, {0, 0}}; // the last four pictures: [side][0] repeats, [side][1] new ones
+    for (std::size_t i = 0; i < kWindow; ++i) {
+        if (!filled_[i] || numbers_[i] > picture || picture - numbers_[i] >= kWindow) continue;
+        const std::size_t side = static_cast<std::size_t>(numbers_[i] & 1U);
+        ++seen[side];
+        if (kinds_[i] == Kind::Repeat) ++repeats[side];
+        if (kinds_[i] == Kind::New) ++news[side];
+        if (picture - numbers_[i] < 4 && kinds_[i] != Kind::Unknown) ++lately[side][kinds_[i] == Kind::New ? 1 : 0];
+    }
+    const int half = static_cast<int>(kWindow / 2);
+    for (std::size_t side = 0; side < 2; ++side) {
+        // All of one side repeat, and the other side moves: that is the rhythm.
+        if (seen[side] == half && repeats[side] == half && news[1 - side] >= half - 2) {
+            halved_ = true;
+            parity_ = side;
+            return;
+        }
+    }
+    if (!halved_) return;
+    const std::size_t was = static_cast<std::size_t>(parity_);
+    if (lately[was][1] == 2 && lately[1 - was][0] == 2) {
+        // The rhythm is still there, shifted by one: a picture got lost on the way.
+        parity_ = 1 - was;
+    } else if (news[was] >= 2) {
+        // New pictures where repeats were expected: the game runs at the full rate again.
+        halved_ = false;
+    }
 }
 
 void FramePacer::configure(int factor, Clock::duration period) {

@@ -14,6 +14,7 @@ struct StreamStats {
     bool presenting = false;
     float streamFps = 0.0f;         // frames per second arriving from the console
     float outputFps = 0.0f;         // frames per second shown on the monitor
+    int gameFps = 0;                // rate of the game where it is below the stream's (30 in a 60 fps stream); 0 otherwise
     int inputWidth = 0;             // size of the picture as it arrives; 0 until the first one
     int inputHeight = 0;
     int outputWidth = 0;            // size of the picture on screen; 0 until the first one is drawn

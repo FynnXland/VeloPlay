@@ -108,7 +108,7 @@ void sectionTitle(std::string_view text, bool first = false) {
 /// sends on the left, what reaches the screen on the right. The box that
 /// belongs to the open tab is outlined, so it is clear which side the
 /// controls below change.
-void flowStrip(const Strings& t, const AppConfig& config, bool outputSide) {
+void flowStrip(const Strings& t, const UiModel& model, const AppConfig& config, bool outputSide) {
     const Palette& p = palette();
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const float width = ImGui::GetContentRegionAvail().x;
@@ -120,11 +120,14 @@ void flowStrip(const Strings& t, const AppConfig& config, bool outputSide) {
     const float height = pad * 2.0f + captionHeight + px(4.0f) + valueHeight;
     const ImVec2 origin = ImGui::GetCursorScreenPos();
 
-    const int mbit = static_cast<int>(std::lround(static_cast<float>(config.stream.bitrateKbps) / 1000.0f));
-    const std::string input = std::to_string(config.stream.height) + "p  ·  " + std::to_string(config.stream.fps) +
-                              " fps  ·  " + format(t.bitrateValue, {std::to_string(mbit)});
-    const int factor = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, config.stream.fps);
-    std::string output = std::to_string(config.stream.fps * factor) + " fps";
+    // With "automatic" the program's own choice, the values from this screen otherwise.
+    const StreamSettings& stream = isAutomatic(config) ? model.requestedStream : config.stream;
+    const int mbit = static_cast<int>(std::lround(static_cast<float>(stream.bitrateKbps) / 1000.0f));
+    const std::string input = std::to_string(stream.height) + "p  ·  " + std::to_string(stream.fps) + " fps  ·  " +
+                              format(t.bitrateValue, {std::to_string(mbit)});
+    const int factor =
+        media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, stream.fps, model.displayHz);
+    std::string output = std::to_string(stream.fps * factor) + " fps";
     if (config.graphics.superResolutionLevel > 0) output += std::string("  ·  ") + t.flowUpscaled;
     if (config.graphics.sharpness > 0.0f) output += std::string("  ·  ") + t.flowSharpened;
 
@@ -718,14 +721,16 @@ void UiManager::drawModePicker(const UiModel& model) {
     space(8.0f);
 
     const bool custom = active == kProfileCustom;
-    const std::array<const char*, 3> labels = {t.modeSmooth, t.modeNative, t.modeCustom};
-    const int count = custom ? 3 : 2; // "custom" only appears while it is in effect
-    const int selected = active == kProfileSmooth30 ? 0 : active == kProfileNative60 ? 1 : 2;
+    const std::array<const char*, 4> labels = {t.modeAuto, t.modeSmooth, t.modeNative, t.modeCustom};
+    const std::array<std::string_view, 3> ids = {kProfileAuto, kProfileSmooth30, kProfileNative60};
+    const int count = custom ? 4 : 3; // "custom" only appears while it is in effect
+    const int selected = active == kProfileAuto ? 0 : active == kProfileSmooth30 ? 1 : active == kProfileNative60 ? 2 : 3;
     const int chosen = segmented("mode", std::span(labels.data(), static_cast<std::size_t>(count)), selected);
-    if (chosen != selected && chosen < 2) actions_.selectProfile(chosen == 0 ? kProfileSmooth30 : kProfileNative60);
+    if (chosen != selected && chosen < 3) actions_.selectProfile(ids[static_cast<std::size_t>(chosen)]);
 
     space(10.0f);
-    const char* explanation = selected == 0 ? t.modeSmoothHint : selected == 1 ? t.modeNativeHint : t.modeCustomHint;
+    const std::array<const char*, 4> hints = {t.modeAutoHint, t.modeSmoothHint, t.modeNativeHint, t.modeCustomHint};
+    const char* explanation = hints[static_cast<std::size_t>(selected)];
     paragraph(TextStyle::Body, explanation, p.textSecondary);
 }
 
@@ -1198,6 +1203,10 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
         arriving = std::to_string(stats.inputWidth) + " x " + std::to_string(stats.inputHeight) + "  ·  " + arriving;
     }
     rows.emplace_back(t.hudConsole, arriving);
+    // A game that runs slower than the stream: the console sends each of its pictures twice.
+    if (stats.presenting && stats.gameFps > 0) {
+        rows.emplace_back(t.hudGame, format(t.fpsValue, {std::to_string(stats.gameFps)}));
+    }
     if (stats.presenting) {
         std::string shown = format(t.fpsValue, {number(stats.outputFps, 1)});
         if (stats.outputWidth > 0) {
@@ -1480,7 +1489,7 @@ void UiManager::drawSettings(const UiModel& model) {
 
 void UiManager::drawStreamTab(const UiModel& model, AppConfig& config) {
     const Strings& t = *text_;
-    flowStrip(t, config, false);
+    flowStrip(t, model, config, false);
     space(12.0f);
     paragraph(TextStyle::Caption, t.inputIntro, palette().textSecondary);
     if (model.state == AppState::Streaming && model.session.settingsChanged) {
@@ -1496,6 +1505,21 @@ void UiManager::drawStreamTab(const UiModel& model, AppConfig& config) {
         }
     }
     space(16.0f);
+
+    // One switch instead of five choices. The values below stay stored and
+    // come back when it is switched off.
+    bool automatic = isAutomatic(config);
+    if (toggleRow(t.inputAuto, &automatic)) {
+        // Switched off, sanitize() names the profile the stored values match.
+        config.activeProfile = std::string(automatic ? kProfileAuto : kProfileCustom);
+    }
+    paragraph(TextStyle::Caption, t.inputAutoHint, palette().textSecondary);
+    if (automatic) {
+        space(8.0f);
+        paragraph(TextStyle::Caption, t.inputAutoHdr, palette().textSecondary);
+        return;
+    }
+    space(18.0f);
 
     // Frame rate and resolution side by side: two short choices of the same kind.
     const float half = ImGui::GetContentRegionAvail().x * 0.5f;
@@ -1535,7 +1559,7 @@ void UiManager::drawStreamTab(const UiModel& model, AppConfig& config) {
 
 void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     const Strings& t = *text_;
-    flowStrip(t, config, true);
+    flowStrip(t, model, config, true);
     space(12.0f);
     paragraph(TextStyle::Caption, t.outputIntro, palette().textSecondary);
     space(16.0f);
@@ -1544,13 +1568,18 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     // The position on the control is the stored value: 0 is automatic, 1 is off.
     const std::array<const char*, 5> factors = {t.automatic2, t.off, "2x", "3x", "4x"};
     config.graphics.frameGenerationFactor = segmented("fg", factors, config.graphics.frameGenerationFactor);
-    const std::string fps = std::to_string(config.stream.fps);
+    const int streamFps = isAutomatic(config) ? model.requestedStream.fps : config.stream.fps;
+    const std::string fps = std::to_string(streamFps);
     const bool automatic = config.graphics.frameGenerationFactor == 0;
-    const int factor = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, config.stream.fps);
+    const int factor = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, streamFps, model.displayHz);
     // The real picture is shown this long after it arrived, so the ones before it fit in.
-    const std::string delay = std::to_string(static_cast<int>(std::lround(1000.0 / config.stream.fps * (factor - 1) / factor)));
-    const std::string shown = std::to_string(config.stream.fps * factor);
-    if (factor > 1) {
+    const std::string delay = std::to_string(static_cast<int>(std::lround(1000.0 / streamFps * (factor - 1) / factor)));
+    const std::string shown = std::to_string(streamFps * factor);
+    if (!automatic && factor < config.graphics.frameGenerationFactor) {
+        // The screen has fewer refreshes than the chosen factor needs.
+        hint(format(t.frameGenerationCapped,
+                    {std::to_string(static_cast<int>(std::lround(model.displayHz))), std::to_string(factor), fps}));
+    } else if (factor > 1) {
         hint(format(automatic ? t.frameGenerationAutoOn : t.frameGenerationHint, {fps, shown, delay}));
     } else {
         hint(format(automatic ? t.frameGenerationAutoOff : t.frameGenerationOffHint, {fps}));

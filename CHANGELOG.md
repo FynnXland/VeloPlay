@@ -3,6 +3,44 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.9.0
+
+The input sets itself:
+
+- **"Automatic" is the new default.** VeloPlay asks the console for 1080p at 60 frames per second
+  with HEVC and chooses the bitrate itself. Settings > Input has one switch for it; the manual
+  choices are behind it and keep their values. Existing installations switch to it once.
+- **A game that runs at 30 fps is recognised.** The console then sends every picture twice.
+  VeloPlay compares each picture with the one before, leaves the repeats out and computes the
+  pictures in between as before. The display shows "Game 30 fps" while that is the case. New and
+  not yet seen on a real game: if motion looks choppy, pick "30 fps game" on the start screen.
+- **The bitrate is remembered per console.** It starts at 15 Mbit/s. After a session without
+  dropouts the next one gets a quarter more, up to 30 Mbit/s; after lost pictures or a stream
+  that stood still it gets less, and VeloPlay remembers where the trouble began.
+- **Frame generation respects the screen.** 3x and 4x on a 60 Hz screen only added delay. The
+  factor now stays within what the screen can show, and the settings say so.
+
+**Deutsch**
+
+Der Eingang stellt sich selbst ein:
+
+- **„Automatisch“ ist die neue Voreinstellung.** VeloPlay fordert von der Konsole 1080p mit
+  60 Bildern pro Sekunde und HEVC an und wählt die Datenrate selbst. Unter Einstellungen >
+  Eingang gibt es dafür einen Schalter; die Auswahl von Hand liegt dahinter und behält ihre
+  Werte. Bestehende Installationen wechseln einmal dorthin.
+- **Ein Spiel, das mit 30 Bildern läuft, wird erkannt.** Die Konsole schickt dann jedes Bild
+  doppelt. VeloPlay vergleicht jedes Bild mit dem davor, lässt die Wiederholungen weg und
+  berechnet die Bilder dazwischen wie bisher. Die Anzeige nennt dann „Spiel 30 fps“. Neu und noch
+  an keinem echten Spiel gesehen: Wirkt Bewegung abgehackt, auf der Startseite „30-fps-Spiel“
+  wählen.
+- **Die Datenrate merkt sich VeloPlay pro Konsole.** Sie beginnt bei 15 Mbit/s. Nach einer
+  Sitzung ohne Aussetzer gibt es beim nächsten Mal ein Viertel mehr, bis 30 Mbit/s; nach
+  verlorenen Bildern oder einem stehenden Stream weniger, und VeloPlay merkt sich, wo der Ärger
+  anfing.
+- **Zwischenbilder richten sich nach dem Bildschirm.** 3x und 4x auf einem Bildschirm mit 60 Hz
+  brachten nur Verzögerung. Der Faktor bleibt jetzt bei dem, was der Bildschirm zeigen kann, und
+  die Einstellungen sagen das.
+
 ## 0.8.0
 
 Against the delay between pressing a button and seeing the result:

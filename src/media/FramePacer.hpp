@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 
 // When which picture goes to the screen. The console sends 30 or 60 pictures
@@ -34,7 +35,49 @@ private:
 /// How many pictures reach the screen per picture from the console.
 /// `setting` 0 means automatic: a 30 fps stream is doubled, a 60 fps stream
 /// is shown as it is. 1 is off, 2 to 4 are fixed factors.
-[[nodiscard]] int frameGenerationFactorFor(int setting, int inputFps);
+///
+/// A screen cannot show more pictures than it has refreshes. With
+/// `refreshHz` given, the factor stays within refreshes per picture from the
+/// console: 3x on a 60 Hz screen would only add delay. 0 means unknown.
+[[nodiscard]] int frameGenerationFactorFor(int setting, int inputFps, double refreshHz = 0.0);
+
+/// Notices a game that runs at 30 fps inside a 60 fps stream. The console
+/// then sends every picture twice, and computing a picture between two that
+/// are the same gains nothing. Fed with how much of each picture differs
+/// from the one before it.
+///
+/// Only a strict rhythm counts: one picture new, the next a repeat, over
+/// and over. A game that stands still repeats everything and says nothing;
+/// a 60 fps game that stumbles repeats now and then, without a rhythm.
+class CadenceDetector {
+public:
+    /// A picture of which less than this share changed repeats the one before.
+    static constexpr double kRepeatBelow = 0.004;
+    /// A picture of which more than this share changed is a new one.
+    static constexpr double kNewAbove = 0.02;
+
+    void reset();
+
+    /// `picture` counts every picture from the console, shown or not.
+    /// `changed` is the share of it that differs from the picture before, 0 to 1.
+    void add(std::uint64_t picture, double changed);
+
+    /// True while every other picture repeats the one before it.
+    [[nodiscard]] bool halved() const { return halved_; }
+
+    /// With halved(): whether this picture is one of the repeats.
+    [[nodiscard]] bool isRepeat(std::uint64_t picture) const { return halved_ && (picture & 1U) == parity_; }
+
+private:
+    enum class Kind : std::uint8_t { Unknown, Repeat, New };
+    static constexpr std::size_t kWindow = 12;
+
+    Kind kinds_[kWindow]{};        // by picture number modulo the window
+    std::uint64_t numbers_[kWindow]{};
+    bool filled_[kWindow]{};
+    bool halved_ = false;
+    std::uint64_t parity_ = 0;     // numbers with this lowest bit are the repeats
+};
 
 /// What to show at one moment.
 struct FrameChoice {
