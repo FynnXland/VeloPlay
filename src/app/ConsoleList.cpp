@@ -38,6 +38,7 @@ std::vector<ConsoleEntry> buildConsoleList(const std::vector<RegisteredConsole>&
             entry.address = net::formatIpv4(discovered[i].address);
             entry.status = toStatus(discovered[i].info.state);
             entry.runningApp = discovered[i].info.runningAppName;
+            entry.runningAppId = discovered[i].info.runningAppTitleId;
             if (!discovered[i].info.hostName.empty()) entry.name = discovered[i].info.hostName;
             break;
         }
@@ -54,6 +55,7 @@ std::vector<ConsoleEntry> buildConsoleList(const std::vector<RegisteredConsole>&
         entry.address = net::formatIpv4(host.address);
         entry.status = toStatus(host.info.state);
         entry.runningApp = host.info.runningAppName;
+        entry.runningAppId = host.info.runningAppTitleId;
         list.push_back(std::move(entry));
     }
     return list;

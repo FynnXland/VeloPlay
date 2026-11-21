@@ -188,6 +188,7 @@ private:
     void handleQuickAction(input::QuickAction action);
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();
+    void updateSessionGame();
     void applyRemoteApi();
     void updateDirectTargets();
     void updateWake(Clock::time_point now);
@@ -209,6 +210,8 @@ private:
     input::ControllerManager controllers_;
     input::VirtualController virtualController_;
     input::KeyboardMouseMapper keyboardMouse_; // keys and mouse as a controller, fed by the window
+    std::string sessionGameId_;                // title id of the game the session's console runs; picks the key layout
+    std::string sessionGameName_;
     bool capturingKey_ = false;                // the settings wait for the key that is pressed next
     int capturedKey_ = 0;
     input::RemoteCommandProcessor remoteProcessor_;

@@ -180,3 +180,51 @@ TEST(StreamAlerts, SayOnceWhenTheConsoleSendsFewerPictures) {
     EXPECT_TRUE(shows(lossy, StreamAlert::PicturesLost, now));
     EXPECT_FALSE(shows(lossy, StreamAlert::FewerPictures, now));
 }
+
+TEST(StreamAlerts, MentionALowBatteryOnceAtEachMark) {
+    StreamAlerts alerts;
+    Clock::time_point now{};
+    alerts.reset(now);
+    StreamObservation o = fine();
+    o.batteryPercent = 40;
+    alerts.update(o, now);
+    EXPECT_FALSE(shows(alerts, StreamAlert::BatteryLow, now));
+
+    // At fifteen percent it is said, also in the first moments of a stream, and then left alone.
+    o.batteryPercent = 15;
+    now += 1s;
+    alerts.update(o, now);
+    EXPECT_TRUE(shows(alerts, StreamAlert::BatteryLow, now));
+    ASSERT_EQ(alerts.raised().size(), 1u);
+    now += 20s;
+    o.batteryPercent = 12;
+    alerts.update(o, now);
+    EXPECT_FALSE(shows(alerts, StreamAlert::BatteryLow, now));
+    EXPECT_TRUE(alerts.raised().empty());
+
+    // Once more when it is nearly empty.
+    o.batteryPercent = 5;
+    now += 60s;
+    alerts.update(o, now);
+    EXPECT_TRUE(shows(alerts, StreamAlert::BatteryLow, now));
+    now += 20s;
+    o.batteryPercent = 4;
+    alerts.update(o, now);
+    EXPECT_FALSE(shows(alerts, StreamAlert::BatteryLow, now));
+
+    // On the cable nothing is owed; off it again with little left, the note is news once more.
+    o.charging = true;
+    alerts.update(o, now);
+    o.charging = false;
+    o.batteryPercent = 9;
+    now += 1s;
+    alerts.update(o, now);
+    EXPECT_TRUE(shows(alerts, StreamAlert::BatteryLow, now));
+
+    // A controller that does not report its battery never triggers it.
+    StreamAlerts silent;
+    silent.reset(now);
+    StreamObservation unknown = fine();
+    silent.update(unknown, now);
+    EXPECT_FALSE(shows(silent, StreamAlert::BatteryLow, now));
+}

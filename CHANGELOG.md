@@ -3,6 +3,42 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.14.0
+
+- **A new menu in the game.** Esc now shows at a glance how picture, connection and controls are
+  doing: three tiles with pictures per second, a verdict on the link with bitrate, response
+  time and loss, and the controller with its battery. A click on a tile opens its settings.
+  Frame generation, upscaling, the display in the corner and keys and mouse can be switched
+  right there. Disconnect and rest mode sit apart on the right.
+- **Key layouts per game.** With keys and mouse, a game can have a layout of its own, with its
+  own mouse sensitivity. It applies by itself as soon as that game runs on the PS5; all others
+  use the general layout. F1 shows the layout in use over the picture, for the moment the game
+  says “press Cross” and you wonder which key that was.
+- **The controller's battery** is shown next to its name and in the menu. A note appears over
+  the picture at 15 and at 5 percent.
+- **Sound follows your headphones.** When Windows moves its default output while you play
+  (headphones plugged in, a headset switched on) or the device goes away, the sound moves with
+  it. Until now it stayed silent until the next connection.
+
+**Deutsch**
+
+- **Ein neues Menü im Spiel.** Esc zeigt jetzt auf einen Blick, wie es Bild, Verbindung und
+  Steuerung geht: drei Kacheln mit Bildern pro Sekunde, einem Urteil über die Verbindung samt
+  Datenrate, Antwortzeit und Verlust, und dem Controller mit Akkustand. Ein Klick auf eine
+  Kachel öffnet die passenden Einstellungen. Zwischenbilder, Hochskalierung, die Anzeige in
+  der Ecke und Maus und Tastatur lassen sich gleich dort umschalten. Trennen und Ruhemodus
+  stehen abgesetzt rechts.
+- **Tastenbelegung pro Spiel.** Mit Maus und Tastatur kann ein Spiel eine eigene Belegung
+  bekommen, mit eigener Mausempfindlichkeit. Sie gilt von selbst, sobald das Spiel auf der PS5
+  läuft; für alle anderen gilt die allgemeine. F1 blendet die geltende Belegung über dem Bild
+  ein, für den Moment, in dem das Spiel „Drücke Kreuz“ sagt und du überlegst, welche Taste das
+  war.
+- **Der Akku des Controllers** steht neben seinem Namen und im Menü. Bei 15 und bei 5 Prozent
+  erscheint ein Hinweis über dem Bild.
+- **Der Ton folgt deinen Kopfhörern.** Wechselt Windows beim Spielen das Standard-Tongerät
+  (Kopfhörer eingesteckt, Headset eingeschaltet) oder verschwindet das Gerät, zieht der Ton
+  mit um. Bisher blieb er bis zur nächsten Verbindung stumm.
+
 ## 0.13.0
 
 - **Compare the upscaling while you play: F8.** During a stream F8 steps through off, Lanczos

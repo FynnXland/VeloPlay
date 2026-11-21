@@ -40,6 +40,8 @@ public:
     void showPauseMenu() { pauseMenu_ = true; }
     /// Shows the note that follows a press of F8, for a picture of it.
     void showUpscalingNote() { upscalingNoteFor_ = 1.0e9; }
+    /// Shows the key layout over the picture, as F1 does.
+    void showKeyOverlay() { keyOverlay_ = true; }
     /// True while the picture of the game is all there is on screen: no
     /// menu, no settings. Keys and mouse can go to the game then.
     [[nodiscard]] bool pictureOwnsInput() const { return pictureOwnsInput_; }
@@ -63,7 +65,9 @@ private:
     void drawConnection(const UiModel& model);
     void drawStreamOverlay(const UiModel& model);
     void drawStreamAlerts(const UiModel& model);
+    void drawPauseMenu(const UiModel& model);
     void drawUpscalingNote(const UiModel& model);
+    void drawKeyOverlay(const UiModel& model);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);
@@ -104,9 +108,13 @@ private:
     bool adviceApplied_ = false;
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
     bool pictureOwnsInput_ = false;
+    float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
     double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to
     int bindingControl_ = -1; // the control that waits for its key in the settings, or -1
+    std::string editedGameId_;      // the game whose key layout the settings show; empty = the one for all games
+    bool editedGameChosen_ = false; // false until the settings picked the layout in use
+    bool keyOverlay_ = false;       // the key layout is shown over the picture (F1)
     bool settingsFromGame_ = false; // the settings sheet was opened from that menu
     std::string loginPin_; // typed login passcode; never leaves this field except to the session
 };

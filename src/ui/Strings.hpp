@@ -33,6 +33,8 @@ struct Strings {
     const char* controllerNone;
     const char* viaUsb;
     const char* viaBluetooth;
+    const char* batteryValue;    // {0} = percent
+    const char* batteryCharging; // {0} = percent
 
     // Consoles
     const char* statusReady;
@@ -274,6 +276,18 @@ struct Strings {
     const char* inputApplyHint;
     const char* inputApply;
     const char* pauseOverlay;
+    const char* pauseSince;        // {0} = time connected, like 12:34
+    const char* pauseTilePicture;
+    const char* pauseTileLink;
+    const char* pauseTileControl;
+    const char* pausePictureValue; // {0} = pictures per second on screen
+    const char* pauseLinkGood;
+    const char* pauseLinkRough;
+    const char* pauseLinkDetail;   // {0} = Mbit/s, {1} = ms, {2} = percent lost
+    const char* pauseNoController;
+    const char* pauseQuick;
+    const char* pauseKeys;
+    const char* pauseLayout;
     const char* hudUnavailable;          // frame generation could not be started
     const char* hudInsidePc;             // row label: how long a picture takes from arriving to being drawn
     const char* modeAuto;                // the program chooses what to ask the console for
@@ -289,6 +303,7 @@ struct Strings {
     const char* alertLost;
     const char* alertDecoder;
     const char* alertFewer;
+    const char* alertBattery;
     const char* waitingForRelease; // the console has not let go of the session before
     // Playing with keyboard and mouse.
     const char* kbmTitle;
@@ -302,6 +317,14 @@ struct Strings {
     const char* kbmPressKey;     // shown on a control that waits for its key
     const char* kbmUnassigned;
     const char* kbmReset;
+    const char* kbmFor;
+    const char* kbmAllGames;
+    const char* kbmAddGame;     // {0} = name of the game
+    const char* kbmRemoveGame;  // {0} = name of the game
+    const char* kbmGamesHint;
+    const char* kbmNoGameHint;
+    const char* kbmOverlayTitle;  // {0} = name of the game, or "all games"
+    const char* kbmOverlayClose;
     const char* kbmMouseLooks;   // the right stick follows the mouse
     const char* padCross;
     const char* padCircle;

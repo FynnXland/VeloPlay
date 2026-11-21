@@ -393,6 +393,23 @@ TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
     ASSERT_TRUE(again.ok());
     EXPECT_EQ(again->controller.keyboardMouse, kbm);
 
+    // A game's own layout travels through the file as well.
+    input::GameKeyLayout game;
+    game.titleId = "PPSA01325";
+    game.name = "Astro's Playroom";
+    game.keys = kbm.keys;
+    game.keys[static_cast<std::size_t>(input::PadControl::Cross)] = 'J';
+    game.mouseSensitivity = 0.6f;
+    game.invertY = false;
+    kbm.games.push_back(game);
+    const auto withGame = serializeConfig(config, protector);
+    ASSERT_TRUE(withGame.ok());
+    const auto readBack = parseConfig(*withGame, protector);
+    ASSERT_TRUE(readBack.ok());
+    ASSERT_EQ(readBack->controller.keyboardMouse.games.size(), 1u);
+    EXPECT_EQ(readBack->controller.keyboardMouse.games[0], game);
+    EXPECT_EQ(readBack->controller.keyboardMouse, kbm);
+
     // A file that names only some controls leaves the others at their default,
     // and a key given twice stays with the first control that has it.
     const auto partial = parseConfig(

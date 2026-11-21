@@ -91,7 +91,7 @@ ul, ol { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column;
 /* header */
 .eyebrow { font: 500 0.78rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
 .facts { display: flex; flex-wrap: wrap; gap: 8px; }
-.pill { font: 500 0.82rem/1 var(--font-body); padding: 7px 11px; border-radius: 999px; background: var(--raised); color: var(--muted); white-space: nowrap; }
+.pill { font: 500 0.82rem/1.3 var(--font-body); padding: 6px 11px; border-radius: 16px; background: var(--raised); color: var(--muted); }
 .pill.ok { background: var(--ok-bg); color: var(--ok); }
 .pill.soon { background: var(--soon-bg); color: var(--soon); }
 nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.95rem; }
@@ -140,7 +140,25 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .state.soon { color: var(--soon); }
 .state.no { color: var(--faint); }
 
-.diagram { overflow-x: auto; background: var(--surface); border-radius: 14px; padding: 16px; }
+.diagram { overflow-x: auto; min-width: 0; max-width: 100%; box-sizing: border-box; background: var(--surface); border-radius: 14px; padding: 16px; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.diagram figcaption { color: var(--muted); font-size: 0.9rem; max-width: 68ch; }
+/* The drawing keeps a readable size on a phone and scrolls sideways there. */
+.dg { display: block; width: 100%; min-width: 760px; height: auto; cursor: zoom-in; border-radius: 8px; }
+.dg:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dg-box { fill: var(--raised); stroke: var(--line); }
+.dg-hub { fill: var(--raised); stroke: var(--accent); stroke-width: 1.5; }
+.dg-out { fill: none; stroke: var(--faint); stroke-dasharray: 5 4; }
+.dg-line { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.dg-head { fill: var(--muted); }
+.dg-t { fill: var(--fg); font: 500 14px var(--font-body); }
+.dg-t2 { fill: var(--fg); font: 500 12.5px var(--font-body); }
+.dg-s { fill: var(--muted); font: 400 11.5px var(--font-body); }
+.dg-l { fill: var(--muted); font: 400 11px var(--font-mono); }
+.dg-h { fill: var(--faint); font: 500 11px var(--font-mono); letter-spacing: 0.08em; }
+/* Large on a wide screen; on a narrow one it keeps a readable size and the window scrolls. */
+dialog.viewer[data-kind="drawing"] { overflow: auto; }
+dialog.viewer .dg { cursor: zoom-out; background: var(--surface); padding: 20px; box-sizing: border-box; width: max(760px, min(96vw, 150vh)); min-width: 0; border-radius: 12px; }
+dialog.viewer[data-kind="drawing"] img, dialog.viewer[data-kind="image"] .viewer-drawing { display: none; }
 .note { border-left: 0; background: var(--raised); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
 footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 18px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
@@ -153,10 +171,10 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.13.0</span>
+    <span class="pill">Version 0.14.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
-    <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
+    <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
   </div>
   <nav aria-label="Abschnitte">
     <a href="#stand">Stand</a>
@@ -184,13 +202,15 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>PS5 aus dem Ruhemodus aufwecken</li>
         <li>Mit der PS5 verbinden und ihr Bild im Fenster oder im Vollbild sehen, mit Ton</li>
         <li>Das Bild auf der Grafikkarte entpacken, ersatzweise auf dem Prozessor</li>
-        <li>Die PS5 mit dem Controller am PC steuern, oder mit Maus und Tastatur</li>
+        <li>Die PS5 mit dem Controller am PC steuern, oder mit Maus und Tastatur, auf Wunsch mit eigener Belegung pro Spiel</li>
         <li>Vibration, adaptive Trigger (Widerstand von L2 und R2) und Haptik des DualSense</li>
         <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
         <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
         <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
-        <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen oder kein Controller da ist</li>
+        <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen, kein Controller da ist oder sein Akku zur Neige geht</li>
+        <li>Ein Menü im Spiel, das zeigt, wie es Bild, Verbindung und Steuerung geht, und das Wichtigste sofort umschaltet</li>
         <li>Zwischenbilder, auf NVIDIA-Karten mit deren eigener Bewegungssuche (Optical Flow)</li>
+        <li>Auf NVIDIA-Karten das Bild mit RTX Video glätten und vergrößern, im Spiel mit F8 an- und abschaltbar</li>
         <li>Eingang automatisch: Auflösung, Bildrate und Datenrate wählt das Programm</li>
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
@@ -201,11 +221,13 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Bild sichtbar aufwerten (Klötzchen glätten, Kanten nachziehen)</li>
+        <li>Mikrofon für den Sprachchat</li>
+        <li>Sich selbst fangen, wenn die Grafikkarte kurz aussetzt</li>
+        <li>Von unterwegs spielen, außerhalb des Heimnetzes</li>
         <li>HDR</li>
       </ul>
-      <p class="small muted">Neu in 0.6.0 und bisher nur auf einem Software-Renderer geprüft: Zwischenbilder (aus 30 Bildern pro Sekunde werden 60), Hochskalieren mit Lanczos und Schärfen. Auf einer echten Grafikkarte ist diese Version der erste Versuch.</p>
-      <p class="small muted">Wichtig: An einer echten PS5 bestätigt sind seit dem 21.11.2026 mit 0.5.2 Suche, Kopplung, Verbindung, ein flüssiges Bild über die Grafikkarte, Ton und die Steuerung mit dem Controller. Noch nicht bestätigt sind Trigger, Haptik und das Aufwecken. Bekannte Fehler: Eingaben kommen spürbar später an als mit PS Remote Play, und nach Alt+Tab reagiert das Fenster manchmal nicht mehr. Die Tabelle „Was wie geprüft ist“ sagt genau, was das heißt.</p>
+      <p class="small muted">Zwischenbilder, Hochskalieren und Schärfen laufen seit dem 21.11.2026 auf einer RTX 4070: Am Bildschirm kommen etwa 60 Bilder pro Sekunde an, auch mit RTX Video. RTX Video verändert das Bild dort messbar, der sichtbare Unterschied ist bei gleicher Bildgröße aber gering.</p>
+      <p class="small muted">Wichtig: An einer echten PS5 bestätigt sind Suche, Kopplung, Aufwecken aus dem Ruhemodus, Verbindung, ein flüssiges Bild über die Grafikkarte, Ton und die Steuerung mit dem Controller. Der Widerstand der Trigger ist spürbar, aber schwächer als direkt an der PS5. Noch nicht bestätigt sind die Haptik und die Anmeldung bei PlayStation für die Account-ID. Zwei frühere Fehler sind laut Rückmeldung vom 21.11.2026 nicht mehr aufgetreten: Eingaben kommen nicht mehr spürbar später an als mit PS Remote Play, und das Fenster reagiert nach Alt+Tab weiter. Die Tabelle „Was wie geprüft ist“ sagt genau, was das heißt.</p>
     </div>
   </div>
 </section>
@@ -317,7 +339,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Am PC spielen</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus, <kbd>F8</kbd> schaltet die Hochskalierung um. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
+          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows und wechselt mit, wenn du Kopfhörer einsteckst. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus, <kbd>F8</kbd> schaltet die Hochskalierung um. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
         <div><span class="label">Was dahinter passiert</span>
           <p>Jedes Bild kommt als gepacktes Paket an. Die Grafikkarte entpackt es, ein kleines Programm auf der Karte rechnet die Farben um und passt die Größe ans Fenster an. Der Ton wird entpackt und mit einer kleinen Reserve abgespielt, damit verspätete Pakete nicht knacken.</p></div>
       </div>
@@ -329,6 +351,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Kaputte Bilder:</strong> Lässt sich ein Bild nicht entpacken oder kommt der Dekoder nicht hinterher, fordert VeloPlay bei der PS5 ein neues Vollbild an und überspringt alles bis dahin, statt Bildfehler mitzuschleppen.</li>
           <li><strong>Stöße:</strong> Ein WLAN liefert oft erst nichts und dann mehrere Bilder auf einmal. Die Bilder warten dann kurz vor dem Dekoder. Verworfen wird erst, wenn das älteste länger als 250 ms wartet; die Anzeige nennt in dem Fall die Zahl der verworfenen Bilder.</li>
           <li><strong>Dekoder und Anzeige teilen sich die Grafikkarte:</strong> Das Programm wartet vor dem Zeichnen auf den Monitor, nicht währenddessen. So steht der Dekoder nicht still, solange auf das nächste Bild des Monitors gewartet wird.</li>
+          <li><strong>Tongerät wechseln (seit 0.14.0):</strong> Einmal pro Sekunde sieht VeloPlay nach, ob Windows noch auf demselben Gerät abspielt. Steckst du Kopfhörer ein oder verschwindet das Gerät, öffnet sich der Ton auf dem neuen Standardgerät. Vorher blieb er bis zur nächsten Verbindung stumm.</li>
           <li><strong>Ton:</strong> Opus, 48 kHz, Stereo. Reserve 80 ms, mit dem Netzwerkpuffer „Stabil“ 140 ms. Läuft mehr als 80 ms darüber hinaus auf, wird alter Ton verworfen, damit er nicht hinter dem Bild herhinkt.</li>
           <li><strong>Adaptive Trigger:</strong> Die PS5 schickt je Trigger eine Effektart und zehn Parameter. VeloPlay reicht sie über SDL unverändert an den DualSense weiter und gibt die Trigger beim Trennen wieder frei.</li>
           <li><strong>Haptik:</strong> Die PS5 schickt sie als eigene Tonspur mit 3000 Hz. Am USB-Kabel meldet sich der DualSense als Tongerät mit vier Kanälen; VeloPlay spielt die Spur dort auf Kanal 3 und 4. Dafür muss das Gerät in Windows auf „Quadrofonie“ stehen. Sonst, und über Bluetooth, wird aus der Lautstärke der Spur Vibration.</li>
@@ -453,13 +476,16 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/menue.png" alt="Menü über dem laufenden Bild: Weiter, Trennen, PS5 in den Ruhemodus, darunter der Schalter Anzeige oben links und der Knopf Einstellungen mit Zahnrad" width="1100" height="720">
+    <img class="shot" src="img/menue.png" alt="Menü über dem laufenden Bild: oben Konsole und Spiel, darunter drei Kacheln für Bild, Verbindung und Steuerung, dann Zwischenbilder und Hochskalierung zum Umschalten, zwei Schalter und die Knöpfe Weiter, Einstellungen, Trennen und PS5 in den Ruhemodus" width="1100" height="720">
     <div>
       <h3>Menü im Spiel</h3>
       <ul>
         <li><strong>Esc:</strong> öffnet und schließt das Menü. Das Spiel läuft weiter.</li>
-        <li><strong>Anzeige oben links:</strong> ein- und ausschalten, wie mit <kbd>F9</kbd>.</li>
-        <li><strong>Zahnrad:</strong> die Einstellungen, ohne die Verbindung zu trennen. Was unter „Ausgabe“ steht, wirkt sofort. Für geänderte Werte unter „Eingang“ gibt es den Knopf „Jetzt neu verbinden“; das Bild setzt dabei ein paar Sekunden aus.</li>
+        <li><strong>Oben:</strong> die Konsole, das Spiel, das dort läuft, und wie lange du verbunden bist.</li>
+        <li><strong>Drei Kacheln (seit 0.14.0):</strong> „Bild“ nennt die Bilder pro Sekunde auf dem Bildschirm, „Verbindung“ sagt „Stabil“ oder „Unruhig“ mit Datenrate, Antwortzeit und Verlust, „Steuerung“ nennt den Controller mit Akkustand. Ein Punkt wird orange, wenn etwas nicht stimmt. Ein Klick auf eine Kachel öffnet die passenden Einstellungen.</li>
+        <li><strong>Schnell ändern:</strong> Zwischenbilder und Hochskalierung schalten sofort um, daneben die Schalter für die Anzeige oben links und für Maus und Tastatur.</li>
+        <li><strong>Unten:</strong> „Weiter“ und „Einstellungen“ links, „Trennen“ und „PS5 in den Ruhemodus“ abgesetzt rechts, damit man sie nicht versehentlich trifft.</li>
+        <li><strong>Einstellungen:</strong> öffnen sich, ohne die Verbindung zu trennen. Was unter „Ausgabe“ steht, wirkt sofort. Für geänderte Werte unter „Eingang“ gibt es den Knopf „Jetzt neu verbinden“; das Bild setzt dabei ein paar Sekunden aus.</li>
       </ul>
     </div>
   </div>
@@ -475,7 +501,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Spiel:</strong> erscheint, wenn das Spiel nur mit 30 Bildern läuft, während die PS5 60 schickt. Sie sendet dann jedes Bild doppelt; VeloPlay lässt die Wiederholungen weg und berechnet die Bilder dazwischen.</li>
         <li><strong>Zwischenbilder, Zusatzverzögerung:</strong> der Faktor mit dem Namen des Verfahrens, und wie viel später das Bild dadurch erscheint.</li>
         <li><strong>Datenrate, Antwortzeit, Verlust:</strong> wie es der Verbindung geht.</li>
-        <li><strong>Hinweise oben in der Mitte:</strong> erscheinen nur, wenn etwas nicht stimmt, auch bei ausgeblendeter Anzeige. „Kein Controller verbunden“, „Die Verbindung hakt“ (über 0,3 Sekunden kein Bild), „Bilder gehen unterwegs verloren“ (mehrere in fünf Sekunden), „Dein PC kommt mit dem Entpacken der Bilder nicht nach“ und „Die PS5 schickt gerade weniger Bilder“. So lässt sich ein Ruckler im Spiel von einem im Netz unterscheiden.</li>
+        <li><strong>Hinweise oben in der Mitte:</strong> erscheinen nur, wenn etwas nicht stimmt, auch bei ausgeblendeter Anzeige. „Kein Controller verbunden“, „Die Verbindung hakt“ (über 0,3 Sekunden kein Bild), „Bilder gehen unterwegs verloren“ (mehrere in fünf Sekunden), „Dein PC kommt mit dem Entpacken der Bilder nicht nach“, „Die PS5 schickt gerade weniger Bilder“ und „Der Akku des Controllers ist fast leer“ (bei 15 und bei 5 Prozent). So lässt sich ein Ruckler im Spiel von einem im Netz unterscheiden.</li>
         <li><strong>Dekoder:</strong> „D3D11VA“ heißt, die Grafikkarte entpackt. Dahinter die mittlere Zeit pro Bild.</li>
         <li><strong>Langsamstes Bild:</strong> das Bild der letzten ein bis zwei Sekunden, das am längsten zum Entpacken brauchte. Liegt der Wert weit über dem Mittel, ruckelt es, auch wenn das Mittel gut aussieht.</li>
         <li><strong>Im PC:</strong> wie lange ein Bild vom Eintreffen der Daten bis zum Zeichnen braucht. Mit Zwischenbildern ist die halbe Bildperiode Wartezeit darin enthalten.</li>
@@ -488,15 +514,28 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/maus-tastatur.png" alt="Einstellungen, Reiter Controller: Mausempfindlichkeit, darunter ein gezeichneter Controller und die Liste der Tasten für jeden Knopf" width="1100" height="720">
+    <img class="shot" src="img/maus-tastatur.png" alt="Einstellungen, Reiter Controller: Auswahl der Belegung für alle Spiele oder für Astro Bot, Mausempfindlichkeit, darunter ein gezeichneter Controller" width="1100" height="720">
     <div>
       <h3>Maus und Tastatur</h3>
       <ul>
         <li><strong>Einschalten:</strong> Einstellungen &gt; Controller &gt; „Mit Maus und Tastatur spielen“. Zunächst aus.</li>
         <li><strong>Was passiert:</strong> Die PS5 kennt nur Controller. Tasten werden zu Knöpfen und zum linken Stick, die Maus zum rechten Stick: Je schneller du die Maus bewegst, desto weiter ist der Stick gedrückt.</li>
         <li><strong>Belegung:</strong> Klick auf einen Teil des gezeichneten Controllers oder auf sein Feld, dann die Taste drücken. <kbd>Entf</kbd> leert ein Feld, <kbd>Esc</kbd> bricht ab. Voreingestellt: W A S D laufen, Maus umsehen, linke Maustaste R2, rechte L2.</li>
-        <li><strong>Im Spiel:</strong> Der Mauszeiger verschwindet, Maus und Tastatur gehören der PS5. <kbd>Esc</kbd> öffnet das Menü und gibt sie wieder frei. <kbd>Esc</kbd>, <kbd>F8</kbd>, <kbd>F9</kbd> und <kbd>F11</kbd> bleiben bei VeloPlay.</li>
+        <li><strong>Eigene Belegung pro Spiel (seit 0.14.0):</strong> Läuft auf der PS5 ein Spiel, kannst du ihm eine eigene Belegung geben, mit eigener Mausempfindlichkeit. Sie gilt von selbst, sobald das Spiel läuft; für alle anderen gilt „Alle Spiele“. Die PS5 nennt das laufende Spiel in ihren Antworten auf die Suche.</li>
+        <li><strong>Im Spiel:</strong> Der Mauszeiger verschwindet, Maus und Tastatur gehören der PS5. <kbd>Esc</kbd> öffnet das Menü und gibt sie wieder frei. <kbd>F1</kbd> blendet deine Belegung über dem Bild ein und wieder aus. <kbd>Esc</kbd>, <kbd>F1</kbd>, <kbd>F8</kbd>, <kbd>F9</kbd> und <kbd>F11</kbd> bleiben bei VeloPlay.</li>
         <li><strong>Grenzen:</strong> Die PS5 zeigt weiter Controller-Symbole. Eine Maus über einen Stick fühlt sich nie ganz an wie in einem PC-Spiel; stell im Spiel die Kamera-Empfindlichkeit hoch.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/belegung.png" alt="Laufender Stream mit eingeblendeter Tastenbelegung für Astro Bot: links die Tasten der linken Hand des Controllers, rechts die der rechten" width="1100" height="720">
+    <div>
+      <h3>Belegung im Spiel einblenden</h3>
+      <ul>
+        <li><strong>F1:</strong> zeigt über dem laufenden Bild, welche Taste welchen Knopf drückt, und blendet es mit dem nächsten Druck wieder aus.</li>
+        <li><strong>Wozu:</strong> Die PS5 zeigt nur Controller-Symbole. Steht im Spiel „Drücke Kreuz“, siehst du hier, welche Taste das bei dir ist.</li>
+        <li><strong>Welche Belegung:</strong> die des laufenden Spiels, wenn es eine eigene hat, sonst die für alle Spiele. Der Name steht oben.</li>
       </ul>
     </div>
   </div>
@@ -557,38 +596,90 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <section id="aufbau">
   <h2>Der Aufbau</h2>
   <p>Die Oberfläche kennt den Rest nur über zwei Dinge: ein Datenpaket, das sie jedes Bild neu liest (<code>UiModel</code>), und eine Liste von Aktionen, die sie auslösen darf (<code>IUiActions</code>). Dahinter sitzt der <code>AppController</code>, der alle Dienste steuert. Deshalb lässt sich jeder Bildschirm ohne Windows und ohne Konsole rendern und prüfen.</p>
-  <div class="diagram">
-<pre class="mermaid">
-flowchart LR
-  subgraph F[Oberfläche]
-    UI[UiManager<br/>Übersicht, Kopplung,<br/>Einstellungen, Anzeige]
-  end
-  subgraph K[Steuerung]
-    AC[AppController]
-  end
-  subgraph D[Dienste]
-    DS[Suche und Aufwecken]
-    RC[Kopplung]
-    SE[Sitzung<br/>libchiaki]
-    ME[Bild und Ton<br/>FFmpeg, Opus]
-    CP[Verbindungstest]
-    UP[Updater]
-    CM[Controller]
-    RS[Fernsteuerung]
-    CF[Einstellungen]
-  end
-  UI -- Aktionen --> AC
-  AC -- UiModel --> UI
-  AC --> DS & RC & SE & CP & UP & CM & RS & CF
-  SE -- Pakete --> ME
-  ME --> OUT[(Bildschirm, Lautsprecher,<br/>Haptik des Controllers)]
-  DS & RC & SE & CP <--> PS5[(PS5 im Heimnetz)]
-  UP <--> GH[(GitHub Releases)]
-  CM <--> PAD[(Controller)]
-  RS <--> SK[(Skripte auf dem PC)]
-  CF <--> FILE[(config.json)]
-</pre>
-  </div>
+  <figure class="diagram" id="aufbau-bild">
+<svg class="dg" viewBox="0 0 980 604" role="img" aria-label="Aufbau von VeloPlay: Die Oberfläche spricht nur mit dem AppController. Der AppController steuert acht Dienste. Jeder Dienst hat genau ein Gegenüber außerhalb des Programms: die PS5 im Heimnetz, Bildschirm und Lautsprecher, den Controller, GitHub Releases, Skripte auf dem PC und die Datei config.json.">
+<defs><marker id="dg-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="dg-head" d="M0 0L10 5L0 10z"/></marker></defs>
+<text class="dg-h" x="93.0" y="36" text-anchor="middle">OBERFLÄCHE</text>
+<text class="dg-h" x="310.0" y="36" text-anchor="middle">STEUERUNG</text>
+<text class="dg-h" x="525.0" y="36" text-anchor="middle">DIENSTE</text>
+<text class="dg-h" x="857.0" y="36" text-anchor="middle">AUSSERHALB DES PROGRAMMS</text>
+<rect class="dg-hub" x="250" y="60" width="120" height="524" rx="9"/>
+<text class="dg-t" x="310.0" y="320.0" text-anchor="middle">AppController</text>
+<text class="dg-s" x="310.0" y="338.0" text-anchor="middle">steuert alle Dienste</text>
+<rect class="dg-box" x="16" y="256.0" width="154" height="132" rx="9"/>
+<text class="dg-t" x="93.0" y="300.0" text-anchor="middle">UiManager</text>
+<text class="dg-s" x="93.0" y="320.0" text-anchor="middle">Übersicht, Kopplung,</text>
+<text class="dg-s" x="93.0" y="336.0" text-anchor="middle">Einstellungen,</text>
+<text class="dg-s" x="93.0" y="352.0" text-anchor="middle">Anzeige im Spiel</text>
+<line class="dg-line" x1="174" y1="294.0" x2="246" y2="294.0" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="210.0" y="286.0" text-anchor="middle">Aktionen</text>
+<line class="dg-line" x1="246" y1="350.0" x2="174" y2="350.0" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="210.0" y="368.0" text-anchor="middle">UiModel</text>
+<rect class="dg-box" x="430" y="60" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="87" text-anchor="middle">Suche und Aufwecken</text>
+<line class="dg-line" x1="374" y1="82.0" x2="426" y2="82.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="116" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="143" text-anchor="middle">Kopplung</text>
+<line class="dg-line" x1="374" y1="138.0" x2="426" y2="138.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="172" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="199" text-anchor="middle">Verbindungstest</text>
+<line class="dg-line" x1="374" y1="194.0" x2="426" y2="194.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="228" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="248" text-anchor="middle">Sitzung</text>
+<text class="dg-s" x="525.0" y="264" text-anchor="middle">libchiaki</text>
+<line class="dg-line" x1="374" y1="250.0" x2="426" y2="250.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="300" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="320" text-anchor="middle">Bild und Ton</text>
+<text class="dg-s" x="525.0" y="336" text-anchor="middle">FFmpeg, Opus</text>
+<rect class="dg-box" x="430" y="372" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="392" text-anchor="middle">Controller</text>
+<text class="dg-s" x="525.0" y="408" text-anchor="middle">SDL3</text>
+<line class="dg-line" x1="374" y1="394.0" x2="426" y2="394.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="428" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="455" text-anchor="middle">Updater</text>
+<line class="dg-line" x1="374" y1="450.0" x2="426" y2="450.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="484" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="511" text-anchor="middle">Fernsteuerung</text>
+<line class="dg-line" x1="374" y1="506.0" x2="426" y2="506.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="540" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="567" text-anchor="middle">Einstellungen</text>
+<line class="dg-line" x1="374" y1="562.0" x2="426" y2="562.0" marker-end="url(#dg-arrow)"/>
+<line class="dg-line" x1="525.0" y1="275" x2="525.0" y2="296" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="535.0" y="290" text-anchor="start">Bild- und Tonpakete</text>
+<rect class="dg-out" x="750" y="60" width="214" height="212" rx="9"/>
+<text class="dg-t" x="857.0" y="171.0" text-anchor="middle">PS5 im Heimnetz</text>
+<rect class="dg-out" x="750" y="300" width="214" height="44" rx="9"/>
+<text class="dg-t2" x="857.0" y="319" text-anchor="middle">Bildschirm, Lautsprecher,</text>
+<text class="dg-t2" x="857.0" y="335" text-anchor="middle">Haptik des Controllers</text>
+<rect class="dg-out" x="750" y="372" width="214" height="44" rx="9"/>
+<text class="dg-t" x="857.0" y="399" text-anchor="middle">Controller am PC</text>
+<rect class="dg-out" x="750" y="428" width="214" height="44" rx="9"/>
+<text class="dg-t" x="857.0" y="455" text-anchor="middle">GitHub Releases</text>
+<rect class="dg-out" x="750" y="484" width="214" height="44" rx="9"/>
+<text class="dg-t" x="857.0" y="511" text-anchor="middle">Skripte auf dem PC</text>
+<rect class="dg-out" x="750" y="540" width="214" height="44" rx="9"/>
+<text class="dg-t" x="857.0" y="567" text-anchor="middle">config.json</text>
+<line class="dg-line" x1="624" y1="82.0" x2="746" y2="82.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="75.0" text-anchor="middle">UDP 9302</text>
+<line class="dg-line" x1="624" y1="138.0" x2="746" y2="138.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="131.0" text-anchor="middle">TCP 9295</text>
+<line class="dg-line" x1="624" y1="194.0" x2="746" y2="194.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="187.0" text-anchor="middle">UDP 9302</text>
+<line class="dg-line" x1="624" y1="250.0" x2="746" y2="250.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="243.0" text-anchor="middle">9295 bis 9297</text>
+<line class="dg-line" x1="624" y1="322.0" x2="746" y2="322.0" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="315.0" text-anchor="middle">Bild, Ton</text>
+<line class="dg-line" x1="624" y1="394.0" x2="746" y2="394.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="387.0" text-anchor="middle">Tasten, Effekte</text>
+<line class="dg-line" x1="624" y1="450.0" x2="746" y2="450.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="443.0" text-anchor="middle">HTTPS</text>
+<line class="dg-line" x1="624" y1="506.0" x2="746" y2="506.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="499.0" text-anchor="middle">UDP, nur lokal</text>
+<line class="dg-line" x1="624" y1="562.0" x2="746" y2="562.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="555.0" text-anchor="middle">liest, schreibt</text>
+</svg>
+    <figcaption>Von links nach rechts: Die Oberfläche spricht nur mit dem AppController, der AppController steuert die Dienste, und jeder Dienst hat genau ein Gegenüber außerhalb des Programms. Bild und Ton bekommt seine Pakete direkt von der Sitzung. Ein Klick auf das Schaubild zeigt es groß.</figcaption>
+  </figure>
   <div class="scroll"><table>
     <thead><tr><th>Teil</th><th>Enthält</th><th>Läuft auf</th></tr></thead>
     <tbody>
@@ -647,7 +738,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.13.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.14.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -710,7 +801,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>272 automatische Tests unter Linux und 289 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>276 automatische Tests unter Linux und 293 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -735,13 +826,14 @@ flowchart LR
       <tr><td>Suche an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors: Die Konsole wird per Rundruf gefunden. Beim ersten Versuch hing sie im Gast-WLAN der FRITZ!Box, das vom Heimnetz getrennt ist; dort kann keine Suche sie erreichen.</td><td class="state ok">gefunden</td></tr>
       <tr><td>Koppeln, Verbinden und Steuern an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors mit Version 0.4.0: Koppeln und Verbinden klappen, der Controller steuert die Konsole.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Bild an einer echten PS5</td><td>Mit 0.4.0 stand das Bild nach dem ersten (Issue 1), mit 0.4.2 war es verpixelt und ruckelte (Issue 2). Mit 0.5.2 am 21.11.2026: zwei Läufe über mehrere Minuten ohne verworfenes oder kaputtes Bild, für den Autor sehr flüssig.</td><td class="state ok">läuft mit 0.5.2</td></tr>
-      <tr><td>Eingabeverzögerung</td><td>Am 21.11.2026 spürbar stärker als mit PS Remote Play. Am Netz liegt es nicht (1 bis 4 ms Antwortzeit, kein Verlust). Vermutet: Die Einstellung stand auf 30 statt 60 Bildern pro Sekunde, und jedes Bild erscheint bis zu eine Bildperiode zu spät. Die Gegenprobe mit 60 Bildern steht aus.</td><td class="state no">offen</td></tr>
+      <tr><td>Eingabeverzögerung</td><td>Am 21.11.2026 mit 0.5.2 spürbar stärker als mit PS Remote Play. Seit 0.8.0 wird der Controller alle 2 ms gelesen statt einmal pro Bild, seit 0.9.0 fragt „Automatisch“ 60 Bilder pro Sekunde an. Rückmeldung vom 21.11.2026 mit 0.13.0: nicht mehr spürbar später als bei Sony. Die Anzeige „Im PC“ nennt etwa 20 ms; davon sind bei einem 30-fps-Spiel mit Zwischenbildern rund 17 ms gewollte Wartezeit.</td><td class="state ok">laut Rückmeldung behoben</td></tr>
       <tr><td>Zwischenbilder, Hochskalieren, Schärfen</td><td>Unter Windows auf dem Software-Renderer: Ein Muster, das sich zwischen zwei Bildern verschiebt, muss im berechneten Bild dort liegen, wo es zu dem Zeitpunkt hingehört, bei langsamer und schneller Bewegung und bei 2x und 4x. Flächen bleiben beim Skalieren, wie sie sind, Kanten werden steiler. Die Taktung ist mit eingespeister Zeit getestet. Am 21.11.2026 mit 0.6.0 auf der RTX 4070 des Autors: läuft und wirkt flüssig, kam aber nur auf 44 bis 50 statt 60 Bilder pro Sekunde. Die Ursache lag in der Taktung und ist in 0.6.1 behoben; ob dort 60 ankommen, ist noch zu bestätigen.</td><td class="state soon">läuft, volle Rate noch zu bestätigen</td></tr>
-      <tr><td>Fenster reagiert nicht („Keine Rückmeldung“, Issue 3)</td><td>Tritt mit 0.5.2 auf, wenn man im Stream mit Alt+Tab weg- und wieder zurückwechselt, nicht jedes Mal. Laut Protokoll läuft das Programm dabei weiter, nur das Fenster nimmt das Zurückholen nicht an. Deshalb meldet auch die eingebaute Hänger-Wache nichts, sie achtet auf ein stehendes Programm. Seit 0.6.0 fragt eine zweite Wache Windows selbst und schreibt beim nächsten Hänger auf, woran es liegt.</td><td class="state no">Ursache offen</td></tr>
-      <tr><td>Trigger, Haptik und Aufwecken an echten Geräten</td><td>Nur an Konsole und Controller möglich, Rückmeldung steht aus</td><td class="state no">offen</td></tr>
+      <tr><td>Fenster reagiert nicht („Keine Rückmeldung“, Issue 3)</td><td>Trat mit 0.5.2 auf, wenn man im Stream mit Alt+Tab weg- und wieder zurückwechselte, nicht jedes Mal. Die Ursache wurde nie gefunden. Rückmeldung vom 21.11.2026 mit 0.13.0: tritt nicht mehr auf. Seit 0.8.0 liest ein eigener Teil des Programms den Controller, das Fenster hat seitdem weniger zu tun; ob das der Grund ist, ist nicht belegt. Die Wache, die einen Hänger mitschreibt, bleibt eingebaut.</td><td class="state ok">tritt nicht mehr auf</td></tr>
+      <tr><td>Aufwecken aus dem Ruhemodus</td><td>Rückmeldung vom 21.11.2026: funktioniert an der echten PS5.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Haptik am echten Controller</td><td>Nur am Controller zu spüren, Rückmeldung steht aus</td><td class="state no">offen</td></tr>
       <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
-      <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Das öffentliche Repository gibt es seit dem 21.11.2026. Geprüft ist das Update erst, wenn dort zwei Versionen nacheinander erschienen sind und ein Programm sich von der einen auf die andere gebracht hat.</td><td class="state no">offen</td></tr>
-      <tr><td>RTX Video Super Resolution</td><td>Die Tests laufen nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Der Vergleich mit und ohne NVIDIAs Schalter belegt auf der RTX 4070, dass das Netz das Bild verändert, auch bei gleicher Größe. Ob es besser aussieht, kann kein Test sagen; dafür gibt es <kbd>F8</kbd> im Spiel.</td><td class="state no">am Bild zu beurteilen</td></tr>
+      <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Seit dem 21.11.2026 mehrfach benutzt: Das Programm hat sich über den eingebauten Updater von 0.10.0 bis 0.13.0 gebracht. Eine neue Version erscheint dort 10 bis 30 Minuten nach der Veröffentlichung.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>RTX Video Super Resolution</td><td>Die Tests laufen nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Der Vergleich mit und ohne NVIDIAs Schalter belegt auf der RTX 4070, dass das Netz das Bild verändert, auch bei gleicher Größe. Ob es besser aussieht, kann kein Test sagen; dafür gibt es <kbd>F8</kbd> im Spiel. Erster Eindruck am 21.11.2026 auf einem 1080p-Bildschirm: kaum ein sichtbarer Unterschied.</td><td class="state no">wenig sichtbar</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -755,7 +847,7 @@ flowchart LR
       <tr><td class="num">2</td><td>Sitzung und Empfang des Streams mit der Protokollbibliothek von chiaki-ng, Controller-Eingaben zur PS5, Vibration, Neuverbinden, Ruhemodus</td><td class="state ok">an der PS5 bestätigt, Aufwecken offen</td></tr>
       <tr><td class="num">3</td><td>Bild auf der Grafikkarte entpacken und anzeigen, Ton, adaptive Trigger und Haptik des DualSense, Pausenmenü, Vollbild. Offen: HDR.</td><td class="state soon">Bild und Ton bestätigt, Trigger und Haptik offen</td></tr>
       <tr><td class="num">4</td><td>Zwischenbilder und Hochskalierung. Das Verfahren für jede Direct3D-11-Karte, Lanczos und Schärfen sind in 0.6.0 gebaut. Es folgen die Beschleunigung von NVIDIA und RTX Video Super Resolution.</td><td class="state soon">erster Teil gebaut, am echten Spiel ungeprüft</td></tr>
-      <tr><td class="num">5</td><td>Restliche Fehlerfälle, Wechsel des Tongeräts im laufenden Stream, Veröffentlichungspaket</td><td class="state no">geplant</td></tr>
+      <tr><td class="num">5</td><td>Restliche Fehlerfälle, Mikrofon, Veröffentlichungspaket. Der Wechsel des Tongeräts im laufenden Stream ist seit 0.14.0 gebaut.</td><td class="state no">geplant</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -767,17 +859,41 @@ flowchart LR
 
 </div>
 
-<dialog class="viewer" id="viewer" aria-label="Bild in voller Größe"><img alt=""></dialog>
+<dialog class="viewer" id="viewer" aria-label="Bild in voller Größe"><img alt=""><div class="viewer-drawing"></div></dialog>
 <script>
 (() => {
   const viewer = document.getElementById('viewer');
   if (!viewer || typeof viewer.showModal !== 'function') return;
   const large = viewer.querySelector('img');
+  const drawingSlot = viewer.querySelector('.viewer-drawing');
   const open = (image) => {
+    viewer.dataset.kind = 'image';
     large.src = image.currentSrc || image.src;
     large.alt = image.alt;
     viewer.showModal();
   };
+  // The drawing of the structure opens the same way: a copy of it fills the window.
+  const openDrawing = (drawing) => {
+    const copy = drawing.cloneNode(true);
+    copy.removeAttribute('tabindex');
+    copy.removeAttribute('title');
+    drawingSlot.replaceChildren(copy);
+    viewer.dataset.kind = 'drawing';
+    viewer.showModal();
+  };
+  document.querySelectorAll('figure.diagram > svg.dg').forEach((drawing) => {
+    drawing.setAttribute('tabindex', '0');
+    const hint = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    hint.textContent = 'Anklicken zum Vergrößern';
+    drawing.prepend(hint);
+    drawing.addEventListener('click', () => openDrawing(drawing));
+    drawing.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openDrawing(drawing);
+      }
+    });
+  });
   document.querySelectorAll('img.shot').forEach((image) => {
     image.tabIndex = 0;
     image.setAttribute('role', 'button');

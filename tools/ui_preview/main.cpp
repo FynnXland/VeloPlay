@@ -128,6 +128,21 @@ void withConsoles(UiModel& model) {
                       console("PS5-417", "001122AABBEE", "192.168.1.44", ConsoleStatus::Ready, false)};
 }
 
+/// Keys and mouse switched on, with a layout of its own for the game that runs.
+void withGameLayout(UiModel& model) {
+    input::KeyboardMouseSettings& kbm = model.config->controller.keyboardMouse;
+    kbm.enabled = true;
+    input::GameKeyLayout game;
+    game.titleId = "PPSA21567";
+    game.name = "Astro Bot";
+    game.keys = kbm.keys;
+    game.keys[static_cast<std::size_t>(input::PadControl::Cross)] = input::key::Space;
+    game.keys[static_cast<std::size_t>(input::PadControl::Square)] = 'E';
+    kbm.games = {game};
+    model.currentGameId = game.titleId;
+    model.currentGameName = game.name;
+}
+
 std::vector<Scene> scenes() {
     using ui::UiManager;
     return {
@@ -210,9 +225,20 @@ std::vector<Scene> scenes() {
         {"30-settings-mouse-keyboard",
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
-             model.config->controller.keyboardMouse.enabled = true;
+             withGameLayout(model);
              ui.openSettings(UiManager::SettingsTab::Controller);
-             ui.scrollSettingsTo(0.52f);
+             ui.scrollSettingsTo(0.36f);
+         }},
+        {"33-stream-key-layout",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             withGameLayout(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.config->network.statsOverlay = false;
+             ui.showKeyOverlay();
          }},
         {"31-settings-key-layout",
          [](UiModel& model, UiManager& ui) {
@@ -326,7 +352,11 @@ std::vector<Scene> scenes() {
              model.session.videoFrames = 7200;
              model.session.audioPackets = 24000;
              model.session.receivedMegabytes = 362.0;
+             model.session.hostId = "001122AABBCC";
              model.controllerConnected = true;
+             model.controller.batteryPercent = 80;
+             model.rtxVideoAvailable = true;
+             model.config->graphics.superResolutionLevel = 2;
              model.stream = playingStats();
              ui.showPauseMenu();
          }},

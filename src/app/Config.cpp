@@ -172,11 +172,26 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         for (std::size_t i = 0; i < kbm.keys.size(); ++i) {
             keys[std::string(input::padControlName(static_cast<input::PadControl>(i)))] = kbm.keys[i];
         }
+        json games = json::array();
+        for (const input::GameKeyLayout& game : kbm.games) {
+            json gameKeys = json::object();
+            for (std::size_t i = 0; i < game.keys.size(); ++i) {
+                gameKeys[std::string(input::padControlName(static_cast<input::PadControl>(i)))] = game.keys[i];
+            }
+            games.push_back({
+                {"title_id", game.titleId},
+                {"name", game.name},
+                {"mouse_sensitivity", game.mouseSensitivity},
+                {"invert_y", game.invertY},
+                {"keys", std::move(gameKeys)},
+            });
+        }
         root["keyboard_mouse"] = {
             {"enabled", kbm.enabled},
             {"mouse_sensitivity", kbm.mouseSensitivity},
             {"invert_y", kbm.invertY},
             {"keys", std::move(keys)},
+            {"games", std::move(games)},
         };
     }
     root["remote_api"] = {
@@ -254,11 +269,27 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(keyboardMouse, "enabled", kbm.enabled);
     read(keyboardMouse, "mouse_sensitivity", kbm.mouseSensitivity);
     read(keyboardMouse, "invert_y", kbm.invertY);
-    const auto keys = keyboardMouse.find("keys");
-    if (keys != keyboardMouse.end() && keys->is_object()) {
+    const auto readKeys = [](const json& from, std::array<int, input::kPadControlCount>& into) {
+        const auto keys = from.find("keys");
+        if (keys == from.end() || !keys->is_object()) return;
         for (const auto& [name, code] : keys->items()) {
             const auto control = input::parsePadControl(name);
-            if (control && code.is_number_integer()) kbm.keys[static_cast<std::size_t>(*control)] = code.get<int>();
+            if (control && code.is_number_integer()) into[static_cast<std::size_t>(*control)] = code.get<int>();
+        }
+    };
+    readKeys(keyboardMouse, kbm.keys);
+    kbm.games.clear();
+    const auto games = keyboardMouse.find("games");
+    if (games != keyboardMouse.end() && games->is_array()) {
+        for (const json& entry : *games) {
+            if (!entry.is_object()) continue;
+            input::GameKeyLayout game;
+            read(entry, "title_id", game.titleId);
+            read(entry, "name", game.name);
+            read(entry, "mouse_sensitivity", game.mouseSensitivity);
+            read(entry, "invert_y", game.invertY);
+            readKeys(entry, game.keys);
+            kbm.games.push_back(std::move(game));
         }
     }
 

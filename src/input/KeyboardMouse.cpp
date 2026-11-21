@@ -1,5 +1,7 @@
 #include "input/KeyboardMouse.hpp"
 
+#include <utility>
+
 #include <algorithm>
 #include <cmath>
 
@@ -51,7 +53,7 @@ std::optional<PadControl> parsePadControl(std::string_view name) {
 }
 
 bool isReservedKey(int code) {
-    return code == key::Escape || code == key::F8 || code == key::F9 || code == key::F11;
+    return code == key::Escape || code == key::F1 || code == key::F8 || code == key::F9 || code == key::F11;
 }
 
 std::array<int, kPadControlCount> defaultKeyBindings() {
@@ -85,16 +87,55 @@ std::array<int, kPadControlCount> defaultKeyBindings() {
     return keys;
 }
 
-void sanitize(KeyboardMouseSettings& settings) {
-    settings.mouseSensitivity = std::clamp(settings.mouseSensitivity, 0.2f, 4.0f);
-    for (std::size_t i = 0; i < settings.keys.size(); ++i) {
-        int& code = settings.keys[i];
+namespace {
+
+void sanitizeLayout(std::array<int, kPadControlCount>& keys, float& mouseSensitivity) {
+    mouseSensitivity = std::clamp(mouseSensitivity, 0.2f, 4.0f);
+    for (std::size_t i = 0; i < keys.size(); ++i) {
+        int& code = keys[i];
         if (code < 0 || code > key::WheelDown || isReservedKey(code)) code = key::None;
         // A key that stands for two things would press both. The first one keeps it.
         for (std::size_t earlier = 0; earlier < i && code != key::None; ++earlier) {
-            if (settings.keys[earlier] == code) code = key::None;
+            if (keys[earlier] == code) code = key::None;
         }
     }
+}
+
+} // namespace
+
+void sanitize(KeyboardMouseSettings& settings) {
+    sanitizeLayout(settings.keys, settings.mouseSensitivity);
+    // A layout without a game is no use, and a game has one layout: the first.
+    std::vector<GameKeyLayout> kept;
+    for (GameKeyLayout& game : settings.games) {
+        if (game.titleId.empty() || kept.size() >= kMaxGameLayouts) continue;
+        if (std::any_of(kept.begin(), kept.end(), [&](const GameKeyLayout& k) { return k.titleId == game.titleId; })) continue;
+        sanitizeLayout(game.keys, game.mouseSensitivity);
+        kept.push_back(std::move(game));
+    }
+    settings.games = std::move(kept);
+}
+
+const GameKeyLayout* gameLayout(const KeyboardMouseSettings& settings, std::string_view titleId) {
+    if (titleId.empty()) return nullptr;
+    for (const GameKeyLayout& game : settings.games) {
+        if (game.titleId == titleId) return &game;
+    }
+    return nullptr;
+}
+
+GameKeyLayout* gameLayout(KeyboardMouseSettings& settings, std::string_view titleId) {
+    return const_cast<GameKeyLayout*>(gameLayout(std::as_const(settings), titleId));
+}
+
+KeyboardMouseSettings settingsFor(const KeyboardMouseSettings& settings, std::string_view titleId) {
+    KeyboardMouseSettings result = settings;
+    if (const GameKeyLayout* game = gameLayout(settings, titleId)) {
+        result.keys = game->keys;
+        result.mouseSensitivity = game->mouseSensitivity;
+        result.invertY = game->invertY;
+    }
+    return result;
 }
 
 void KeyboardMouseMapper::configure(const KeyboardMouseSettings& settings) {

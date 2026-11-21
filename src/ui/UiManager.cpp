@@ -49,11 +49,18 @@ std::string statusLine(const Strings& t, const ConsoleEntry& console) {
     return line;
 }
 
+/// "Akku 80 %", with "lädt" on the cable; empty if the controller does not tell.
+std::string batteryText(const Strings& t, const input::ControllerInfo& controller) {
+    if (controller.batteryPercent < 0) return {};
+    return format(controller.charging ? t.batteryCharging : t.batteryValue, {std::to_string(controller.batteryPercent)});
+}
+
 std::string controllerLine(const Strings& t, const UiModel& model) {
     if (!model.controllerConnected) return t.controllerNone;
     std::string line = model.controller.name;
     if (model.controller.connection == input::ConnectionType::Usb) line += std::string("  ·  ") + t.viaUsb;
     if (model.controller.connection == input::ConnectionType::Bluetooth) line += std::string("  ·  ") + t.viaBluetooth;
+    if (const std::string battery = batteryText(t, model.controller); !battery.empty()) line += "  ·  " + battery;
     return line;
 }
 
@@ -267,6 +274,26 @@ void alignRight(float width) {
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - width));
 }
 
+// Defined further down, with the settings for keys and mouse.
+std::string keyLabel(const Strings& t, int code);
+std::string controlLabel(const Strings& t, input::PadControl control);
+
+// Left column: what the left hand does on a controller. Right column: the right hand.
+constexpr std::array<input::PadControl, 13> kLeftHand = {
+    input::PadControl::L2,            input::PadControl::L1,             input::PadControl::LeftStickUp,
+    input::PadControl::LeftStickLeft, input::PadControl::LeftStickDown,  input::PadControl::LeftStickRight,
+    input::PadControl::L3,            input::PadControl::DpadUp,         input::PadControl::DpadLeft,
+    input::PadControl::DpadDown,      input::PadControl::DpadRight,      input::PadControl::Create,
+    input::PadControl::Touchpad,
+};
+constexpr std::array<input::PadControl, 13> kRightHand = {
+    input::PadControl::R2,            input::PadControl::R1,             input::PadControl::Triangle,
+    input::PadControl::Circle,        input::PadControl::Cross,          input::PadControl::Square,
+    input::PadControl::R3,            input::PadControl::Options,        input::PadControl::Ps,
+    input::PadControl::RightStickUp,  input::PadControl::RightStickLeft, input::PadControl::RightStickDown,
+    input::PadControl::RightStickRight,
+};
+
 } // namespace
 
 UiManager::UiManager(IUiActions& actions) : actions_(actions), text_(&strings(Language::English)) {}
@@ -329,6 +356,7 @@ void UiManager::openSettings(SettingsTab tab) {
     sheet_ = Sheet::Settings;
     ++sheetGeneration_;
     settingsTab_ = tab;
+    editedGameChosen_ = false; // the key layout shown is picked anew: the one in use now
 }
 
 void UiManager::openConnection(std::string_view hostId) {
@@ -399,13 +427,19 @@ void UiManager::draw(const UiModel& model) {
                                 toU32(p.background, 0.80f), px(10.0f));
             drawText(draw, ImVec2(min.x + px(12.0f), min.y + px(6.0f)), TextStyle::Caption, p.text, text_->streamKeys);
         }
-        if (model.stream) drawStreamOverlay(model);
+        // The menu names the figures that matter itself; the display would only lie across it.
+        const bool menuOpen = presenting && pauseMenu_ && !settingsInGame;
+        // Every frame, so the menu fades in each time it is opened.
+        menuShown_ = context().animator.to(static_cast<ImGuiID>(0x5A1E7100), menuOpen ? 1.0f : 0.0f, 0.16f, 0.0f);
+        if (model.stream && !menuOpen) drawStreamOverlay(model);
         // Over the picture only; the screens before and around it say more than a note could.
         if (presenting && !pauseMenu_ && !settingsInGame) {
             drawStreamAlerts(model);
             drawUpscalingNote(model);
+            drawKeyOverlay(model);
         } else {
             upscalingNoteFor_ = 0.0;
+            keyOverlay_ = false; // a menu is open; the layout does not come back by itself
         }
         pictureOwnsInput_ = presenting && !pauseMenu_ && !settingsInGame;
         return;
@@ -1194,12 +1228,13 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
 
     // Every note has its place in the row and fades in and out there, so
     // one that leaves does not make the others jump at once.
-    const std::array<std::pair<StreamAlert, const char*>, 5> notes = {{
+    const std::array<std::pair<StreamAlert, const char*>, 6> notes = {{
         {StreamAlert::NoController, t.alertNoController},
         {StreamAlert::ConnectionStalls, t.alertConnection},
         {StreamAlert::PicturesLost, t.alertLost},
         {StreamAlert::DecoderBehind, t.alertDecoder},
         {StreamAlert::FewerPictures, t.alertFewer},
+        {StreamAlert::BatteryLow, t.alertBattery},
     }};
     const float padX = px(14.0f);
     const float padY = px(8.0f);
@@ -1270,6 +1305,79 @@ void UiManager::drawUpscalingNote(const UiModel& model) {
         drawText(draw, ImVec2(min.x + (width - remarkSize.x) * 0.5f, min.y + padY + titleSize.y + px(4.0f)),
                  TextStyle::Caption, quiet, remark);
     }
+}
+
+/// The player's own keys over the running picture, for the moment one of
+/// them is forgotten. The console only ever shows controller symbols.
+void UiManager::drawKeyOverlay(const UiModel& model) {
+    if (!model.config || !model.config->controller.keyboardMouse.enabled) {
+        keyOverlay_ = false;
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) keyOverlay_ = !keyOverlay_;
+    const float shown = context().animator.to(static_cast<ImGuiID>(0x5A1E7200), keyOverlay_ ? 1.0f : 0.0f, 0.14f, 0.0f);
+    if (shown < 0.02f) return;
+
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const input::KeyboardMouseSettings& all = model.config->controller.keyboardMouse;
+    const input::GameKeyLayout* game = input::gameLayout(all, model.currentGameId);
+    const std::array<int, input::kPadControlCount>& keys = game ? game->keys : all.keys;
+    const std::string title =
+        format(t.kbmOverlayTitle, {game ? (game->name.empty() ? game->titleId : game->name) : std::string(t.kbmAllGames)});
+
+    // Only what has a key is listed, in the two columns of the settings.
+    struct Row {
+        std::string key;
+        std::string control;
+    };
+    const auto rowsOf = [&](std::span<const input::PadControl> controls) {
+        std::vector<Row> rows;
+        for (const input::PadControl control : controls) {
+            const int code = keys[static_cast<std::size_t>(control)];
+            if (code != input::key::None) rows.push_back({keyLabel(t, code), controlLabel(t, control)});
+        }
+        return rows;
+    };
+    const std::vector<Row> left = rowsOf(kLeftHand);
+    const std::vector<Row> right = rowsOf(kRightHand);
+
+    const float pad = px(18.0f);
+    const float rowHeight = px(26.0f);
+    const float chipWidth = px(104.0f);
+    const float columnWidth = px(300.0f);
+    const float columnGap = px(24.0f);
+    const float titleHeight = measure(TextStyle::Strong, title).y;
+    const float noteHeight = measure(TextStyle::Caption, t.kbmOverlayClose).y;
+    const float rows = static_cast<float>(std::max(left.size(), right.size()));
+    const ImVec2 size(pad * 2.0f + columnWidth * 2.0f + columnGap,
+                      pad + titleHeight + px(12.0f) + rows * rowHeight + px(8.0f) + noteHeight + pad);
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImVec2 min(viewport->Pos.x + std::floor((viewport->Size.x - size.x) * 0.5f),
+                     viewport->Pos.y + std::floor((viewport->Size.y - size.y) * 0.5f) + (1.0f - shown) * px(8.0f));
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, 0.88f * shown), px(14.0f));
+    drawText(draw, ImVec2(min.x + pad, min.y + pad), TextStyle::Strong, p.text, title, shown);
+    const float top = min.y + pad + titleHeight + px(12.0f);
+    const auto column = [&](const std::vector<Row>& list, float x) {
+        for (std::size_t i = 0; i < list.size(); ++i) {
+            const ImVec2 chipMin(x, top + static_cast<float>(i) * rowHeight);
+            const ImVec2 chipMax(x + chipWidth, chipMin.y + rowHeight - px(4.0f));
+            draw->AddRectFilled(chipMin, chipMax, toU32(p.control, shown), px(6.0f));
+            const ImVec2 keySize = measure(TextStyle::Caption, list[i].key);
+            draw->PushClipRect(chipMin, chipMax, true);
+            drawText(draw, ImVec2(chipMin.x + std::max(px(6.0f), (chipWidth - keySize.x) * 0.5f),
+                                  chipMin.y + (chipMax.y - chipMin.y - keySize.y) * 0.5f),
+                     TextStyle::Caption, p.text, list[i].key, shown);
+            draw->PopClipRect();
+            const float textY = chipMin.y + (chipMax.y - chipMin.y - measure(TextStyle::Body, "X").y) * 0.5f;
+            drawText(draw, ImVec2(chipMax.x + px(10.0f), textY), TextStyle::Body, p.textSecondary, list[i].control, shown);
+        }
+    };
+    column(left, min.x + pad);
+    column(right, min.x + pad + columnWidth + columnGap);
+    drawText(draw, ImVec2(min.x + pad, top + rows * rowHeight + px(8.0f)), TextStyle::Caption, p.textTertiary,
+             t.kbmOverlayClose, shown);
 }
 
 void UiManager::drawStreamOverlay(const UiModel& model) {
@@ -1380,6 +1488,175 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
 
 // ---- session -----------------------------------------------------------
 
+/// The menu over the running picture. Three tiles say how picture, link and
+/// controls are doing right now; a click on one leads to its settings. Below
+/// them, what is changed most often can be changed on the spot.
+void UiManager::drawPauseMenu(const UiModel& model) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const SessionView& session = model.session;
+    const StreamStats& stats = *model.stream;
+    Animator& animator = context().animator;
+    const float width = ImGui::GetContentRegionAvail().x;
+
+    // Who is on the other end, what runs there, and for how long.
+    std::string title = session.consoleName;
+    for (const ConsoleEntry& console : model.consoles) {
+        if (console.hostId == session.hostId && !console.runningApp.empty()) title += "  ·  " + console.runningApp;
+    }
+    {
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const float titleHeight = measure(TextStyle::Display, title).y;
+        statusDot(ImGui::GetWindowDrawList(), ImVec2(start.x + px(5.0f), start.y + titleHeight * 0.5f + px(1.0f)), p.ready, false);
+        ImGui::SetCursorScreenPos(ImVec2(start.x + px(22.0f), start.y));
+        label(TextStyle::Display, title);
+    }
+    space(4.0f);
+    char clock[32] = {};
+    const int seconds = std::max(0, session.connectedSeconds);
+    if (seconds >= 3600) std::snprintf(clock, sizeof(clock), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+    else std::snprintf(clock, sizeof(clock), "%d:%02d", seconds / 60, seconds % 60);
+    label(TextStyle::Caption, format(t.pauseSince, {clock}) + "  ·  " + t.pauseBody, p.textSecondary);
+    space(20.0f);
+
+    // ---- the three tiles
+    struct Tile {
+        const char* name;
+        std::string value;
+        std::string detail;
+        ImVec4 dot;
+        SettingsTab tab;
+    };
+    const bool rough = stats.packetLossPercent > 0.5f ||
+                       std::any_of(model.alerts.begin(), model.alerts.end(), [](StreamAlert alert) {
+                           return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost;
+                       });
+    std::string pictureDetail;
+    if (stats.inputWidth > 0) pictureDetail = std::to_string(stats.inputWidth) + " x " + std::to_string(stats.inputHeight);
+    if (stats.frameGenerationFactor > 1 && stats.frameGenerationAvailable) {
+        pictureDetail += std::string(pictureDetail.empty() ? "" : "  ·  ") + t.hudFrameGeneration + " " +
+                         std::to_string(stats.frameGenerationFactor) + "x";
+    }
+    const bool keys = model.config && model.config->controller.keyboardMouse.enabled;
+    std::string controlValue = model.controllerConnected ? model.controller.name : keys ? t.kbmTitle : t.pauseNoController;
+    std::string controlDetail;
+    if (model.controllerConnected) {
+        if (model.controller.connection == input::ConnectionType::Usb) controlDetail = t.viaUsb;
+        if (model.controller.connection == input::ConnectionType::Bluetooth) controlDetail = t.viaBluetooth;
+        if (const std::string battery = batteryText(t, model.controller); !battery.empty()) {
+            controlDetail += (controlDetail.empty() ? "" : "  ·  ") + battery;
+        }
+        if (keys) controlDetail += std::string(controlDetail.empty() ? "" : "  ·  ") + t.kbmTitle;
+    }
+    const bool lowBattery = model.controllerConnected && model.controller.batteryPercent >= 0 &&
+                            model.controller.batteryPercent <= 15 && !model.controller.charging;
+    const std::array<Tile, 3> tiles = {{
+        {t.pauseTilePicture, format(t.pausePictureValue, {number(stats.outputFps, 0)}), pictureDetail, p.ready,
+         SettingsTab::Picture},
+        {t.pauseTileLink, rough ? t.pauseLinkRough : t.pauseLinkGood,
+         format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0), number(stats.packetLossPercent, 1)}),
+         rough ? p.standby : p.ready, SettingsTab::Stream},
+        {t.pauseTileControl, controlValue, controlDetail,
+         !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready, SettingsTab::Controller},
+    }};
+    const float gap = px(12.0f);
+    const float tileWidth = std::floor((width - 2.0f * gap) / 3.0f);
+    const float tileHeight = px(96.0f);
+    const float pad = px(14.0f);
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    for (std::size_t i = 0; i < tiles.size(); ++i) {
+        const Tile& tile = tiles[i];
+        const ImVec2 min(origin.x + static_cast<float>(i) * (tileWidth + gap), origin.y);
+        const ImVec2 max(min.x + tileWidth, min.y + tileHeight);
+        ImGui::SetCursorScreenPos(min);
+        ImGui::PushID(static_cast<int>(i));
+        const bool clicked = ImGui::InvisibleButton("tile", ImVec2(tileWidth, tileHeight));
+        const bool hovered = ImGui::IsItemHovered();
+        const bool held = ImGui::IsItemActive();
+        const float lit = animator.to(ImGui::GetID("lit"), held ? 1.0f : hovered ? 0.6f : 0.0f, 0.12f, 0.0f);
+        ImGui::PopID();
+        if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        draw->AddRectFilled(min, max, toU32(mix(p.control, p.controlHover, lit)), px(12.0f));
+        draw->AddCircleFilled(ImVec2(min.x + pad + px(4.0f), min.y + pad + px(7.0f)), px(4.0f), toU32(tile.dot));
+        drawText(draw, ImVec2(min.x + pad + px(16.0f), min.y + pad), TextStyle::Caption, p.textSecondary, tile.name);
+        // Long names (a controller's, say) end at the tile's edge instead of running into the next one.
+        draw->PushClipRect(ImVec2(min.x + pad, min.y), ImVec2(max.x - pad, max.y), true);
+        drawText(draw, ImVec2(min.x + pad, min.y + pad + px(24.0f)), TextStyle::Strong, p.text, tile.value);
+        drawText(draw, ImVec2(min.x + pad, min.y + pad + px(48.0f)), TextStyle::Caption, p.textSecondary, tile.detail);
+        draw->PopClipRect();
+        if (clicked) showSettingsInGame(tile.tab);
+    }
+    ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + tileHeight));
+    space(24.0f);
+
+    // ---- what is changed most often
+    if (model.config) {
+        AppConfig& config = *model.config;
+        const AppConfig before = config;
+        label(TextStyle::Caption, t.pauseQuick, p.textTertiary);
+        space(10.0f);
+        const float half = std::floor((width + gap) * 0.5f);
+        const float controlWidth = half - gap;
+        ImGui::BeginGroup();
+        label(TextStyle::Strong, t.frameGeneration);
+        space(8.0f);
+        const std::array<const char*, 5> factors = {t.automatic2, t.off, "2x", "3x", "4x"};
+        config.graphics.frameGenerationFactor =
+            segmented("pause-fg", factors, config.graphics.frameGenerationFactor, controlWidth);
+        ImGui::EndGroup();
+        ImGui::SameLine(half);
+        ImGui::BeginGroup();
+        label(TextStyle::Strong, t.upscaling);
+        space(8.0f);
+        if (model.rtxVideoAvailable) {
+            const std::array<const char*, 3> methods = {t.off, "Lanczos", "RTX Video"};
+            config.graphics.superResolutionLevel =
+                segmented("pause-upscaling", methods, config.graphics.superResolutionLevel, controlWidth);
+        } else {
+            const std::array<const char*, 2> methods = {t.off, "Lanczos"};
+            config.graphics.superResolutionLevel =
+                segmented("pause-upscaling", methods, config.graphics.superResolutionLevel > 0 ? 1 : 0, controlWidth);
+        }
+        ImGui::EndGroup();
+        space(16.0f);
+
+        const ImVec2 row = ImGui::GetCursorScreenPos();
+        ImGui::BeginChild("pause-left", ImVec2(controlWidth, px(32.0f)), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+        toggleRow(t.pauseOverlay, &config.network.statsOverlay);
+        ImGui::EndChild();
+        ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
+        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(32.0f)), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+        toggleRow(t.kbmTitle, &config.controller.keyboardMouse.enabled);
+        ImGui::EndChild();
+        if (!(config == before)) actions_.configChanged();
+        space(24.0f);
+    }
+
+    // ---- what to do next. Leaving sits apart on the right, away from the button pressed most.
+    const ImVec2 buttons = ImGui::GetCursorScreenPos();
+    if (button(t.resume, ButtonKind::Primary)) pauseMenu_ = false;
+    ImGui::SameLine(0.0f, px(8.0f));
+    if (button(t.settings, ButtonKind::Secondary)) showSettingsInGame(SettingsTab::Picture);
+    if (keys) {
+        ImGui::SameLine(0.0f, px(8.0f));
+        if (button(t.pauseLayout, ButtonKind::Secondary)) {
+            showSettingsInGame(SettingsTab::Controller);
+            scrollSettingsTo(1.0f);
+        }
+    }
+    const float sleepWidth = buttonSize(t.sleepConsole).x;
+    const float leaveWidth = buttonSize(t.disconnect).x;
+    ImGui::SetCursorScreenPos(ImVec2(buttons.x + width - sleepWidth - px(8.0f) - leaveWidth, buttons.y));
+    if (button(t.disconnect, ButtonKind::Secondary)) actions_.disconnect();
+    ImGui::SameLine(0.0f, px(8.0f));
+    if (button(t.sleepConsole, ButtonKind::Quiet)) actions_.sleepAndDisconnect();
+    space(16.0f);
+    label(TextStyle::Caption, t.pauseKeys, p.textTertiary);
+}
+
 void UiManager::drawSession(const UiModel& model) {
     const Strings& t = *text_;
     const Palette& p = palette();
@@ -1388,15 +1665,22 @@ void UiManager::drawSession(const UiModel& model) {
     const bool presenting = model.stream && model.stream->presenting;
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
-    if (presenting) ImGui::SetNextWindowBgAlpha(0.80f); // the picture stays visible behind the menu
+    // The picture stays visible behind the menu, which fades in over it.
+    const float shown = presenting && model.state == AppState::Streaming ? menuShown_ : 1.0f;
+    if (presenting) ImGui::SetNextWindowBgAlpha(0.80f * shown);
     ImGui::Begin("session", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     // One short column, a little above the middle: the place the eye rests.
     const float margin = px(kPageMargin);
-    const float column = std::min(px(520.0f), viewport->Size.x - 2.0f * margin);
-    ImGui::SetCursorPos(ImVec2(std::floor((viewport->Size.x - column) * 0.5f), std::floor(viewport->Size.y * 0.30f)));
+    // The menu over the picture has more to show than the waiting screens and gets more room.
+    const bool menu = presenting && model.state == AppState::Streaming;
+    const float column = std::min(px(menu ? 760.0f : 520.0f), viewport->Size.x - 2.0f * margin);
+    const float top = menu ? std::max(margin, std::floor((viewport->Size.y - px(470.0f)) * 0.42f))
+                           : std::floor(viewport->Size.y * 0.30f);
+    ImGui::SetCursorPos(ImVec2(std::floor((viewport->Size.x - column) * 0.5f), top + std::floor((1.0f - shown) * px(10.0f))));
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * std::max(shown, 0.02f));
     ImGui::BeginChild("session-column", ImVec2(column, 0.0f), ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
     pushExplicitSpacing();
@@ -1459,6 +1743,8 @@ void UiManager::drawSession(const UiModel& model) {
         if (button(t.cancel, ButtonKind::Secondary) || cancelPressed()) actions_.disconnect();
     } else if (model.state == AppState::Disconnecting) {
         heading(t.disconnecting, true);
+    } else if (menu) {
+        drawPauseMenu(model);
     } else {
         heading(format(t.streamingTitle, {session.consoleName}), false);
         space(8.0f);
@@ -1518,6 +1804,7 @@ void UiManager::drawSession(const UiModel& model) {
 
     popExplicitSpacing();
     ImGui::EndChild();
+    ImGui::PopStyleVar();
     ImGui::End();
 }
 
@@ -1919,14 +2206,102 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
         return;
     }
 
+    // Which layout the fields below belong to: the one for all games, or a
+    // game's own. When the settings open, that is the one in use right now.
+    if (!editedGameChosen_) {
+        editedGameChosen_ = true;
+        editedGameId_ = input::gameLayout(settings, model.currentGameId) ? model.currentGameId : std::string{};
+    }
+    if (!editedGameId_.empty() && !input::gameLayout(settings, editedGameId_)) editedGameId_.clear();
+    const auto stopWaiting = [&] {
+        if (bindingControl_ < 0) return;
+        bindingControl_ = -1;
+        actions_.endKeyCapture();
+    };
+
     space(16.0f);
-    float sensitivity = settings.mouseSensitivity * 100.0f;
+    label(TextStyle::Strong, t.kbmFor);
+    space(8.0f);
+    {
+        const float right = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+        const float chipHeight = px(30.0f);
+        ImVec2 at = ImGui::GetCursorScreenPos();
+        const float left = at.x;
+        ImDrawList* chips = ImGui::GetWindowDrawList();
+        const auto chip = [&](const std::string& name, const std::string& id, int index) {
+            const ImVec2 size = measure(TextStyle::Body, name);
+            const float chipWidth = size.x + px(28.0f);
+            if (at.x + chipWidth > right && at.x > left) {
+                at.x = left;
+                at.y += chipHeight + px(8.0f);
+            }
+            ImGui::SetCursorScreenPos(at);
+            ImGui::PushID(index);
+            const bool clicked = ImGui::InvisibleButton("layout-chip", ImVec2(chipWidth, chipHeight));
+            const bool over = ImGui::IsItemHovered();
+            ImGui::PopID();
+            const bool chosen = editedGameId_ == id;
+            const ImVec2 max(at.x + chipWidth, at.y + chipHeight);
+            chips->AddRectFilled(at, max, toU32(chosen ? p.accent : over ? p.controlHover : p.control), chipHeight * 0.5f);
+            drawText(chips, ImVec2(at.x + px(14.0f), at.y + (chipHeight - size.y) * 0.5f), TextStyle::Body,
+                     chosen ? p.onAccent : p.text, name);
+            if (clicked && !chosen) {
+                editedGameId_ = id;
+                stopWaiting();
+            }
+            at.x += chipWidth + px(8.0f);
+        };
+        chip(t.kbmAllGames, std::string{}, 0);
+        // By index: choosing one must not disturb the list it is drawn from.
+        for (std::size_t i = 0; i < settings.games.size(); ++i) {
+            const std::string id = settings.games[i].titleId;
+            chip(settings.games[i].name.empty() ? id : settings.games[i].name, id, static_cast<int>(i) + 1);
+        }
+        ImGui::SetCursorScreenPos(ImVec2(left, at.y + chipHeight));
+        ImGui::Dummy(ImVec2(1.0f, 1.0f));
+    }
+    space(8.0f);
+    const bool gameKnown = !model.currentGameId.empty();
+    const std::string gameName = model.currentGameName.empty() ? model.currentGameId : model.currentGameName;
+    if (gameKnown && !input::gameLayout(settings, model.currentGameId) && settings.games.size() < input::kMaxGameLayouts) {
+        // A new one starts as a copy of the general layout, which is the nearest thing to what is wanted.
+        if (button(format(t.kbmAddGame, {gameName}).c_str(), ButtonKind::Secondary)) {
+            input::GameKeyLayout added;
+            added.titleId = model.currentGameId;
+            added.name = model.currentGameName;
+            added.keys = settings.keys;
+            added.mouseSensitivity = settings.mouseSensitivity;
+            added.invertY = settings.invertY;
+            settings.games.push_back(std::move(added));
+            editedGameId_ = model.currentGameId;
+            stopWaiting();
+        }
+        space(6.0f);
+    } else if (!editedGameId_.empty()) {
+        const input::GameKeyLayout* chosen = input::gameLayout(settings, editedGameId_);
+        const std::string name = chosen && !chosen->name.empty() ? chosen->name : editedGameId_;
+        if (button(format(t.kbmRemoveGame, {name}).c_str(), ButtonKind::Quiet)) {
+            std::erase_if(settings.games, [&](const input::GameKeyLayout& game) { return game.titleId == editedGameId_; });
+            editedGameId_.clear();
+            stopWaiting();
+        }
+        space(6.0f);
+    }
+    paragraph(TextStyle::Caption, gameKnown || !settings.games.empty() ? t.kbmGamesHint : t.kbmNoGameHint, p.textSecondary);
+
+    input::GameKeyLayout* edited = input::gameLayout(settings, editedGameId_);
+    std::array<int, input::kPadControlCount>& keys = edited ? edited->keys : settings.keys;
+    float& mouseSensitivity = edited ? edited->mouseSensitivity : settings.mouseSensitivity;
+    bool& invertY = edited ? edited->invertY : settings.invertY;
+
+    space(16.0f);
+    float sensitivity = mouseSensitivity * 100.0f;
     if (sliderRow(t.kbmSensitivity, &sensitivity, 20.0f, 400.0f, std::to_string(static_cast<int>(std::lround(sensitivity))) + " %")) {
-        settings.mouseSensitivity = std::round(sensitivity / 5.0f) * 5.0f / 100.0f;
+        mouseSensitivity = std::round(sensitivity / 5.0f) * 5.0f / 100.0f;
     }
     hint(t.kbmSensitivityHint);
     space(8.0f);
-    toggleRow(t.kbmInvertY, &settings.invertY);
+    toggleRow(t.kbmInvertY, &invertY);
 
     sectionTitle(t.kbmLayout);
     paragraph(TextStyle::Caption, t.kbmLayoutHint, p.textSecondary);
@@ -1936,31 +2311,18 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     if (bindingControl_ >= 0 && model.capturedKey != 0) {
         const int code = model.capturedKey;
         if (code == input::key::Delete) {
-            settings.keys[static_cast<std::size_t>(bindingControl_)] = input::key::None;
+            keys[static_cast<std::size_t>(bindingControl_)] = input::key::None;
         } else if (code > 0 && !input::isReservedKey(code)) {
             // A key stands for one control: it leaves the one it stood for before.
-            for (int& other : settings.keys) {
+            for (int& other : keys) {
                 if (other == code) other = input::key::None;
             }
-            settings.keys[static_cast<std::size_t>(bindingControl_)] = code;
+            keys[static_cast<std::size_t>(bindingControl_)] = code;
         }
         bindingControl_ = -1;
         actions_.endKeyCapture();
     }
 
-    // Left column: what the left hand does on a controller. Right column: the right hand.
-    static constexpr std::array<PadControl, 13> kLeft = {
-        PadControl::L2,           PadControl::L1,            PadControl::LeftStickUp,   PadControl::LeftStickLeft,
-        PadControl::LeftStickDown, PadControl::LeftStickRight, PadControl::L3,          PadControl::DpadUp,
-        PadControl::DpadLeft,     PadControl::DpadDown,      PadControl::DpadRight,     PadControl::Create,
-        PadControl::Touchpad,
-    };
-    static constexpr std::array<PadControl, 13> kRight = {
-        PadControl::R2,             PadControl::R1,             PadControl::Triangle,     PadControl::Circle,
-        PadControl::Cross,          PadControl::Square,         PadControl::R3,           PadControl::Options,
-        PadControl::Ps,             PadControl::RightStickUp,   PadControl::RightStickLeft, PadControl::RightStickDown,
-        PadControl::RightStickRight,
-    };
 
     // The controller itself. Its parts light up for the row under the mouse and for the one that waits.
     const float width = ImGui::GetContentRegionAvail().x;
@@ -2043,7 +2405,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             const float lit = animator.to(ImGui::GetID("kbm-chip") + static_cast<ImGuiID>(index), waiting ? 1.0f : over ? 0.35f : 0.0f, 0.18f, 0.0f);
             draw->AddRectFilled(chipMin, chipMax, toU32(p.control), px(7.0f));
             if (lit > 0.02f) draw->AddRect(chipMin, chipMax, toU32(p.accent, lit), px(7.0f), 0, px(1.5f));
-            const int code = settings.keys[static_cast<std::size_t>(index)];
+            const int code = keys[static_cast<std::size_t>(index)];
             const std::string text = waiting ? std::string(t.kbmPressKey) : keyLabel(t, code);
             const ImVec4& ink = waiting ? p.accent : code == input::key::None ? p.textTertiary : p.text;
             const ImVec2 size = measure(TextStyle::Caption, text);
@@ -2054,9 +2416,9 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             draw->PopClipRect();
         }
     };
-    column(kLeft, rowsStart.x);
-    column(kRight, rowsStart.x + columnWidth + columnGap);
-    ImGui::SetCursorScreenPos(ImVec2(rowsStart.x, rowsStart.y + static_cast<float>(kLeft.size()) * rowHeight));
+    column(kLeftHand, rowsStart.x);
+    column(kRightHand, rowsStart.x + columnWidth + columnGap);
+    ImGui::SetCursorScreenPos(ImVec2(rowsStart.x, rowsStart.y + static_cast<float>(kLeftHand.size()) * rowHeight));
     ImGui::Dummy(ImVec2(width, px(1.0f)));
 
     std::array<float, input::kPadControlCount> lit{};
@@ -2074,7 +2436,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
 
     space(10.0f);
     if (button(t.kbmReset, ButtonKind::Quiet)) {
-        settings.keys = input::defaultKeyBindings();
+        keys = input::defaultKeyBindings();
         if (bindingControl_ >= 0) {
             bindingControl_ = -1;
             actions_.endKeyCapture();

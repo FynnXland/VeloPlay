@@ -161,6 +161,7 @@ void AppController::update() {
 
     diag::setStep("reading the controllers");
     updateControllers();
+    updateSessionGame();
     diag::setStep("wake-up");
     updateWake(now);
     diag::setStep("session");
@@ -194,6 +195,16 @@ void AppController::fillModel(UiModel& model) {
     model.controller = active.value_or(input::ControllerInfo{});
     model.controllers = controllers_.controllers();
     model.controllerState = controllers_.state();
+    model.currentGameId = sessionGameId_;
+    model.currentGameName = sessionGameName_;
+    if (!session_) {
+        for (const ConsoleEntry& entry : model.consoles) {
+            if (entry.status != ConsoleStatus::Ready || entry.runningAppId.empty()) continue;
+            model.currentGameId = entry.runningAppId;
+            model.currentGameName = entry.runningApp;
+            break;
+        }
+    }
 
     model.pairing = pairing_;
     model.accountLookup = accountStatus_;
@@ -673,7 +684,10 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
     observation.framesDropped = droppedFrames_;
     observation.streamFps = stats.streamFps;
     observation.requestedFps = session_->requested.fps;
-    observation.controllerConnected = controllers_.active().has_value();
+    const std::optional<input::ControllerInfo> pad = controllers_.active();
+    observation.controllerConnected = pad.has_value();
+    observation.batteryPercent = pad ? pad->batteryPercent : -1;
+    observation.charging = pad && pad->charging;
     // With keys and mouse set up, no controller is no fault.
     observation.controllerWanted = !config_.controller.keyboardMouse.enabled;
     session_->alerts.update(observation, now);
@@ -686,6 +700,7 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
             case StreamAlert::PicturesLost: what = "pictures lost on the way"; break;
             case StreamAlert::DecoderBehind: what = "the decoder threw pictures away"; break;
             case StreamAlert::FewerPictures: what = "the console sends fewer pictures than asked for"; break;
+            case StreamAlert::BatteryLow: what = "the controller's battery is low"; break;
         }
         spdlog::info("Note over the picture: {} ({} ms since the last picture, {:.0f} fps, {} lost, {} dropped)", what,
                      observation.sincePicture.count(), stats.streamFps, stats.framesLost, droppedFrames_);
@@ -874,10 +889,39 @@ void AppController::addNotice(Notice::Kind kind, Notice::Topic topic, std::strin
     notices_.push_back({kind, topic, std::move(detail), std::move(technical)});
 }
 
+void AppController::updateSessionGame() {
+    // Which game runs on the console of the session decides the key layout.
+    // The console says so in its answers to the search. While it does not
+    // answer for a moment, the layout stays as it is: a lost packet must not
+    // change the keys under the player's fingers.
+    std::string id = sessionGameId_;
+    std::string name = sessionGameName_;
+    if (!session_) {
+        id.clear();
+        name.clear();
+    } else {
+        for (const protocol::DiscoveredHost& host : discovered_) {
+            if (!equalsIgnoreCase(host.info.hostId, session_->hostId) || host.info.state != protocol::HostState::Ready) continue;
+            id = host.info.runningAppTitleId;
+            name = host.info.runningAppName;
+        }
+    }
+    if (id == sessionGameId_) return;
+    sessionGameId_ = std::move(id);
+    sessionGameName_ = std::move(name);
+    const input::KeyboardMouseSettings& all = config_.controller.keyboardMouse;
+    keyboardMouse_.configure(input::settingsFor(all, sessionGameId_));
+    if (all.enabled && session_) {
+        const bool own = input::gameLayout(all, sessionGameId_) != nullptr;
+        spdlog::info("Keys and mouse: {} layout{}{}", own ? "the game's own" : "the general",
+                     sessionGameName_.empty() ? "" : " for ", sessionGameName_);
+    }
+}
+
 void AppController::applySettings() {
     controllers_.setDeadzone(config_.controller.deadzone);
     controllers_.setPreferredName(config_.controller.preferredName);
-    keyboardMouse_.configure(config_.controller.keyboardMouse);
+    keyboardMouse_.configure(input::settingsFor(config_.controller.keyboardMouse, sessionGameId_));
     updateDirectTargets();
     applyRemoteApi();
 }

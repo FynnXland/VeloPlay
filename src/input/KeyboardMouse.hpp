@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "input/ControllerState.hpp"
 
@@ -98,17 +100,43 @@ inline constexpr int WheelDown = 0x1002;
 /// mouse to look, left and right button to shoot and aim.
 [[nodiscard]] std::array<int, kPadControlCount> defaultKeyBindings();
 
+/// A layout of its own for one game. The game is told by the title id the
+/// console reports for what is running (like "PPSA01325").
+struct GameKeyLayout {
+    std::string titleId;
+    std::string name; // what the console called the game when the layout was made
+    std::array<int, kPadControlCount> keys = defaultKeyBindings();
+    float mouseSensitivity = 1.0f;
+    bool invertY = false;
+
+    friend bool operator==(const GameKeyLayout&, const GameKeyLayout&) = default;
+};
+
 struct KeyboardMouseSettings {
     bool enabled = false;
     std::array<int, kPadControlCount> keys = defaultKeyBindings(); // one key per control, 0 = none
     float mouseSensitivity = 1.0f;                                 // 0.2 .. 4.0
     bool invertY = false;
+    /// Layouts that replace the one above while their game runs.
+    std::vector<GameKeyLayout> games;
 
     friend bool operator==(const KeyboardMouseSettings&, const KeyboardMouseSettings&) = default;
 };
 
+/// The most layouts of their own that are kept.
+inline constexpr std::size_t kMaxGameLayouts = 64;
+
 /// Brings every value into its valid range and lets a key stand for one control only.
 void sanitize(KeyboardMouseSettings& settings);
+
+/// The game's own layout, or null if it has none.
+[[nodiscard]] const GameKeyLayout* gameLayout(const KeyboardMouseSettings& settings, std::string_view titleId);
+[[nodiscard]] GameKeyLayout* gameLayout(KeyboardMouseSettings& settings, std::string_view titleId);
+
+/// The settings as they apply while the game with this title id runs: its
+/// own keys, sensitivity and direction if it has a layout, the general ones
+/// otherwise. An empty id means no game is known.
+[[nodiscard]] KeyboardMouseSettings settingsFor(const KeyboardMouseSettings& settings, std::string_view titleId);
 
 /// Turns keys and mouse into the state of a controller. Events come from
 /// the window, the state is read from the thread that sends input to the

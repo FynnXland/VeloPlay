@@ -1,6 +1,8 @@
 #include "audio/WasapiOutput.hpp"
 
+#include <chrono>
 #include <future>
+#include <string>
 
 #include <windows.h>
 
@@ -66,6 +68,17 @@ ComPtr<IMMDevice> findDevice(IMMDeviceEnumerator* enumerator, const std::vector<
     return device;
 }
 
+/// The name Windows itself knows an output by; it tells two devices apart.
+std::wstring deviceId(IMMDevice* device) {
+    std::wstring id;
+    LPWSTR raw = nullptr;
+    if (device && SUCCEEDED(device->GetId(&raw)) && raw) {
+        id = raw;
+        CoTaskMemFree(raw);
+    }
+    return id;
+}
+
 } // namespace
 
 WasapiOutput::WasapiOutput(std::vector<std::wstring> deviceNameNeedles) : needles_(std::move(deviceNameNeedles)) {
@@ -94,80 +107,120 @@ bool WasapiOutput::start(int sampleRate, int channels, std::chrono::milliseconds
         const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         bool reported = false;
         {
+            // The default output is followed: when Windows moves it (headphones
+            // plugged in, a headset switched on) or the device goes away, the
+            // sound is opened again on whatever is the default then. A device
+            // picked by name, the controller's, is opened once; without it the
+            // haptics fall back to plain rumble elsewhere.
+            const bool follow = needles_.empty();
             ComPtr<IMMDeviceEnumerator> enumerator;
-            ComPtr<IMMDevice> device;
-            ComPtr<IAudioClient> client;
-            ComPtr<IAudioRenderClient> render;
             HANDLE wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-            UINT32 capacity = 0;
-            bool ok = wake != nullptr &&
-                      SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-                                                 IID_PPV_ARGS(enumerator.GetAddressOf())));
-            if (ok) {
+            const bool usable = wake != nullptr &&
+                                SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                                           IID_PPV_ARGS(enumerator.GetAddressOf())));
+            bool stopping = !usable;
+            bool silentLogged = false;
+            while (!stopping) {
+                ComPtr<IMMDevice> device;
+                ComPtr<IAudioClient> client;
+                ComPtr<IAudioRenderClient> render;
+                UINT32 capacity = 0;
                 device = findDevice(enumerator.Get(), needles_);
-                ok = device != nullptr;
-            }
-            ok = ok && SUCCEEDED(device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
-                                                  reinterpret_cast<void**>(client.GetAddressOf())));
-            if (ok && !needles_.empty()) {
-                // A device picked by name must really have the channels, or
-                // Windows would mix the haptics down into the speaker.
-                WAVEFORMATEX* mix = nullptr;
-                ok = SUCCEEDED(client->GetMixFormat(&mix)) && mix && mix->nChannels >= channels;
-                if (mix && mix->nChannels < channels) {
-                    spdlog::warn("The controller's sound device is set to {} channels, {} are needed. Set it to "
-                                 "quadraphonic in the Windows sound settings to get haptics.",
-                                 mix->nChannels, channels);
+                bool ok = device != nullptr;
+                const std::wstring openedId = ok ? deviceId(device.Get()) : std::wstring{};
+                ok = ok && SUCCEEDED(device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                                                      reinterpret_cast<void**>(client.GetAddressOf())));
+                if (ok && !needles_.empty()) {
+                    // A device picked by name must really have the channels, or
+                    // Windows would mix the haptics down into the speaker.
+                    WAVEFORMATEX* mix = nullptr;
+                    ok = SUCCEEDED(client->GetMixFormat(&mix)) && mix && mix->nChannels >= channels;
+                    if (mix && mix->nChannels < channels) {
+                        spdlog::warn("The controller's sound device is set to {} channels, {} are needed. Set it to "
+                                     "quadraphonic in the Windows sound settings to get haptics.",
+                                     mix->nChannels, channels);
+                    }
+                    if (mix) CoTaskMemFree(mix);
                 }
-                if (mix) CoTaskMemFree(mix);
-            }
-            if (ok) {
-                WAVEFORMATEXTENSIBLE format{};
-                format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-                format.Format.nChannels = static_cast<WORD>(channels);
-                format.Format.nSamplesPerSec = static_cast<DWORD>(sampleRate);
-                format.Format.wBitsPerSample = 16;
-                format.Format.nBlockAlign = static_cast<WORD>(channels * 2);
-                format.Format.nAvgBytesPerSec = format.Format.nSamplesPerSec * format.Format.nBlockAlign;
-                format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
-                format.Samples.wValidBitsPerSample = 16;
-                format.dwChannelMask = channels == 1   ? SPEAKER_FRONT_CENTER
-                                       : channels == 2 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT)
-                                       : channels == 4 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-                                                          SPEAKER_BACK_RIGHT)
-                                                       : 0;
-                format.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-                const DWORD flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM |
-                                    AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
-                ok = SUCCEEDED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, flags, kDeviceBuffer, 0, &format.Format,
-                                                  nullptr)) &&
-                     SUCCEEDED(client->SetEventHandle(wake)) && SUCCEEDED(client->GetBufferSize(&capacity)) &&
-                     SUCCEEDED(client->GetService(IID_PPV_ARGS(render.GetAddressOf()))) && SUCCEEDED(client->Start());
-            }
+                if (ok) {
+                    WAVEFORMATEXTENSIBLE format{};
+                    format.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+                    format.Format.nChannels = static_cast<WORD>(channels);
+                    format.Format.nSamplesPerSec = static_cast<DWORD>(sampleRate);
+                    format.Format.wBitsPerSample = 16;
+                    format.Format.nBlockAlign = static_cast<WORD>(channels * 2);
+                    format.Format.nAvgBytesPerSec = format.Format.nSamplesPerSec * format.Format.nBlockAlign;
+                    format.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+                    format.Samples.wValidBitsPerSample = 16;
+                    format.dwChannelMask = channels == 1   ? SPEAKER_FRONT_CENTER
+                                           : channels == 2 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT)
+                                           : channels == 4 ? (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT |
+                                                              SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT)
+                                                           : 0;
+                    format.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+                    const DWORD flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM |
+                                        AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+                    ok = SUCCEEDED(client->Initialize(AUDCLNT_SHAREMODE_SHARED, flags, kDeviceBuffer, 0,
+                                                      &format.Format, nullptr)) &&
+                         SUCCEEDED(client->SetEventHandle(wake)) && SUCCEEDED(client->GetBufferSize(&capacity)) &&
+                         SUCCEEDED(client->GetService(IID_PPV_ARGS(render.GetAddressOf()))) &&
+                         SUCCEEDED(client->Start());
+                }
 
-            running_.store(ok);
-            promise.set_value(ok);
-            reported = true;
-            if (ok) {
-                spdlog::info("Sound output open: {} Hz, {} channels{}", sampleRate, channels,
-                             needles_.empty() ? "" : " (controller)");
-            } else if (needles_.empty()) {
-                spdlog::warn("No sound device could be opened; the stream stays silent");
-            }
+                running_.store(ok);
+                if (!reported) {
+                    promise.set_value(ok);
+                    reported = true;
+                }
+                if (ok) {
+                    spdlog::info("Sound output open: {} Hz, {} channels{}", sampleRate, channels,
+                                 needles_.empty() ? "" : " (controller)");
+                    silentLogged = false;
+                } else if (follow && !silentLogged) {
+                    spdlog::warn("No sound device could be opened; the stream stays silent until there is one");
+                    silentLogged = true;
+                }
+                if (!ok) {
+                    if (!follow) break;
+                    // Nothing to play on right now. Look again in a moment.
+                    if (WaitForSingleObject(static_cast<HANDLE>(stopEvent_), 1000) != WAIT_TIMEOUT) break;
+                    continue;
+                }
 
-            if (ok) {
                 DWORD taskIndex = 0;
                 const HANDLE task = AvSetMmThreadCharacteristicsW(L"Audio", &taskIndex);
                 const HANDLE handles[2] = {static_cast<HANDLE>(stopEvent_), wake};
+                auto lastLook = std::chrono::steady_clock::now();
                 while (true) {
                     const DWORD woke = WaitForMultipleObjects(2, handles, FALSE, 500);
-                    if (woke == WAIT_OBJECT_0 || woke == WAIT_FAILED) break;
+                    if (woke == WAIT_OBJECT_0 || woke == WAIT_FAILED) {
+                        stopping = true;
+                        break;
+                    }
+                    // Once a second: is this still the device Windows plays on by default?
+                    const auto now = std::chrono::steady_clock::now();
+                    if (follow && now - lastLook >= std::chrono::seconds(1)) {
+                        lastLook = now;
+                        ComPtr<IMMDevice> current;
+                        if (SUCCEEDED(enumerator->GetDefaultAudioEndpoint(eRender, eConsole, current.GetAddressOf())) &&
+                            current && deviceId(current.Get()) != openedId) {
+                            spdlog::info("Windows plays on another sound device now; the stream's sound moves there");
+                            break;
+                        }
+                    }
                     UINT32 padding = 0;
-                    if (FAILED(client->GetCurrentPadding(&padding))) break; // device unplugged or reconfigured
+                    if (FAILED(client->GetCurrentPadding(&padding))) {
+                        // Unplugged or reconfigured.
+                        spdlog::warn("The sound device is gone{}", follow ? "; looking for another one" : "");
+                        break;
+                    }
                     const UINT32 frames = capacity - padding;
                     if (frames == 0) continue;
                     BYTE* data = nullptr;
-                    if (FAILED(render->GetBuffer(frames, &data))) break;
+                    if (FAILED(render->GetBuffer(frames, &data))) {
+                        spdlog::warn("The sound device is gone{}", follow ? "; looking for another one" : "");
+                        break;
+                    }
                     {
                         std::lock_guard lock(mutex_);
                         buffer_->pop({reinterpret_cast<std::int16_t*>(data), static_cast<std::size_t>(frames) *
@@ -177,6 +230,10 @@ bool WasapiOutput::start(int sampleRate, int channels, std::chrono::milliseconds
                 }
                 client->Stop();
                 if (task) AvRevertMmThreadCharacteristics(task);
+                running_.store(false);
+                if (!follow) break;
+                // A device that just vanished can take a moment to leave the list.
+                if (!stopping && WaitForSingleObject(static_cast<HANDLE>(stopEvent_), 200) != WAIT_TIMEOUT) break;
             }
             if (wake) CloseHandle(wake);
         }

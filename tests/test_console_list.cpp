@@ -39,12 +39,14 @@ TEST(ConsoleList, PairedConsoleWithoutAnswerIsOffline) {
 TEST(ConsoleList, DiscoveryUpdatesStatusAddressAndName) {
     auto host = discovered("Neues Zimmer", "aaaaaaaaaaaa", 0xc0a80163, HostState::Ready);
     host.info.runningAppName = "Astro Bot";
+    host.info.runningAppTitleId = "PPSA21567";
     const auto list = buildConsoleList({registered("Wohnzimmer", "AAAAAAAAAAAA", "192.168.1.20")}, {host});
     ASSERT_EQ(list.size(), 1u); // matched despite different letter case
     EXPECT_EQ(list[0].status, ConsoleStatus::Ready);
     EXPECT_EQ(list[0].address, "192.168.1.99");
     EXPECT_EQ(list[0].name, "Neues Zimmer");
     EXPECT_EQ(list[0].runningApp, "Astro Bot");
+    EXPECT_EQ(list[0].runningAppId, "PPSA21567");
 }
 
 TEST(ConsoleList, UnpairedConsolesFollowPairedOnes) {

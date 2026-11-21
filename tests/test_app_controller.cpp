@@ -822,6 +822,46 @@ TEST(AppControllerSession, GivesUpWaitingWhenTheConsoleStaysTaken) {
     EXPECT_EQ(h.model.state, AppState::Error);
 }
 
+TEST(AppControllerSession, UsesTheLayoutOfTheGameThatRuns) {
+    test::MockConsole console({}); // says it runs the game with title id PPSA01325
+    Harness h(console, "session_game_keys.json");
+    ASSERT_TRUE(h.pair());
+    input::KeyboardMouseSettings& kbm = h.app->config().controller.keyboardMouse;
+    kbm.enabled = true;
+    input::GameKeyLayout own;
+    own.titleId = "PPSA01325";
+    own.name = "Astro's Playroom";
+    own.keys = kbm.keys;
+    own.keys[static_cast<std::size_t>(input::PadControl::LeftStickUp)] = input::key::None;
+    own.keys[static_cast<std::size_t>(input::PadControl::Cross)] = 'W';
+    own.keys[static_cast<std::size_t>(input::PadControl::Square)] = input::key::None; // Cross had Shift before; free either way
+    kbm.games.push_back(own);
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    // The console names its game in the answers to the search; the layout follows.
+    ASSERT_TRUE(h.runUntil([&] { return h.model.currentGameId == "PPSA01325"; }));
+    EXPECT_EQ(h.model.currentGameName, "Astro's Playroom");
+
+    h.app->keyboardMouse().key('W', true);
+    h.app->update();
+    input::ControllerState sent = h.sessions->input();
+    EXPECT_TRUE(sent.pressed(input::Button::Cross));
+    EXPECT_EQ(sent.leftY, 0);
+    h.app->keyboardMouse().releaseAll();
+
+    // Without the game's layout the same key walks again.
+    h.app->config().controller.keyboardMouse.games.clear();
+    h.app->configChanged();
+    h.app->keyboardMouse().key('W', true);
+    h.app->update();
+    sent = h.sessions->input();
+    EXPECT_FALSE(sent.pressed(input::Button::Cross));
+    EXPECT_EQ(sent.leftY, -32767);
+    h.app->keyboardMouse().releaseAll();
+}
+
 TEST(AppControllerSession, PlaysWithKeysAndMouseInsteadOfAController) {
     test::MockConsole console({});
     Harness h(console, "session_keys.json"); // no controller is connected

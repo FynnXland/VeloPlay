@@ -27,6 +27,10 @@ constexpr seconds kHoldLong{4};
 // A console that sends fewer pictures for good is said once, not for the whole evening.
 constexpr seconds kFewerShown{6};
 constexpr seconds kFewerQuiet{60};
+// The battery is mentioned at these two marks, each once, so there is time to reach for the cable.
+constexpr int kBatteryLow = 15;
+constexpr int kBatteryVeryLow = 5;
+constexpr seconds kBatteryShown{8};
 
 } // namespace
 
@@ -56,6 +60,17 @@ void StreamAlerts::update(const StreamObservation& o, Clock::time_point now) {
         if (controllerGone_ == Clock::time_point{}) controllerGone_ = now;
         // Shown for as long as there is none.
         if (now - controllerGone_ >= kControllerPatience) raise(StreamAlert::NoController, now + kHold);
+    }
+
+    // So does its battery. On the cable or above the mark nothing is owed, and the next low is news again.
+    if (!o.controllerConnected || o.batteryPercent < 0 || o.charging || o.batteryPercent > kBatteryLow) {
+        batteryToldAt_ = 101;
+    } else {
+        const int mark = o.batteryPercent <= kBatteryVeryLow ? kBatteryVeryLow : kBatteryLow;
+        if (mark < batteryToldAt_) {
+            raise(StreamAlert::BatteryLow, now + kBatteryShown);
+            batteryToldAt_ = mark;
+        }
     }
 
     if (!primed_) {

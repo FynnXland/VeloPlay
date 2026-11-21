@@ -119,6 +119,11 @@ struct UiModel {
     /// yet; -1 = the user pressed Esc). Codes as in input/KeyboardMouse.hpp.
     bool capturingKey = false;
     int capturedKey = 0;
+    /// The game keys and mouse are laid out for right now: the one running on
+    /// the console of the session, or, with no session, on the first console
+    /// that runs one. Empty if none is known.
+    std::string currentGameId;
+    std::string currentGameName;
     /// Refreshes per second of the screen the window is on; 0 = unknown.
     double displayHz = 0.0;
     bool controllerConnected = false;

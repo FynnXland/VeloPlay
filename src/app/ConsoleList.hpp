@@ -25,6 +25,7 @@ struct ConsoleEntry {
     bool credentialsValid = false; // stored keys are readable
     bool waking = false;           // wake-up sent, waiting for it to boot
     std::string runningApp;
+    std::string runningAppId; // the game's title id, like "PPSA01325"; tells games apart
 
     friend bool operator==(const ConsoleEntry&, const ConsoleEntry&) = default;
 };

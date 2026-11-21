@@ -18,6 +18,7 @@ enum class StreamAlert {
     PicturesLost,     // pictures went missing on the way
     DecoderBehind,    // this PC threw pictures away because unpacking fell behind
     FewerPictures,    // the console sends clearly fewer pictures than asked for, without losses
+    BatteryLow,       // the controller's battery is nearly empty and it is not charging
 };
 
 /// What is known about the stream at one moment.
@@ -30,6 +31,8 @@ struct StreamObservation {
     bool controllerConnected = true;
     /// False once something other than a controller steers (keyboard and mouse, later).
     bool controllerWanted = true;
+    int batteryPercent = -1; // of the controller in use; -1 = unknown or none
+    bool charging = false;
 };
 
 /// Turns observations into notes that do not flicker: a note appears when
@@ -51,7 +54,7 @@ public:
     [[nodiscard]] const std::vector<StreamAlert>& raised() const { return raised_; }
 
 private:
-    static constexpr int kKinds = 5;
+    static constexpr int kKinds = 6;
     struct Slot {
         bool on = false;
         Clock::time_point until{}; // shown up to here
@@ -69,6 +72,7 @@ private:
     Clock::time_point controllerGone_{};    // since when there is no controller; zero = there is one
     Clock::time_point fewerSince_{};        // since when too few pictures arrive; zero = enough
     Clock::time_point fewerQuietUntil_{};   // said once; not again before this
+    int batteryToldAt_ = 101;               // the charge the last note was about; 101 = none yet
 };
 
 } // namespace veloplay

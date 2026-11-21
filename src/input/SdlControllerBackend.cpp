@@ -69,7 +69,17 @@ public:
     std::vector<ControllerInfo> controllers() const override {
         std::lock_guard lock(mutex_);
         std::vector<ControllerInfo> result;
-        for (const auto& [id, pad] : pads_) result.push_back(pad.info);
+        for (const auto& [id, pad] : pads_) {
+            // The battery is asked each time: it changes while the rest stays as it was when the controller came.
+            ControllerInfo info = pad.info;
+            int percent = -1;
+            const SDL_PowerState power = SDL_GetGamepadPowerInfo(pad.handle, &percent);
+            const bool known = power == SDL_POWERSTATE_ON_BATTERY || power == SDL_POWERSTATE_CHARGING ||
+                               power == SDL_POWERSTATE_CHARGED;
+            info.batteryPercent = known && percent >= 0 ? std::min(percent, 100) : -1;
+            info.charging = power == SDL_POWERSTATE_CHARGING || power == SDL_POWERSTATE_CHARGED;
+            result.push_back(std::move(info));
+        }
         return result;
     }
 

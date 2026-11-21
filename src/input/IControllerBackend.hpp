@@ -22,6 +22,9 @@ struct ControllerInfo {
     bool hasTouchpad = false;
     bool hasMotion = false;
     bool hasRumble = false;
+    /// Charge of the controller's battery in percent; -1 if it has none or does not say.
+    int batteryPercent = -1;
+    bool charging = false; // on the cable and charging, or full
 
     friend bool operator==(const ControllerInfo&, const ControllerInfo&) = default;
 };

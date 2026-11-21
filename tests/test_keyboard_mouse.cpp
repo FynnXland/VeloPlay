@@ -48,7 +48,7 @@ ControllerState moveFor(KeyboardMouseMapper& mapper, Clock::time_point& now, std
 
 TEST(KeyboardMouse, KeepsTheProgramsOwnKeysAwayFromTheGame) {
     // Menu, upscaling, display, full screen: these work while playing and never reach the console.
-    for (const int code : {key::Escape, key::F8, key::F9, key::F11}) EXPECT_TRUE(isReservedKey(code)) << code;
+    for (const int code : {key::Escape, key::F1, key::F8, key::F9, key::F11}) EXPECT_TRUE(isReservedKey(code)) << code;
     EXPECT_FALSE(isReservedKey('W'));
     // A layout that names one of them loses that entry instead of swallowing the key.
     KeyboardMouseSettings settings;
@@ -248,4 +248,53 @@ TEST(KeyboardMouse, SettingsKeepOneControlPerKey) {
     // Circle comes before the left stick in the list, so it keeps the key and walking loses it.
     EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Circle)], 'W');
     EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::LeftStickUp)], key::None);
+}
+
+TEST(KeyboardMouse, AGameCanHaveALayoutOfItsOwn) {
+    KeyboardMouseSettings settings = enabled();
+    GameKeyLayout racing;
+    racing.titleId = "PPSA00001";
+    racing.name = "A racing game";
+    racing.keys = settings.keys;
+    racing.keys[static_cast<std::size_t>(PadControl::LeftStickUp)] = key::None;
+    racing.keys[static_cast<std::size_t>(PadControl::R2)] = 'W'; // accelerate where walking was
+    racing.mouseSensitivity = 2.5f;
+    racing.invertY = true;
+    settings.games.push_back(racing);
+
+    // While that game runs its layout applies, whole: keys, sensitivity, direction.
+    const KeyboardMouseSettings inGame = settingsFor(settings, "PPSA00001");
+    EXPECT_TRUE(inGame.enabled);
+    EXPECT_EQ(inGame.keys, racing.keys);
+    EXPECT_FLOAT_EQ(inGame.mouseSensitivity, 2.5f);
+    EXPECT_TRUE(inGame.invertY);
+    KeyboardMouseMapper mapper;
+    mapper.configure(inGame);
+    mapper.key('W', true);
+    const ControllerState state = mapper.state(KeyboardMouseMapper::Clock::time_point{});
+    EXPECT_EQ(state.r2, 255);
+    EXPECT_EQ(state.leftY, 0);
+
+    // Any other game, and no game at all, get the general layout.
+    EXPECT_EQ(settingsFor(settings, "PPSA99999").keys, settings.keys);
+    EXPECT_EQ(settingsFor(settings, "").keys, settings.keys);
+    EXPECT_EQ(gameLayout(settings, ""), nullptr);
+    ASSERT_NE(gameLayout(settings, "PPSA00001"), nullptr);
+}
+
+TEST(KeyboardMouse, TidiesTheLayoutsOfGames) {
+    KeyboardMouseSettings settings = enabled();
+    GameKeyLayout one;
+    one.titleId = "PPSA00001";
+    one.mouseSensitivity = 99.0f;
+    one.keys[static_cast<std::size_t>(PadControl::Cross)] = key::F1; // the program's own key
+    GameKeyLayout again = one;
+    again.name = "second entry for the same game";
+    GameKeyLayout nameless; // no title id: belongs to no game
+    settings.games = {one, again, nameless};
+    sanitize(settings);
+    ASSERT_EQ(settings.games.size(), 1u);
+    EXPECT_TRUE(settings.games[0].name.empty());
+    EXPECT_FLOAT_EQ(settings.games[0].mouseSensitivity, 4.0f);
+    EXPECT_EQ(settings.games[0].keys[static_cast<std::size_t>(PadControl::Cross)], key::None);
 }
