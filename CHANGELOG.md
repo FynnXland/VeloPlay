@@ -3,6 +3,27 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.15.1
+
+- **Frame generation: ladders and fences are right again.** 0.15.0 held every spot in place that
+  looked the same in two pictures in a row, to stop buttons of the game from flickering. That
+  also held the gaps between the rungs of a ladder the camera moves along, where the rung
+  belongs in between; a measurement on a real card showed it right after the release. That rule
+  is gone. Instead, something that stands still is now held after about a third of a second
+  rather than a full second, which shortens the flicker of a button that has just appeared
+  without touching anything that moves.
+
+**Deutsch**
+
+- **Zwischenbilder: Leitern und Zäune stimmen wieder.** 0.15.0 hielt jede Stelle fest, die in
+  zwei Bildern nacheinander gleich aussah, damit Knöpfe des Spiels nicht flackern. Damit wurden
+  auch die Lücken zwischen den Sprossen einer Leiter festgehalten, an der die Kamera
+  entlangfährt, und genau dort gehört die Sprosse im Zwischenbild hin; eine Messung auf einer
+  echten Grafikkarte hat das gleich nach der Veröffentlichung gezeigt. Diese Regel ist wieder
+  draußen. Stattdessen wird Stillstehendes jetzt nach etwa einer Drittelsekunde festgehalten
+  statt nach einer ganzen. Das verkürzt das Flackern eines gerade eingeblendeten Knopfs, ohne
+  etwas anzufassen, das sich bewegt.
+
 ## 0.15.0
 
 - **Microphone for voice chat.** New under Settings > Advanced and in the menu behind Esc, off

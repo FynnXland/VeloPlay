@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.15.0</span>
+    <span class="pill">Version 0.15.1</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -376,8 +376,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Für jede Karte:</strong> „VeloPlay Flow“ braucht nur Pixel-Shader, kein Compute, nichts von einem Hersteller.</li>
           <li><strong>Auf NVIDIA-Karten ab der RTX-20-Serie (seit 0.10.0):</strong> Die Suche nach der Bewegung übernimmt der dafür gebaute Teil der Grafikkarte („NVIDIA Optical Flow“, im Treiber enthalten, ein Vektor pro vier mal vier Bildpunkte). Er liegt auch dort richtig, wo eine Suche von grob nach fein danebengreift, etwa bei Leitersprossen, die alle gleich aussehen. Seine Vektoren werden auf den Zeitpunkt dazwischen umgerechnet; jede Stelle wählt dann unter den Vektoren ihrer Nachbarn den, mit dem beide Bilder dort am besten zusammenpassen. Das Zusammensetzen bleibt gleich. Fehlt der Teil oder meldet er einen Fehler, übernimmt „VeloPlay Flow“. Die Anzeige im Spiel nennt, welches Verfahren läuft.</li>
           <li><strong>Schnitte (seit 0.11.0):</strong> Springt das Spiel zu einem anderen Bild, passt nichts mehr zusammen. Findet mehr als die Hälfte des Bildes kein Gegenstück, wird nicht gemischt, sondern das nähere der beiden echten Bilder gezeigt.</li>
-          <li><strong>Gerade Erschienenes (seit 0.15.0):</strong> Was in zwei Bildern nacheinander an einer Stelle und direkt daneben gleich ist, hat sich nicht bewegt, auch wenn die Szene dahinter es tut. Ein Knopf, den das Spiel gerade einblendet, bleibt deshalb vom ersten Bildpaar an, wo er ist, und flackert nicht mehr.</li>
-          <li><strong>Stehende Anzeige (seit 0.11.0):</strong> Jeder Bildpunkt zählt mit, wie lange er sich nicht verändert hat. Kanten, die seit etwa einer Sekunde stillstehen (Karte, Zähler, Schrift), kommen unverändert aus den echten Bildern, auch wenn sich die Szene dahinter bewegt.</li>
+          <li><strong>Gerade Erschienenes (seit 0.15.1):</strong> Stillstehendes wird nach etwa einer Drittelsekunde festgehalten statt nach einer ganzen. Ein Knopf, den das Spiel gerade einblendet, flackert dadurch kürzer. Der schnellere Weg aus 0.15.0, alles sofort festzuhalten, was in zwei Bildern gleich aussieht, hielt auch die Lücken zwischen Leitersprossen fest und ist wieder draußen.</li>
+          <li><strong>Stehende Anzeige (seit 0.11.0):</strong> Jeder Bildpunkt zählt mit, wie lange er sich nicht verändert hat. Kanten, die seit etwa einer Drittelsekunde stillstehen (Karte, Zähler, Schrift), kommen unverändert aus den echten Bildern, auch wenn sich die Szene dahinter bewegt.</li>
           <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln. Kommen Bilder aus dem WLAN ungleichmäßig an, werden sie trotzdem in gleichmäßigen Abständen gezeigt.</li>
           <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
           <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
@@ -741,7 +741,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.15.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.15.1</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -804,7 +804,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>280 automatische Tests unter Linux und 298 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>280 automatische Tests unter Linux und 299 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

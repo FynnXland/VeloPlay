@@ -893,11 +893,84 @@ TEST(FrameGeneration, KeepsWhatStandsStillWhereItIs) {
     checkStandingDisplay(44); // a second and a half at 30 pictures a second
 }
 
-// A button the game has just put up: it is in two pictures and no more. It
-// used to be dragged along with the scene behind it until it had been seen
-// standing for about a second, which showed as a flicker.
-TEST(FrameGeneration, KeepsWhatHasOnlyJustAppearedWhereItIs) {
-    checkStandingDisplay(2);
+// A button the game put up half a second ago. The count for standing parts
+// used to need about a second, and that long the button was dragged along
+// with the scene behind it, which showed as a flicker.
+TEST(FrameGeneration, KeepsWhatAppearedHalfASecondAgoWhereItIs) {
+    checkStandingDisplay(16);
+}
+
+// The other side of holding what stands still: what keeps moving must never
+// be taken for standing. A ladder scrolls past for most of a second; the
+// gaps between its rungs look the same in many a pair of pictures, and still
+// nothing there may be held. The picture between the last two has to come
+// out the same with the care switched on as with it switched off.
+TEST(FrameGeneration, DoesNotHoldALadderThatKeepsMoving) {
+    constexpr int kWidth = 256;
+    constexpr int kHeight = 144;
+    constexpr int kPictures = 24;
+    constexpr double kStepY = 6.0; // rungs are 16 apart: every gap is crossed by a rung within three pictures
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+
+    std::vector<int> between[2];
+    for (int hold = 0; hold < 2; ++hold) {
+        render::VideoRenderer renderer;
+        std::string error;
+        ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        renderer.holdStillParts(hold == 1);
+        std::uint64_t before = 0;
+        for (int i = 0; i < kPictures; ++i) {
+            LadderFrame picture(kWidth, kHeight, 0.0, kStepY * i);
+            ASSERT_TRUE(renderer.submit(picture.picture.frame));
+            if (i > 0) {
+                render::VideoRenderer::Output output;
+                output.choice.valid = true;
+                output.choice.base = before;
+                output.choice.next = renderer.newestId();
+                output.choice.step = 1;
+                output.choice.steps = 2;
+                surface.begin();
+                renderer.draw(kWidth, kHeight, output);
+                ASSERT_TRUE(renderer.lastDrawWasGenerated());
+                if (i == kPictures - 1) between[hold] = surface.read();
+            }
+            before = renderer.newestId();
+        }
+    }
+    // The rails do stand still in this picture, and they are held together
+    // with the one pixel next to them, as the soft rim of a letter would be.
+    // That rim is where the two results may differ. The rungs and the gaps
+    // between them, away from the rails, and the scene around the ladder
+    // have to come out the same.
+    const int left = static_cast<int>(kWidth * 0.35);
+    const int right = static_cast<int>(kWidth * 0.65);
+    double rungs = 0.0, rims = 0.0, scene = 0.0;
+    int rungCount = 0, rimCount = 0, sceneCount = 0;
+    for (int y = 8; y < kHeight - 8; ++y) {
+        for (int x = 16; x < kWidth - 16; ++x) {
+            const std::size_t at = static_cast<std::size_t>(y * kWidth + x);
+            const double difference = std::abs(between[1][at] - between[0][at]);
+            if (x >= left + 9 && x < right - 9) {
+                rungs += difference;
+                ++rungCount;
+            } else if (x >= left - 3 && x < right + 3) {
+                rims += difference;
+                ++rimCount;
+            } else {
+                scene += difference;
+                ++sceneCount;
+            }
+        }
+    }
+    rungs /= rungCount;
+    rims /= rimCount;
+    scene /= sceneCount;
+    std::printf("ladder that keeps moving, with and without care for standing parts: rungs %.2f grey levels apart, "
+                "scene %.2f, rails and their rims %.2f\n",
+                rungs, scene, rims);
+    EXPECT_LT(rungs, 0.5);
+    EXPECT_LT(scene, 0.5);
 }
 
 TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
@@ -926,6 +999,12 @@ TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
         {"ladder, camera moving down", true, 2, 14},
         {"ladder, camera moving sideways", true, 18, 0},
     };
+    // This test measures the search for motion. It hands the same pair of
+    // pictures in again and again, for the timing, and to the care for parts
+    // that stand still that looks like a picture that never changes: the gaps
+    // between the rungs get held. In a game the pairs follow one another and
+    // nothing of the kind happens (see DoesNotHoldALadderThatKeepsMoving).
+    renderer.holdStillParts(false);
     for (const Scene& scene : scenes) {
         const auto frame = [&](double share) {
             return scene.ladder ? LadderFrame(kWidth, kHeight, scene.dx * share, scene.dy * share).picture

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 0.15.0
+    VERSION 0.15.1
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 

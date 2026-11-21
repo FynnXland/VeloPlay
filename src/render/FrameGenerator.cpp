@@ -244,7 +244,11 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float3 difference = abs(frameA.SampleLevel(pointSampler, uv, 0).rgb - frameB.SampleLevel(pointSampler, uv, 0).rgb);
     float change = max(difference.r, max(difference.g, difference.b));
     float4 was = before.SampleLevel(pointSampler, uv, 0);
-    float still = was.r + (1.0 - was.r) * 0.06;
+    // A fifth of what is missing per pair: held after about a third of a
+    // second at 30 pictures a second. It was a sixteenth, about a second,
+    // and that long a button the game had just put up was dragged along
+    // with the scene behind it and flickered.
+    float still = was.r + (1.0 - was.r) * 0.20;
     if (change >= 0.10) still = 0.0;
     else if (change >= 0.03) still = was.r * 0.6;
 
@@ -299,16 +303,10 @@ float3 fetch(Texture2D picture, float2 at) {
     return saturate(sum / total);
 }
 
-// How firmly a pixel is held: it has stood still for about a second and is an edge.
+// How firmly a pixel is held: it has stood still for about a third of a second and is an edge.
 float held(float2 at) {
     float4 s = standing.SampleLevel(pointSampler, at, 0);
     return smoothstep(0.80, 0.95, s.r) * smoothstep(0.05, 0.15, s.g);
-}
-
-// How much a pixel differs between the two real pictures, in its strongest colour.
-float changedAt(float2 at) {
-    float3 d = abs(frameA.SampleLevel(pointSampler, at, 0).rgb - frameB.SampleLevel(pointSampler, at, 0).rgb);
-    return max(d.r, max(d.g, d.b));
 }
 
 float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
@@ -326,19 +324,15 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float2 pixel = 1.0 / frameSize;
     float hold = max(held(uv), max(max(held(uv + float2(pixel.x, 0.0)), held(uv - float2(pixel.x, 0.0))),
                                    max(held(uv + float2(0.0, pixel.y)), held(uv - float2(0.0, pixel.y)))));
-    // What is the same in both pictures, here and right next to here, did not
-    // move between them, whatever the search found for its surroundings: a
-    // button the game has just put up over a moving scene, a number, a frame.
-    // It is taken as it is from the first pair it shows in; the count above
-    // needs about a second, and until then such things used to flicker.
-    // Taking the plain mix can be off by half of what changed at most, and
-    // that is next to nothing here by definition. `radius` is 1 when parts
-    // that stand still are cared for at all.
-    float changed = max(changedAt(uv), max(max(changedAt(uv + float2(pixel.x, 0.0)), changedAt(uv - float2(pixel.x, 0.0))),
-                                           max(changedAt(uv + float2(0.0, pixel.y)), changedAt(uv - float2(0.0, pixel.y)))));
-    float settled = radius * (1.0 - smoothstep(0.008, 0.02, changed));
+    // Tempting, and wrong: to hold every pixel that is the same in both real
+    // pictures, without waiting for the count. Between the rungs of a ladder
+    // that the camera moves along, pixels are the same in both pictures too,
+    // and the rung belongs right there in between. On the RTX 4070 that rule
+    // took the ladder from 2 grey levels off to 24. A pixel alone cannot tell
+    // "nothing moved here" from "something passed through here"; only having
+    // stood still over several pictures can.
     float3 plain = lerp(frameA.SampleLevel(linearSampler, uv, 0).rgb, frameB.SampleLevel(linearSampler, uv, 0).rgb, phase);
-    return float4(lerp(lerp(a, b, phase), plain, max(max(doubt, hold), settled)), 1.0);
+    return float4(lerp(lerp(a, b, phase), plain, max(doubt, hold)), 1.0);
 }
 )";
 
@@ -758,8 +752,6 @@ bool FlowFrameGenerator::finish(int slotFrom, ID3D11ShaderResourceView* from, in
         pass(reduceShader_.Get(), misfit_.flowTarget.Get(), 1, 1, second, 1);
     }
 
-    // In the last pass this field says whether parts that stand still are cared for.
-    constants.radius = holdStill_ ? 1.0f : 0.0f;
     context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
     // A view that is missing reads as zero: no cut, nothing held.
     ID3D11ShaderResourceView* views[5] = {from, to, flow, judging ? misfit_.flowView.Get() : nullptr,
