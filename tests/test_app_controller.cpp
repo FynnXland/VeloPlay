@@ -28,8 +28,48 @@ struct CountingSink final : session::IMediaSink {
     void onAudio(std::span<const std::uint8_t>) override {}
 };
 
+/// A microphone that records what the test hands it.
+class FakeMicrophone final : public media::IAudioInput {
+public:
+    bool start(Sink sink) override {
+        ++starts;
+        if (failStart) return false;
+        sink_ = std::move(sink);
+        running_ = true;
+        return true;
+    }
+    void stop() override {
+        ++stops;
+        sink_ = nullptr;
+        running_ = false;
+    }
+    [[nodiscard]] bool running() const override { return running_; }
+    [[nodiscard]] bool recording() const override { return running_ && haveDevice; }
+
+    /// One block of a tone, as the device would deliver it. Returns false if nobody listens.
+    bool record() {
+        if (!sink_) return false;
+        std::vector<std::int16_t> block(static_cast<std::size_t>(media::kMicFrameSamples * media::kMicChannels));
+        for (std::size_t i = 0; i < block.size(); ++i) block[i] = static_cast<std::int16_t>((i % 96) * 300 - 14000);
+        sink_(block);
+        return true;
+    }
+    /// The device vanishes, as when it is unplugged.
+    void unplug() { running_ = false; }
+
+    bool failStart = false;
+    bool haveDevice = true; // false: started, but no microphone is plugged in
+    int starts = 0;
+    int stops = 0;
+
+private:
+    Sink sink_;
+    bool running_ = false;
+};
+
 struct Harness {
     CountingSink sink;
+    FakeMicrophone microphone;
     test::FakeProtector protector;
     std::filesystem::path configPath;
     std::shared_ptr<test::FakeSessionHub> sessions = std::make_shared<test::FakeSessionHub>();
@@ -62,6 +102,8 @@ struct Harness {
         options.stallTimeout = stallTimeout;
         options.inputInterval = inputInterval;
         options.controllerBackend = std::move(backend);
+        options.microphone = &microphone;
+        options.microphoneRetry = 20ms;
         app = std::make_unique<AppController>(std::move(options));
     }
 
@@ -820,6 +862,74 @@ TEST(AppControllerSession, GivesUpWaitingWhenTheConsoleStaysTaken) {
     ASSERT_TRUE(h.runUntil([&] { return h.model.session.waitingForRelease; }));
     ASSERT_TRUE(h.runUntil([&] { return h.hasNotice(Notice::Topic::SessionInUse); }, 5000ms));
     EXPECT_EQ(h.model.state, AppState::Error);
+}
+
+TEST(AppControllerSession, SendsTheMicrophoneOnlyWhileAskedToAndWhileAStreamRuns) {
+    test::MockConsole console({});
+    Harness h(console, "session_microphone.json");
+    ASSERT_TRUE(h.pair());
+    EXPECT_TRUE(h.model.microphoneAvailable);
+    // Off unless the user switches it on: nothing is recorded, nothing is sent.
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    for (int i = 0; i < 5; ++i) h.app->update();
+    EXPECT_EQ(h.microphone.starts, 0);
+    EXPECT_EQ(h.sessions->micOpens, 0);
+    EXPECT_FALSE(h.model.microphoneLive);
+
+    // Switched on in the game: the console learns of the microphone, the mute is lifted, sound flows.
+    h.app->config().audio.microphone = true;
+    h.app->configChanged();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.microphoneLive; }));
+    EXPECT_EQ(h.sessions->micOpens, 1);
+    EXPECT_FALSE(h.sessions->micMuted);
+    for (int i = 0; i < 10; ++i) ASSERT_TRUE(h.microphone.record());
+    EXPECT_EQ(h.sessions->microphonePackets(), 10);
+    EXPECT_EQ(h.sessions->micPacketSize, media::kMicPacketSize);
+
+    // The device goes away and comes back: recording starts again by itself.
+    h.microphone.unplug();
+    ASSERT_TRUE(h.runUntil([&] { return h.microphone.starts >= 2 && h.model.microphoneLive; }));
+    ASSERT_TRUE(h.microphone.record());
+
+    // Switched off: recording ends and the console is told the microphone is muted.
+    h.app->config().audio.microphone = false;
+    h.app->configChanged();
+    ASSERT_TRUE(h.runUntil([&] { return !h.model.microphoneLive; }));
+    EXPECT_FALSE(h.microphone.record());
+    EXPECT_TRUE(h.sessions->micMuted);
+
+    // On again, then the stream ends: the microphone is silent before the session is gone.
+    h.app->config().audio.microphone = true;
+    h.app->configChanged();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.microphoneLive; }));
+    const int stopsBefore = h.microphone.stops;
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    EXPECT_GT(h.microphone.stops, stopsBefore);
+    EXPECT_FALSE(h.microphone.running());
+    EXPECT_FALSE(h.microphone.record());
+    EXPECT_FALSE(h.model.microphoneLive);
+}
+
+TEST(AppControllerSession, KeepsTryingAMicrophoneThatDoesNotOpen) {
+    test::MockConsole console({});
+    Harness h(console, "session_microphone_fails.json");
+    ASSERT_TRUE(h.pair());
+    h.microphone.failStart = true;
+    h.app->config().audio.microphone = true;
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    // Tried again and again, with a pause in between, and never claimed to be live.
+    ASSERT_TRUE(h.runUntil([&] { return h.microphone.starts >= 3; }));
+    EXPECT_FALSE(h.model.microphoneLive);
+    // Once a microphone is there it is used.
+    h.microphone.failStart = false;
+    ASSERT_TRUE(h.runUntil([&] { return h.model.microphoneLive; }));
+    EXPECT_TRUE(h.microphone.record());
 }
 
 TEST(AppControllerSession, UsesTheLayoutOfTheGameThatRuns) {

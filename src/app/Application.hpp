@@ -13,6 +13,7 @@
 #include "app/AppController.hpp"
 #include "app/HangProbe.hpp"
 #include "app/LoginWindow.hpp"
+#include "audio/WasapiInput.hpp"
 #include "audio/WasapiOutput.hpp"
 #include "media/FramePacer.hpp"
 #include "media/MediaPipeline.hpp"
@@ -71,6 +72,7 @@ private:
     bool videoReady_ = false;
     std::unique_ptr<audio::WasapiOutput> audioOutput_;
     std::unique_ptr<audio::WasapiOutput> hapticsOutput_;
+    std::unique_ptr<audio::WasapiInput> microphone_; // for voice chat; records only while the setting is on
     std::unique_ptr<media::MediaPipeline> pipeline_;
     session::StreamMeter shownMeter_; // pictures that reached the screen
     std::deque<float> frameTimes_;

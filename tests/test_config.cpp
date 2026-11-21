@@ -421,6 +421,23 @@ TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
     EXPECT_EQ(keys[static_cast<std::size_t>(input::PadControl::LeftStickUp)], 'W');
 }
 
+TEST(Config, TheMicrophoneStaysOffUntilAskedFor) {
+    test::FakeProtector protector;
+    AppConfig config;
+    EXPECT_FALSE(config.audio.microphone);
+    // A file from before the setting existed leaves it off as well.
+    const auto old = parseConfig(R"({"settings_version":4})", protector);
+    ASSERT_TRUE(old.ok());
+    EXPECT_FALSE(old->audio.microphone);
+
+    config.audio.microphone = true;
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text.ok());
+    const auto again = parseConfig(*text, protector);
+    ASSERT_TRUE(again.ok());
+    EXPECT_TRUE(again->audio.microphone);
+}
+
 TEST(Config, OldFilesGetAutomaticFrameGenerationAndUpscaling) {
     test::FakeProtector protector;
     // What the profiles stored before 0.6 did nothing yet. It becomes "automatic", which does the same.

@@ -202,6 +202,10 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
     root["network"] = {
         {"jitter", jitterName(config.network.jitter)},
         {"stats_overlay", config.network.statsOverlay},
+        {"stats_compact", config.network.statsCompact},
+    };
+    root["audio"] = {
+        {"microphone", config.audio.microphone},
     };
 
     root["updates"] = {
@@ -303,6 +307,8 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(network, "jitter", jitter);
     config.network.jitter = jitter == "stable" ? JitterMode::Stable : JitterMode::LowLatency;
     read(network, "stats_overlay", config.network.statsOverlay);
+    read(network, "stats_compact", config.network.statsCompact);
+    read(section(root, "audio"), "microphone", config.audio.microphone);
 
     read(section(root, "updates"), "check_at_startup", config.updates.checkAtStartup);
 

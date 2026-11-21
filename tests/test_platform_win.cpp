@@ -808,10 +808,14 @@ struct OverlayFrame {
     }
 };
 
-TEST(FrameGeneration, KeepsWhatStandsStillWhereItIs) {
+namespace {
+
+/// A display of fine strokes stands over a scene that moves, for `kPictures`
+/// pictures. In the picture computed between the last two it has to be where
+/// it is, and the scene around it must not pay for that.
+void checkStandingDisplay(const int kPictures) {
     constexpr int kWidth = 256;
     constexpr int kHeight = 144;
-    constexpr int kPictures = 44; // a second and a half at 30 pictures a second
     constexpr double kStepX = 4.0;
     constexpr double kStepY = 1.0;
     Surface surface;
@@ -873,14 +877,27 @@ TEST(FrameGeneration, KeepsWhatStandsStillWhereItIs) {
         displayError[hold] = offBy(between, true);
         sceneError[hold] = offBy(between, false);
     }
-    std::printf("standing display over a moving scene: display off by %.2f grey levels without care and %.2f with it; "
-                "scene off by %.2f and %.2f\n",
-                displayError[0], displayError[1], sceneError[0], sceneError[1]);
+    std::printf("standing display over a moving scene, %d pictures: display off by %.2f grey levels without care and "
+                "%.2f with it; scene off by %.2f and %.2f\n",
+                kPictures, displayError[0], displayError[1], sceneError[0], sceneError[1]);
     // The display is where it belongs, and caring for it did not cost the scene anything.
     EXPECT_LT(displayError[1], 1.5);
     EXPECT_LE(displayError[1], displayError[0] + 0.1);
     EXPECT_LT(sceneError[1], sceneError[0] + 0.3);
     EXPECT_LT(sceneError[1], 2.5);
+}
+
+} // namespace
+
+TEST(FrameGeneration, KeepsWhatStandsStillWhereItIs) {
+    checkStandingDisplay(44); // a second and a half at 30 pictures a second
+}
+
+// A button the game has just put up: it is in two pictures and no more. It
+// used to be dragged along with the scene behind it until it had been seen
+// standing for about a second, which showed as a flicker.
+TEST(FrameGeneration, KeepsWhatHasOnlyJustAppearedWhereItIs) {
+    checkStandingDisplay(2);
 }
 
 TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {

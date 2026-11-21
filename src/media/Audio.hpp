@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <functional>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -26,6 +28,53 @@ public:
     virtual void stop() = 0;
     /// True while the device is open and playing.
     [[nodiscard]] virtual bool running() const = 0;
+};
+
+// The microphone's sound travels to the console in a fixed shape: 48 kHz,
+// stereo, blocks of 480 samples per channel (10 ms), each packed by Opus
+// into exactly 40 bytes. The console drops packets of any other size.
+inline constexpr int kMicSampleRate = 48000;
+inline constexpr int kMicChannels = 2;
+inline constexpr int kMicFrameSamples = 480;
+inline constexpr std::size_t kMicPacketSize = 40;
+
+/// Records 16-bit PCM in the microphone's shape. The Windows client implements it with WASAPI.
+class IAudioInput {
+public:
+    /// One block: kMicFrameSamples pairs of left and right. Called on a thread of the device.
+    using Sink = std::function<void(std::span<const std::int16_t> interleaved)>;
+
+    virtual ~IAudioInput() = default;
+
+    /// Starts looking for the default microphone and returns at once. While
+    /// started it keeps looking: a microphone that is plugged in later is
+    /// picked up, and one that Windows makes the default is followed.
+    virtual bool start(Sink sink) = 0;
+    /// Returns once no call to the sink is running and none will follow.
+    virtual void stop() = 0;
+    /// True from start() until stop(), unless it gave up for good.
+    [[nodiscard]] virtual bool running() const = 0;
+    /// True while a microphone is open and its sound reaches the sink.
+    [[nodiscard]] virtual bool recording() const = 0;
+};
+
+/// Packs blocks of the microphone's sound for the console.
+class MicEncoder {
+public:
+    MicEncoder();
+    ~MicEncoder();
+    MicEncoder(const MicEncoder&) = delete;
+    MicEncoder& operator=(const MicEncoder&) = delete;
+
+    [[nodiscard]] bool valid() const { return encoder_ != nullptr; }
+    /// One block of kMicFrameSamples pairs in, one packet of kMicPacketSize
+    /// bytes out; empty if the block has another size or packing failed.
+    /// The packet stays valid until the next call.
+    std::span<const std::uint8_t> encode(std::span<const std::int16_t> interleaved);
+
+private:
+    void* encoder_ = nullptr; // OpusEncoder
+    std::array<std::uint8_t, kMicPacketSize> packet_{};
 };
 
 /// Decodes the console's Opus packets.

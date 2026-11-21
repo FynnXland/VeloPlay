@@ -168,6 +168,15 @@ public:
         return {};
     }
 
+    // The wrapper keeps these three away from a stream that is closing; see vp_session.h.
+    bool openMicrophone() override { return handle_ && vp_session_mic_open(handle_) == 0; }
+    void muteMicrophone(bool muted) override {
+        if (handle_) vp_session_mic_mute(handle_, muted ? 1 : 0);
+    }
+    void sendMicrophone(std::span<const std::uint8_t> packet) override {
+        if (handle_) vp_session_mic_send(handle_, packet.data(), packet.size());
+    }
+
     Result<void> sleepConsole() override {
         if (!handle_) return Error{ErrorCode::InvalidArgument, "no session"};
         if (vp_session_sleep_console(handle_) != 0) {

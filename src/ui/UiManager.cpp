@@ -437,6 +437,7 @@ void UiManager::draw(const UiModel& model) {
             drawStreamAlerts(model);
             drawUpscalingNote(model);
             drawKeyOverlay(model);
+            drawMicrophoneBadge(model);
         } else {
             upscalingNoteFor_ = 0.0;
             keyOverlay_ = false; // a menu is open; the layout does not come back by itself
@@ -1251,7 +1252,7 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
         const float width = padX * 2.0f + dot + gap + size.x;
         const float height = padY * 2.0f + size.y;
         const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, y - (1.0f - shown) * px(6.0f));
-        draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, 0.86f * shown), height * 0.5f);
+        draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
         draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                               toU32(p.standby, shown));
         ImVec4 ink = p.text;
@@ -1295,7 +1296,7 @@ void UiManager::drawUpscalingNote(const UiModel& model) {
     const float height = padY * 2.0f + titleSize.y + (remark ? px(4.0f) + remarkSize.y : 0.0f);
     const float shown = static_cast<float>(std::clamp(upscalingNoteFor_ / 0.25, 0.0, 1.0));
     const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, viewport->Pos.y + viewport->Size.y - height - px(72.0f));
-    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, 0.86f * shown), px(12.0f));
+    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), px(12.0f));
     ImVec4 ink = p.text;
     ink.w *= shown;
     drawText(draw, ImVec2(min.x + (width - titleSize.x) * 0.5f, min.y + padY), TextStyle::Body, ink, title.c_str());
@@ -1356,7 +1357,7 @@ void UiManager::drawKeyOverlay(const UiModel& model) {
     const ImVec2 min(viewport->Pos.x + std::floor((viewport->Size.x - size.x) * 0.5f),
                      viewport->Pos.y + std::floor((viewport->Size.y - size.y) * 0.5f) + (1.0f - shown) * px(8.0f));
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, 0.88f * shown), px(14.0f));
+    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, shown), px(14.0f));
     drawText(draw, ImVec2(min.x + pad, min.y + pad), TextStyle::Strong, p.text, title, shown);
     const float top = min.y + pad + titleHeight + px(12.0f);
     const auto column = [&](const std::vector<Row>& list, float x) {
@@ -1380,17 +1381,75 @@ void UiManager::drawKeyOverlay(const UiModel& model) {
              t.kbmOverlayClose, shown);
 }
 
+/// While the microphone is sent to the console, that is said in the corner
+/// for as long as it lasts: nobody should be heard without knowing it.
+void UiManager::drawMicrophoneBadge(const UiModel& model) {
+    const bool on = model.microphoneLive || model.microphoneMissing;
+    const float shown = context().animator.to(static_cast<ImGuiID>(0x5A1E7300), on ? 1.0f : 0.0f, 0.18f, 0.0f);
+    if (shown < 0.02f) return;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const char* text = model.microphoneMissing ? t.micMissing : t.micLive;
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 size = measure(TextStyle::Caption, text);
+    const float padX = px(12.0f);
+    const float padY = px(6.0f);
+    const float dot = px(8.0f);
+    const float width = padX * 2.0f + dot + px(8.0f) + size.x;
+    const float height = padY * 2.0f + size.y;
+    const ImVec2 min(viewport->Pos.x + viewport->Size.x - width - px(16.0f), viewport->Pos.y + px(16.0f));
+    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
+    draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
+                          toU32(model.microphoneMissing ? p.standby : p.danger, shown));
+    drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, text, shown);
+}
+
 void UiManager::drawStreamOverlay(const UiModel& model) {
     const Strings& t = *text_;
     const Palette& p = palette();
     const StreamStats& stats = *model.stream;
 
-    // F9 shows and hides the display without leaving the game.
+    // F9 steps through the display without leaving the game: off, the small one, all figures.
     if (model.config && ImGui::IsKeyPressed(ImGuiKey_F9, false)) {
-        model.config->network.statsOverlay = !model.config->network.statsOverlay;
+        NetworkSettings& network = model.config->network;
+        if (!network.statsOverlay) {
+            network.statsOverlay = true;
+            network.statsCompact = true;
+        } else if (network.statsCompact) {
+            network.statsCompact = false;
+        } else {
+            network.statsOverlay = false;
+        }
         actions_.configChanged();
     }
     if (model.config && !model.config->network.statsOverlay) return;
+
+    if (model.config && model.config->network.statsCompact) {
+        // The small one: what everybody wants to know, on one line. A dot
+        // says whether the link is steady. The ground is solid: with a
+        // see-through one the picture behind it showed as a flicker.
+        const bool rough = stats.packetLossPercent > 0.5f ||
+                           std::any_of(model.alerts.begin(), model.alerts.end(), [](StreamAlert alert) {
+                               return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost;
+                           });
+        std::string line = format(t.fpsValue, {number(stats.presenting ? stats.outputFps : stats.streamFps, 0)});
+        line += "  ·  " + format(t.msValue, {number(stats.roundTripMs, 0)});
+        line += "  ·  " + format(t.bitrateValue, {number(stats.bitrateMbps, 1)});
+        const ImVec2 textSize = measure(TextStyle::Caption, line);
+        const float padX = px(12.0f);
+        const float padY = px(7.0f);
+        const float dot = px(8.0f);
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        const ImVec2 min(viewport->Pos.x + px(16.0f), viewport->Pos.y + px(16.0f));
+        const ImVec2 max(min.x + padX * 2.0f + dot + px(8.0f) + textSize.x, min.y + padY * 2.0f + textSize.y);
+        ImDrawList* draw = ImGui::GetForegroundDrawList();
+        draw->AddRectFilled(min, max, toU32(p.background), (max.y - min.y) * 0.5f);
+        draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, (min.y + max.y) * 0.5f), dot * 0.5f,
+                              toU32(rough ? p.standby : p.ready));
+        drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, line);
+        return;
+    }
 
     std::string frameGeneration = t.off;
     if (stats.frameGenerationFactor > 1) {
@@ -1451,8 +1510,9 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 min(viewport->Pos.x + px(16.0f), viewport->Pos.y + px(16.0f));
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    // Dark enough to read over a bright picture, light enough not to hide it.
-    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, 0.80f), px(12.0f));
+    // Solid: a see-through ground let the picture behind it show, and where computed pictures
+    // alternate with real ones that read as a flicker under the figures.
+    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background), px(12.0f));
 
     float y = min.y + pad;
     for (const auto& [name, value] : rows) {
@@ -1621,16 +1681,38 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         ImGui::EndGroup();
         space(16.0f);
 
+        // Second row: the display with its three steps on the left, the two switches on the right.
         const ImVec2 row = ImGui::GetCursorScreenPos();
-        ImGui::BeginChild("pause-left", ImVec2(controlWidth, px(32.0f)), ImGuiChildFlags_None,
-                          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
-        toggleRow(t.pauseOverlay, &config.network.statsOverlay);
-        ImGui::EndChild();
+        ImGui::BeginGroup();
+        label(TextStyle::Strong, t.pauseOverlay);
+        space(8.0f);
+        const std::array<const char*, 3> displays = {t.off, t.pauseOverlaySmall, t.pauseOverlayAll};
+        const int display = !config.network.statsOverlay ? 0 : config.network.statsCompact ? 1 : 2;
+        const int chosenDisplay = segmented("pause-display", displays, display, controlWidth);
+        config.network.statsOverlay = chosenDisplay != 0;
+        if (chosenDisplay != 0) config.network.statsCompact = chosenDisplay == 1;
+        ImGui::EndGroup();
+        const float rowBottom = ImGui::GetCursorScreenPos().y;
+
         ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
-        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(32.0f)), ImGuiChildFlags_None,
+        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(model.microphoneAvailable ? 84.0f : 36.0f)), ImGuiChildFlags_None,
                           ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+        pushExplicitSpacing();
         toggleRow(t.kbmTitle, &config.controller.keyboardMouse.enabled);
+        if (model.microphoneAvailable) {
+            space(8.0f);
+            // What the microphone is doing stands in its label, so nobody has to guess.
+            const char* state = !config.audio.microphone ? nullptr
+                                : model.microphoneLive   ? t.micLiveHint
+                                : model.microphoneMissing ? t.micMissing
+                                                          : nullptr;
+            const std::string name = state ? std::string(t.micTitle) + "  ·  " + state : std::string(t.micTitle);
+            toggleRow((name + "###pause-mic").c_str(), &config.audio.microphone);
+        }
+        popExplicitSpacing();
         ImGui::EndChild();
+        ImGui::SetCursorScreenPos(ImVec2(row.x, std::max(rowBottom, ImGui::GetCursorScreenPos().y)));
+        ImGui::Dummy(ImVec2(1.0f, 1.0f));
         if (!(config == before)) actions_.configChanged();
         space(24.0f);
     }
@@ -1667,7 +1749,8 @@ void UiManager::drawSession(const UiModel& model) {
     ImGui::SetNextWindowSize(viewport->Size);
     // The picture stays visible behind the menu, which fades in over it.
     const float shown = presenting && model.state == AppState::Streaming ? menuShown_ : 1.0f;
-    if (presenting) ImGui::SetNextWindowBgAlpha(0.80f * shown);
+    // Nearly solid: where computed pictures alternate with real ones, a picture that shows through reads as a flicker.
+    if (presenting) ImGui::SetNextWindowBgAlpha(0.94f * shown);
     ImGui::Begin("session", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -2484,6 +2567,12 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         }
     }
 
+    if (model.microphoneAvailable) {
+        sectionTitle(t.micTitle);
+        toggleRow(t.micEnable, &config.audio.microphone);
+        paragraph(TextStyle::Caption, t.micHint, p.textSecondary);
+    }
+
     sectionTitle(t.jitter);
     const std::array<const char*, 2> jitter = {t.jitterLow, t.jitterStable};
     config.network.jitter = segmented("jitter", jitter, config.network.jitter == JitterMode::Stable ? 1 : 0) == 1
@@ -2492,6 +2581,8 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     hint(t.jitterHint);
     space(10.0f);
     toggleRow(t.statsOverlay, &config.network.statsOverlay);
+    space(8.0f);
+    toggleRow(t.statsCompact, &config.network.statsCompact, config.network.statsOverlay);
 
     sectionTitle(t.extraAddresses);
     paragraph(TextStyle::Caption, t.extraAddressesHint, p.textSecondary);

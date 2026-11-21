@@ -102,11 +102,37 @@ if(NOT common_c STREQUAL "${common_before}")
     file(WRITE "${common_patched}" "${common_c}")
 endif()
 
+# streamconnection.c closes the stream's transport on its own when the console
+# ends the stream, and destroys the transport's locks with it. Microphone
+# packets are sent into that transport from a thread of ours, which could be
+# in the middle of sending just then. So the library tells vp_session.c
+# before it closes; vp_session.c stops sending under a lock of its own.
+# chiaki-ng itself has no such guard. As with common.c: if upstream changes
+# the line, the build stops here.
+file(READ "${chiaki_dir}/lib/src/streamconnection.c" streamconnection_c)
+set(takion_close "	chiaki_takion_close(&stream_connection->takion);\n")
+string(FIND "${streamconnection_c}" "${takion_close}" takion_close_at)
+string(FIND "${streamconnection_c}" "${takion_close}" takion_close_last REVERSE)
+if(takion_close_at EQUAL -1 OR NOT takion_close_at EQUAL takion_close_last)
+    message(FATAL_ERROR "lib/src/streamconnection.c of chiaki-ng no longer closes its transport in exactly one place. "
+        "Review third_party/chiaki/CMakeLists.txt against commit ${VELOPLAY_CHIAKI_COMMIT}.")
+endif()
+string(REPLACE "${takion_close}" "	vp_stream_closing(stream_connection->session);\n${takion_close}"
+    streamconnection_c "${streamconnection_c}")
+set(streamconnection_c "struct chiaki_session_t;\nvoid vp_stream_closing(struct chiaki_session_t *session);\n${streamconnection_c}")
+set(streamconnection_patched "${chiaki_generated}/streamconnection_local.c")
+if(EXISTS "${streamconnection_patched}")
+    file(READ "${streamconnection_patched}" streamconnection_before)
+endif()
+if(NOT streamconnection_c STREQUAL "${streamconnection_before}")
+    file(WRITE "${streamconnection_patched}" "${streamconnection_c}")
+endif()
+
 set(chiaki_units
     audio audioreceiver audiosender base64 bitstream congestioncontrol controller ctrl
     discovery discoveryservice ecdh fec feedback feedbacksender frameprocessor gkcrypt http
     launchspec log opusdecoder opusencoder orientation packetstats random regist reorderqueue
-    rpcrypt senkusha session sock stoppipe streamconnection takion takionsendbuffer thread
+    rpcrypt senkusha session sock stoppipe takion takionsendbuffer thread
     time videoreceiver)
 set(chiaki_sources)
 foreach(unit IN LISTS chiaki_units)
@@ -118,6 +144,7 @@ add_library(veloplay_chiaki STATIC
     "${chiaki_dir}/lib/src/remote/rudp.c"
     "${chiaki_dir}/lib/src/remote/rudpsendbuffer.c"
     "${common_patched}"
+    "${streamconnection_patched}"
     generated/takion.pb.c
     holepunch_stub.c
     vp_session.c)

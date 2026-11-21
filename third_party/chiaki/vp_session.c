@@ -2,11 +2,13 @@
 
 #include "vp_session.h"
 
+#include <chiaki/audiosender.h>
 #include <chiaki/common.h>
 #include <chiaki/controller.h>
 #include <chiaki/log.h>
 #include <chiaki/orientation.h>
 #include <chiaki/session.h>
+#include <chiaki/thread.h>
 #include <chiaki/videoreceiver.h>
 
 #include <stdbool.h>
@@ -23,7 +25,28 @@ struct VpSession
 	ChiakiOrientationTracker orientation;
 	ChiakiAccelNewZero accel_zero;
 	bool started;
+	// The microphone sends into the stream's transport from a thread of the
+	// caller. mic_mutex guards the three fields below; stream_open is true
+	// from the stream's start until just before the library closes it.
+	ChiakiMutex mic_mutex;
+	bool mic_mutex_ready;
+	bool stream_open;
+	ChiakiAudioSender *mic_sender;
 };
+
+// Called by the library's stream connection right before it closes its
+// transport (see the patch in CMakeLists.txt). Whoever sends microphone
+// packets holds mic_mutex while doing so, so after this returns nobody is
+// inside the transport and nobody will enter it again.
+void vp_stream_closing(ChiakiSession *session)
+{
+	VpSession *vp = (VpSession *)session; // the session is the first member
+	if(!vp->mic_mutex_ready)
+		return;
+	chiaki_mutex_lock(&vp->mic_mutex);
+	vp->stream_open = false;
+	chiaki_mutex_unlock(&vp->mic_mutex);
+}
 
 static void log_cb(ChiakiLogLevel level, const char *msg, void *user)
 {
@@ -70,6 +93,13 @@ static void event_cb(ChiakiEvent *event, void *user)
 	switch(event->type)
 	{
 		case CHIAKI_EVENT_CONNECTED:
+			// Sent from inside the running stream connection: its transport is open from here on.
+			if(vp->mic_mutex_ready)
+			{
+				chiaki_mutex_lock(&vp->mic_mutex);
+				vp->stream_open = true;
+				chiaki_mutex_unlock(&vp->mic_mutex);
+			}
 			if(cb->connected)
 				cb->connected(cb->user);
 			break;
@@ -210,6 +240,8 @@ VpSession *vp_session_create(const VpConnectInfo *info, const VpCallbacks *callb
 		return NULL;
 	}
 
+	vp->mic_mutex_ready = chiaki_mutex_init(&vp->mic_mutex, false) == CHIAKI_ERR_SUCCESS;
+
 	chiaki_session_set_event_cb(&vp->session, event_cb, vp);
 	chiaki_session_set_video_sample_cb(&vp->session, video_cb, vp);
 
@@ -257,8 +289,64 @@ void vp_session_destroy(VpSession *vp)
 		chiaki_session_stop(&vp->session);
 		chiaki_session_join(&vp->session);
 	}
+	// The session thread is gone, and with it the stream; nothing sends any more.
+	if(vp->mic_mutex_ready)
+	{
+		chiaki_mutex_lock(&vp->mic_mutex);
+		vp->stream_open = false;
+		ChiakiAudioSender *sender = vp->mic_sender;
+		vp->mic_sender = NULL;
+		chiaki_mutex_unlock(&vp->mic_mutex);
+		chiaki_audio_sender_free(sender);
+		chiaki_mutex_fini(&vp->mic_mutex);
+	}
 	chiaki_session_fini(&vp->session);
 	free(vp);
+}
+
+int vp_session_mic_open(VpSession *vp)
+{
+	if(!vp || !vp->started || !vp->mic_mutex_ready)
+		return -1;
+	int result = -1;
+	chiaki_mutex_lock(&vp->mic_mutex);
+	if(vp->stream_open)
+	{
+		if(!vp->mic_sender)
+			vp->mic_sender = chiaki_audio_sender_new(&vp->log, &vp->session);
+		if(vp->mic_sender && chiaki_session_connect_microphone(&vp->session) == CHIAKI_ERR_SUCCESS)
+			result = 0;
+	}
+	chiaki_mutex_unlock(&vp->mic_mutex);
+	return result;
+}
+
+int vp_session_mic_mute(VpSession *vp, int muted)
+{
+	if(!vp || !vp->started || !vp->mic_mutex_ready)
+		return -1;
+	int result = -1;
+	chiaki_mutex_lock(&vp->mic_mutex);
+	// The library's argument reads the other way round: true asks the console to lift the mute.
+	if(vp->stream_open && chiaki_session_toggle_microphone(&vp->session, muted ? false : true) == CHIAKI_ERR_SUCCESS)
+		result = 0;
+	chiaki_mutex_unlock(&vp->mic_mutex);
+	return result;
+}
+
+void vp_session_mic_send(VpSession *vp, const uint8_t *opus, size_t size)
+{
+	if(!vp || !opus || size != VP_MIC_PACKET_SIZE || !vp->mic_mutex_ready)
+		return;
+	chiaki_mutex_lock(&vp->mic_mutex);
+	if(vp->stream_open && vp->mic_sender)
+	{
+		// The sender copies the packet; it only lacks the const.
+		uint8_t packet[VP_MIC_PACKET_SIZE];
+		memcpy(packet, opus, sizeof(packet));
+		chiaki_audio_sender_opus_data(vp->mic_sender, packet, sizeof(packet));
+	}
+	chiaki_mutex_unlock(&vp->mic_mutex);
 }
 
 void vp_session_set_controller(VpSession *vp, const VpControllerState *in)

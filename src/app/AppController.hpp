@@ -17,6 +17,7 @@
 #include "input/ControllerManager.hpp"
 #include "input/RemoteControl.hpp"
 #include "input/KeyboardMouse.hpp"
+#include "media/Audio.hpp"
 #include "input/VirtualController.hpp"
 #include "protocol/ConnectionProbe.hpp"
 #include "protocol/DiscoveryService.hpp"
@@ -73,6 +74,11 @@ public:
         /// is tried again, this often.
         std::chrono::milliseconds releaseWait{75'000};
         std::chrono::milliseconds releaseRetry{4'000};
+        /// Records the microphone for voice chat. Null: there is none, and
+        /// the setting is not offered. Must outlive the controller.
+        media::IAudioInput* microphone = nullptr;
+        /// Pause before a microphone that could not be opened is tried again.
+        std::chrono::milliseconds microphoneRetry{2'000};
     };
 
     explicit AppController(Options options);
@@ -189,6 +195,10 @@ private:
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();
     void updateSessionGame();
+    /// Starts or stops the microphone so that it runs exactly while a stream is shown and the setting is on.
+    void updateMicrophone(Clock::time_point now);
+    /// Ends recording. After it returns nothing reaches the session from the microphone.
+    void stopMicrophone();
     void applyRemoteApi();
     void updateDirectTargets();
     void updateWake(Clock::time_point now);
@@ -211,6 +221,10 @@ private:
     input::VirtualController virtualController_;
     input::KeyboardMouseMapper keyboardMouse_; // keys and mouse as a controller, fed by the window
     std::string sessionGameId_;                // title id of the game the session's console runs; picks the key layout
+    std::unique_ptr<media::MicEncoder> micEncoder_; // lives while the microphone records
+    bool micLive_ = false;                     // recording and sending to the session
+    Clock::time_point micRetryAt_{};           // not tried again before this
+    bool micFailureLogged_ = false;
     std::string sessionGameName_;
     bool capturingKey_ = false;                // the settings wait for the key that is pressed next
     int capturedKey_ = 0;

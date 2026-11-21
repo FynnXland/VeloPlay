@@ -276,6 +276,9 @@ struct Strings {
     const char* inputApplyHint;
     const char* inputApply;
     const char* pauseOverlay;
+    const char* pauseOverlaySmall;
+    const char* statsCompact;
+    const char* pauseOverlayAll;
     const char* pauseSince;        // {0} = time connected, like 12:34
     const char* pauseTilePicture;
     const char* pauseTileLink;
@@ -288,6 +291,12 @@ struct Strings {
     const char* pauseQuick;
     const char* pauseKeys;
     const char* pauseLayout;
+    const char* micTitle;
+    const char* micEnable;
+    const char* micHint;
+    const char* micLive;     // badge over the picture
+    const char* micLiveHint; // next to the switch in the menu
+    const char* micMissing;
     const char* hudUnavailable;          // frame generation could not be started
     const char* hudInsidePc;             // row label: how long a picture takes from arriving to being drawn
     const char* modeAuto;                // the program chooses what to ask the console for

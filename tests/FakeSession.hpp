@@ -39,6 +39,16 @@ struct FakeSessionHub {
     }
     std::vector<std::string> pins;
     session::SessionStats stats{};
+    // The microphone as the console would see it. The packets may come from another thread.
+    std::mutex micMutex;
+    int micOpens = 0;
+    bool micMuted = true;
+    int micPackets = 0;
+    std::size_t micPacketSize = 0;
+    int microphonePackets() {
+        std::lock_guard lock(micMutex);
+        return micPackets;
+    }
 
     void emit(session::SessionEvent event);
 
@@ -95,6 +105,21 @@ public:
         std::vector<session::SessionEvent> out;
         out.swap(events_);
         return out;
+    }
+
+    bool openMicrophone() override {
+        std::lock_guard lock(hub_->micMutex);
+        ++hub_->micOpens;
+        return true;
+    }
+    void muteMicrophone(bool muted) override {
+        std::lock_guard lock(hub_->micMutex);
+        hub_->micMuted = muted;
+    }
+    void sendMicrophone(std::span<const std::uint8_t> packet) override {
+        std::lock_guard lock(hub_->micMutex);
+        ++hub_->micPackets;
+        hub_->micPacketSize = packet.size();
     }
 
     void setControllerState(const input::ControllerState& state, session::Clock::time_point) override {

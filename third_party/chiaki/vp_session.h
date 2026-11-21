@@ -132,6 +132,26 @@ int vp_session_sleep_console(VpSession *session);
 
 void vp_session_link_stats(VpSession *session, VpLinkStats *out);
 
+/* The microphone. Its sound goes to the console as Opus packets of exactly
+ * VP_MIC_PACKET_SIZE bytes, each made from VP_MIC_FRAME_SAMPLES samples per
+ * channel of 48 kHz stereo; the console drops any other size.
+ *
+ * All three may be called from any thread at any time. Outside a running
+ * stream they do nothing: the library closes the stream's transport by
+ * itself when the console ends the stream, and sending is shut off under a
+ * lock just before that. */
+#define VP_MIC_PACKET_SIZE 40
+#define VP_MIC_FRAME_SAMPLES 480
+#define VP_MIC_SAMPLE_RATE 48000
+#define VP_MIC_CHANNELS 2
+
+/* Tells the console that a microphone is there. Returns 0 on success, nonzero
+ * while no stream is running. */
+int vp_session_mic_open(VpSession *session);
+/* The console starts with the microphone muted. Returns 0 if the request was sent. */
+int vp_session_mic_mute(VpSession *session, int muted);
+void vp_session_mic_send(VpSession *session, const uint8_t *opus, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

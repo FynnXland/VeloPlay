@@ -157,13 +157,17 @@ connecting.
 | --- | --- |
 | Esc | Menu that shows how picture, connection and controls are doing, with quick switches and **Resume**, **Disconnect** and **Put PS5 in rest mode** |
 | F11 | Full screen on and off |
-| F9 | Display with the figures of the link on and off |
+| F9 | Steps through the display in the corner: off, a small one with the essentials, all figures |
 | F8 | Steps through the ways the picture is enlarged (off, Lanczos, RTX Video on NVIDIA cards), to compare them while playing |
 | F1 | With keys and mouse: shows your key layout over the picture, and hides it again |
 
 The display in the top left corner names how many frames per second arrive and are shown, the
 bitrate, the response time, the packet loss and the decoder. “D3D11VA” there means the graphics
 card decodes the picture, “CPU” means the processor does.
+
+**Microphone.** Settings > Advanced > “Send the microphone to the PS5”, or the switch in the menu
+behind Esc. Off by default. While it is on and you are connected, your default microphone goes to
+the console for voice chat, and the top right corner of the picture says so. Use headphones.
 
 **DualSense.** On a USB cable you get everything: vibration, the resistance of L2 and R2 and the
 fine haptics. For haptics the controller's sound device has to be set to four channels in

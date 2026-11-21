@@ -150,6 +150,13 @@ struct UiModel {
     /// Present while a stream is running; drives the in-stream display.
     std::optional<StreamStats> stream;
 
+    /// A microphone can be recorded on this PC (false on builds without sound input).
+    bool microphoneAvailable = false;
+    /// The microphone is being sent to the console right now.
+    bool microphoneLive = false;
+    /// Switched on and wanted, but no microphone is open: none is plugged in, or Windows keeps it from us.
+    bool microphoneMissing = false;
+
     bool remoteApiRunning = false;
     std::string gpuName;
     bool reducedMotion = false;

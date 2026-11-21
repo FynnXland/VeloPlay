@@ -127,6 +127,15 @@ class ISession {
 public:
     virtual ~ISession() = default;
 
+    /// Tells the console that a microphone is there. False while no stream
+    /// runs. The three microphone calls may come from any thread; outside a
+    /// running stream they do nothing.
+    virtual bool openMicrophone() { return false; }
+    /// The console starts with the microphone muted.
+    virtual void muteMicrophone(bool muted) { (void)muted; }
+    /// One packet from media::MicEncoder.
+    virtual void sendMicrophone(std::span<const std::uint8_t> packet) { (void)packet; }
+
     /// Starts the handshake in the background. `sink` may be null; it must
     /// outlive the session otherwise.
     virtual Result<void> start(const SessionConfig& config, IMediaSink* sink) = 0;

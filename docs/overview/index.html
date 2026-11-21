@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.14.0</span>
+    <span class="pill">Version 0.15.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -209,6 +209,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
         <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen, kein Controller da ist oder sein Akku zur Neige geht</li>
         <li>Ein Menü im Spiel, das zeigt, wie es Bild, Verbindung und Steuerung geht, und das Wichtigste sofort umschaltet</li>
+        <li>Das Mikrofon an die PS5 senden, für den Sprachchat</li>
         <li>Zwischenbilder, auf NVIDIA-Karten mit deren eigener Bewegungssuche (Optical Flow)</li>
         <li>Auf NVIDIA-Karten das Bild mit RTX Video glätten und vergrößern, im Spiel mit F8 an- und abschaltbar</li>
         <li>Eingang automatisch: Auflösung, Bildrate und Datenrate wählt das Programm</li>
@@ -221,7 +222,6 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Mikrofon für den Sprachchat</li>
         <li>Sich selbst fangen, wenn die Grafikkarte kurz aussetzt</li>
         <li>Von unterwegs spielen, außerhalb des Heimnetzes</li>
         <li>HDR</li>
@@ -339,7 +339,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Am PC spielen</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows und wechselt mit, wenn du Kopfhörer einsteckst. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus, <kbd>F8</kbd> schaltet die Hochskalierung um. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
+          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows und wechselt mit, wenn du Kopfhörer einsteckst. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> schaltet die Anzeige der Werte um (aus, klein, alle Werte), <kbd>F8</kbd> schaltet die Hochskalierung um. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
         <div><span class="label">Was dahinter passiert</span>
           <p>Jedes Bild kommt als gepacktes Paket an. Die Grafikkarte entpackt es, ein kleines Programm auf der Karte rechnet die Farben um und passt die Größe ans Fenster an. Der Ton wird entpackt und mit einer kleinen Reserve abgespielt, damit verspätete Pakete nicht knacken.</p></div>
       </div>
@@ -353,6 +353,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Dekoder und Anzeige teilen sich die Grafikkarte:</strong> Das Programm wartet vor dem Zeichnen auf den Monitor, nicht währenddessen. So steht der Dekoder nicht still, solange auf das nächste Bild des Monitors gewartet wird.</li>
           <li><strong>Tongerät wechseln (seit 0.14.0):</strong> Einmal pro Sekunde sieht VeloPlay nach, ob Windows noch auf demselben Gerät abspielt. Steckst du Kopfhörer ein oder verschwindet das Gerät, öffnet sich der Ton auf dem neuen Standardgerät. Vorher blieb er bis zur nächsten Verbindung stumm.</li>
           <li><strong>Ton:</strong> Opus, 48 kHz, Stereo. Reserve 80 ms, mit dem Netzwerkpuffer „Stabil“ 140 ms. Läuft mehr als 80 ms darüber hinaus auf, wird alter Ton verworfen, damit er nicht hinter dem Bild herhinkt.</li>
+          <li><strong>Mikrofon (seit 0.15.0, zunächst aus):</strong> Das Standard-Mikrofon von Windows wird mit 48 kHz in Stereo aufgenommen, in Blöcke von 10 ms geschnitten und mit Opus auf genau 40 Bytes pro Block gepackt; andere Größen verwirft die PS5. Es läuft nur, solange ein Bild gezeigt wird und der Schalter an ist, und oben rechts steht dann „Mikrofon an“. Beendet die PS5 die Verbindung von sich aus, wird das Senden vorher unter einer Sperre abgestellt; das Programm, von dem die Übertragung stammt, hat an dieser Stelle keine.</li>
           <li><strong>Adaptive Trigger:</strong> Die PS5 schickt je Trigger eine Effektart und zehn Parameter. VeloPlay reicht sie über SDL unverändert an den DualSense weiter und gibt die Trigger beim Trennen wieder frei.</li>
           <li><strong>Haptik:</strong> Die PS5 schickt sie als eigene Tonspur mit 3000 Hz. Am USB-Kabel meldet sich der DualSense als Tongerät mit vier Kanälen; VeloPlay spielt die Spur dort auf Kanal 3 und 4. Dafür muss das Gerät in Windows auf „Quadrofonie“ stehen. Sonst, und über Bluetooth, wird aus der Lautstärke der Spur Vibration.</li>
           <li><strong>Noch nicht:</strong> HDR. Der Schalter in den Einstellungen sagt das dazu.</li>
@@ -375,6 +376,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Für jede Karte:</strong> „VeloPlay Flow“ braucht nur Pixel-Shader, kein Compute, nichts von einem Hersteller.</li>
           <li><strong>Auf NVIDIA-Karten ab der RTX-20-Serie (seit 0.10.0):</strong> Die Suche nach der Bewegung übernimmt der dafür gebaute Teil der Grafikkarte („NVIDIA Optical Flow“, im Treiber enthalten, ein Vektor pro vier mal vier Bildpunkte). Er liegt auch dort richtig, wo eine Suche von grob nach fein danebengreift, etwa bei Leitersprossen, die alle gleich aussehen. Seine Vektoren werden auf den Zeitpunkt dazwischen umgerechnet; jede Stelle wählt dann unter den Vektoren ihrer Nachbarn den, mit dem beide Bilder dort am besten zusammenpassen. Das Zusammensetzen bleibt gleich. Fehlt der Teil oder meldet er einen Fehler, übernimmt „VeloPlay Flow“. Die Anzeige im Spiel nennt, welches Verfahren läuft.</li>
           <li><strong>Schnitte (seit 0.11.0):</strong> Springt das Spiel zu einem anderen Bild, passt nichts mehr zusammen. Findet mehr als die Hälfte des Bildes kein Gegenstück, wird nicht gemischt, sondern das nähere der beiden echten Bilder gezeigt.</li>
+          <li><strong>Gerade Erschienenes (seit 0.15.0):</strong> Was in zwei Bildern nacheinander an einer Stelle und direkt daneben gleich ist, hat sich nicht bewegt, auch wenn die Szene dahinter es tut. Ein Knopf, den das Spiel gerade einblendet, bleibt deshalb vom ersten Bildpaar an, wo er ist, und flackert nicht mehr.</li>
           <li><strong>Stehende Anzeige (seit 0.11.0):</strong> Jeder Bildpunkt zählt mit, wie lange er sich nicht verändert hat. Kanten, die seit etwa einer Sekunde stillstehen (Karte, Zähler, Schrift), kommen unverändert aus den echten Bildern, auch wenn sich die Szene dahinter bewegt.</li>
           <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln. Kommen Bilder aus dem WLAN ungleichmäßig an, werden sie trotzdem in gleichmäßigen Abständen gezeigt.</li>
           <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
@@ -483,7 +485,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Esc:</strong> öffnet und schließt das Menü. Das Spiel läuft weiter.</li>
         <li><strong>Oben:</strong> die Konsole, das Spiel, das dort läuft, und wie lange du verbunden bist.</li>
         <li><strong>Drei Kacheln (seit 0.14.0):</strong> „Bild“ nennt die Bilder pro Sekunde auf dem Bildschirm, „Verbindung“ sagt „Stabil“ oder „Unruhig“ mit Datenrate, Antwortzeit und Verlust, „Steuerung“ nennt den Controller mit Akkustand. Ein Punkt wird orange, wenn etwas nicht stimmt. Ein Klick auf eine Kachel öffnet die passenden Einstellungen.</li>
-        <li><strong>Schnell ändern:</strong> Zwischenbilder und Hochskalierung schalten sofort um, daneben die Schalter für die Anzeige oben links und für Maus und Tastatur.</li>
+        <li><strong>Schnell ändern:</strong> Zwischenbilder, Hochskalierung und die Anzeige oben links (aus, klein, alle Werte) schalten sofort um, daneben die Schalter für Maus und Tastatur und für das Mikrofon.</li>
         <li><strong>Unten:</strong> „Weiter“ und „Einstellungen“ links, „Trennen“ und „PS5 in den Ruhemodus“ abgesetzt rechts, damit man sie nicht versehentlich trifft.</li>
         <li><strong>Einstellungen:</strong> öffnen sich, ohne die Verbindung zu trennen. Was unter „Ausgabe“ steht, wirkt sofort. Für geänderte Werte unter „Eingang“ gibt es den Knopf „Jetzt neu verbinden“; das Bild setzt dabei ein paar Sekunden aus.</li>
       </ul>
@@ -496,6 +498,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Im Spiel</h3>
       <p class="small muted">Im Beispielbild ist die Fläche schwarz, weil das Vorschau-Werkzeug kein Spielbild hat. Dort liegt im Betrieb das Bild der PS5.</p>
       <ul>
+        <li><strong>Kleine Anzeige (seit 0.15.0):</strong> Wer nur das Wichtigste sehen will, schaltet mit <kbd>F9</kbd> auf die kleine Anzeige: ein Punkt für die Verbindung, dazu Bilder pro Sekunde, Antwortzeit und Datenrate in einer Zeile. Alles Weitere unten gehört zur Anzeige mit allen Werten.</li>
         <li><strong>PS5 / Bildschirm:</strong> Bilder pro Sekunde, die ankommen, und Bilder, die gezeigt werden.</li>
         <li><strong>PS5 und Bildschirm:</strong> davor jeweils die Größe des Bildes, wie es ankommt und wie es auf dem Bildschirm liegt.</li>
         <li><strong>Spiel:</strong> erscheint, wenn das Spiel nur mit 30 Bildern läuft, während die PS5 60 schickt. Sie sendet dann jedes Bild doppelt; VeloPlay lässt die Wiederholungen weg und berechnet die Bilder dazwischen.</li>
@@ -738,7 +741,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.14.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.15.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -801,7 +804,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>276 automatische Tests unter Linux und 293 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>280 automatische Tests unter Linux und 298 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -830,6 +833,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Zwischenbilder, Hochskalieren, Schärfen</td><td>Unter Windows auf dem Software-Renderer: Ein Muster, das sich zwischen zwei Bildern verschiebt, muss im berechneten Bild dort liegen, wo es zu dem Zeitpunkt hingehört, bei langsamer und schneller Bewegung und bei 2x und 4x. Flächen bleiben beim Skalieren, wie sie sind, Kanten werden steiler. Die Taktung ist mit eingespeister Zeit getestet. Am 21.11.2026 mit 0.6.0 auf der RTX 4070 des Autors: läuft und wirkt flüssig, kam aber nur auf 44 bis 50 statt 60 Bilder pro Sekunde. Die Ursache lag in der Taktung und ist in 0.6.1 behoben; ob dort 60 ankommen, ist noch zu bestätigen.</td><td class="state soon">läuft, volle Rate noch zu bestätigen</td></tr>
       <tr><td>Fenster reagiert nicht („Keine Rückmeldung“, Issue 3)</td><td>Trat mit 0.5.2 auf, wenn man im Stream mit Alt+Tab weg- und wieder zurückwechselte, nicht jedes Mal. Die Ursache wurde nie gefunden. Rückmeldung vom 21.11.2026 mit 0.13.0: tritt nicht mehr auf. Seit 0.8.0 liest ein eigener Teil des Programms den Controller, das Fenster hat seitdem weniger zu tun; ob das der Grund ist, ist nicht belegt. Die Wache, die einen Hänger mitschreibt, bleibt eingebaut.</td><td class="state ok">tritt nicht mehr auf</td></tr>
       <tr><td>Aufwecken aus dem Ruhemodus</td><td>Rückmeldung vom 21.11.2026: funktioniert an der echten PS5.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Mikrofon</td><td>Das Packen des Tons ist geprüft: Laute, leise und stille Blöcke ergeben alle genau 40 Bytes, und ein Dekoder bekommt den Ton zurück. Wann aufgenommen und gesendet wird, ist mit einer nachgestellten Sitzung und einem nachgestellten Mikrofon getestet. Die Aufnahme selbst läuft nur unter Windows; ob die anderen in einer Party dich hören, hat noch niemand ausprobiert.</td><td class="state soon">Logik bestanden, an der PS5 offen</td></tr>
       <tr><td>Haptik am echten Controller</td><td>Nur am Controller zu spüren, Rückmeldung steht aus</td><td class="state no">offen</td></tr>
       <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
       <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Seit dem 21.11.2026 mehrfach benutzt: Das Programm hat sich über den eingebauten Updater von 0.10.0 bis 0.13.0 gebracht. Eine neue Version erscheint dort 10 bis 30 Minuten nach der Veröffentlichung.</td><td class="state ok">funktioniert</td></tr>
@@ -847,7 +851,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td class="num">2</td><td>Sitzung und Empfang des Streams mit der Protokollbibliothek von chiaki-ng, Controller-Eingaben zur PS5, Vibration, Neuverbinden, Ruhemodus</td><td class="state ok">an der PS5 bestätigt, Aufwecken offen</td></tr>
       <tr><td class="num">3</td><td>Bild auf der Grafikkarte entpacken und anzeigen, Ton, adaptive Trigger und Haptik des DualSense, Pausenmenü, Vollbild. Offen: HDR.</td><td class="state soon">Bild und Ton bestätigt, Trigger und Haptik offen</td></tr>
       <tr><td class="num">4</td><td>Zwischenbilder und Hochskalierung. Das Verfahren für jede Direct3D-11-Karte, Lanczos und Schärfen sind in 0.6.0 gebaut. Es folgen die Beschleunigung von NVIDIA und RTX Video Super Resolution.</td><td class="state soon">erster Teil gebaut, am echten Spiel ungeprüft</td></tr>
-      <tr><td class="num">5</td><td>Restliche Fehlerfälle, Mikrofon, Veröffentlichungspaket. Der Wechsel des Tongeräts im laufenden Stream ist seit 0.14.0 gebaut.</td><td class="state no">geplant</td></tr>
+      <tr><td class="num">5</td><td>Restliche Fehlerfälle, Veröffentlichungspaket. Der Wechsel des Tongeräts im laufenden Stream ist seit 0.14.0 gebaut, das Mikrofon seit 0.15.0.</td><td class="state no">geplant</td></tr>
     </tbody>
   </table></div>
 </section>

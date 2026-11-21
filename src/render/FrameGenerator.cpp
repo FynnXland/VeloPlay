@@ -305,6 +305,12 @@ float held(float2 at) {
     return smoothstep(0.80, 0.95, s.r) * smoothstep(0.05, 0.15, s.g);
 }
 
+// How much a pixel differs between the two real pictures, in its strongest colour.
+float changedAt(float2 at) {
+    float3 d = abs(frameA.SampleLevel(pointSampler, at, 0).rgb - frameB.SampleLevel(pointSampler, at, 0).rgb);
+    return max(d.r, max(d.g, d.b));
+}
+
 float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     // A cut: in about half of the picture or more, nothing fits. The nearer real picture, as it is.
     if (misfit.SampleLevel(pointSampler, float2(0.5, 0.5), 0).r > 0.45) {
@@ -320,8 +326,19 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float2 pixel = 1.0 / frameSize;
     float hold = max(held(uv), max(max(held(uv + float2(pixel.x, 0.0)), held(uv - float2(pixel.x, 0.0))),
                                    max(held(uv + float2(0.0, pixel.y)), held(uv - float2(0.0, pixel.y)))));
+    // What is the same in both pictures, here and right next to here, did not
+    // move between them, whatever the search found for its surroundings: a
+    // button the game has just put up over a moving scene, a number, a frame.
+    // It is taken as it is from the first pair it shows in; the count above
+    // needs about a second, and until then such things used to flicker.
+    // Taking the plain mix can be off by half of what changed at most, and
+    // that is next to nothing here by definition. `radius` is 1 when parts
+    // that stand still are cared for at all.
+    float changed = max(changedAt(uv), max(max(changedAt(uv + float2(pixel.x, 0.0)), changedAt(uv - float2(pixel.x, 0.0))),
+                                           max(changedAt(uv + float2(0.0, pixel.y)), changedAt(uv - float2(0.0, pixel.y)))));
+    float settled = radius * (1.0 - smoothstep(0.008, 0.02, changed));
     float3 plain = lerp(frameA.SampleLevel(linearSampler, uv, 0).rgb, frameB.SampleLevel(linearSampler, uv, 0).rgb, phase);
-    return float4(lerp(lerp(a, b, phase), plain, max(doubt, hold)), 1.0);
+    return float4(lerp(lerp(a, b, phase), plain, max(max(doubt, hold), settled)), 1.0);
 }
 )";
 
@@ -741,6 +758,8 @@ bool FlowFrameGenerator::finish(int slotFrom, ID3D11ShaderResourceView* from, in
         pass(reduceShader_.Get(), misfit_.flowTarget.Get(), 1, 1, second, 1);
     }
 
+    // In the last pass this field says whether parts that stand still are cared for.
+    constants.radius = holdStill_ ? 1.0f : 0.0f;
     context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
     // A view that is missing reads as zero: no cut, nothing held.
     ID3D11ShaderResourceView* views[5] = {from, to, flow, judging ? misfit_.flowView.Get() : nullptr,

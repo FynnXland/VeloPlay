@@ -166,6 +166,7 @@ void AppController::update() {
     updateWake(now);
     diag::setStep("session");
     updateSession(now);
+    updateMicrophone(now);
     diag::setStep("pairing, remote control, settings");
     updatePairing();
     updateAccountLookup();
@@ -195,6 +196,9 @@ void AppController::fillModel(UiModel& model) {
     model.controller = active.value_or(input::ControllerInfo{});
     model.controllers = controllers_.controllers();
     model.controllerState = controllers_.state();
+    model.microphoneAvailable = options_.microphone != nullptr;
+    model.microphoneLive = micLive_ && options_.microphone->recording();
+    model.microphoneMissing = micLive_ && !options_.microphone->recording();
     model.currentGameId = sessionGameId_;
     model.currentGameName = sessionGameName_;
     if (!session_) {
@@ -267,8 +271,67 @@ void AppController::fillModel(UiModel& model) {
 }
 
 void AppController::attachPump(session::ISession* session) {
+    // Every place that lets go of a session comes through here first, with
+    // null. The microphone must be silent before the session goes.
+    if (!session) stopMicrophone();
     std::lock_guard lock(pumpMutex_);
     pumpSession_ = session;
+}
+
+void AppController::stopMicrophone() {
+    if (!micLive_) return;
+    micLive_ = false;
+    if (options_.microphone) options_.microphone->stop(); // returns once the sink is quiet
+    micEncoder_.reset();
+    spdlog::info("Microphone off");
+}
+
+void AppController::updateMicrophone(Clock::time_point now) {
+    media::IAudioInput* microphone = options_.microphone;
+    if (!microphone) return;
+    const bool streaming = session_ && session_->session && session_->connected && stateMachine_.state() == AppState::Streaming;
+    const bool wanted = streaming && config_.audio.microphone;
+    if (!wanted) {
+        if (micLive_) {
+            session::ISession* session = session_ ? session_->session.get() : nullptr;
+            stopMicrophone();
+            // Still connected: the console is told, so it shows the microphone as muted.
+            if (streaming && session) session->muteMicrophone(true);
+        }
+        micRetryAt_ = {};
+        micFailureLogged_ = false;
+        return;
+    }
+    // The device went away while recording (unplugged, or Windows moved to another one): start over.
+    if (micLive_ && !microphone->running()) {
+        spdlog::warn("The microphone stopped; trying to open it again");
+        stopMicrophone();
+        micRetryAt_ = now + options_.microphoneRetry;
+    }
+    if (micLive_ || now < micRetryAt_) return;
+
+    session::ISession* session = session_->session.get();
+    auto encoder = std::make_unique<media::MicEncoder>();
+    bool ok = encoder->valid() && session->openMicrophone();
+    if (ok) {
+        micEncoder_ = std::move(encoder);
+        // Runs on the recording thread. Both pointers stay valid until stop() has returned.
+        ok = microphone->start([session, packer = micEncoder_.get()](std::span<const std::int16_t> block) {
+            const std::span<const std::uint8_t> packet = packer->encode(block);
+            if (!packet.empty()) session->sendMicrophone(packet);
+        });
+        if (!ok) micEncoder_.reset();
+    }
+    if (!ok) {
+        if (!micFailureLogged_) spdlog::warn("The microphone could not be started; trying again every {} ms", options_.microphoneRetry.count());
+        micFailureLogged_ = true;
+        micRetryAt_ = now + options_.microphoneRetry;
+        return;
+    }
+    session->muteMicrophone(false);
+    micLive_ = true;
+    micFailureLogged_ = false;
+    spdlog::info("Microphone on: its sound goes to the console");
 }
 
 void AppController::pumpInput(std::stop_token stop) {
@@ -416,6 +479,7 @@ void AppController::beginSession(std::string_view hostId, bool afterWake) {
     active.name = console != config_.consoles.end() ? console->name : std::string{};
     active.afterWake = afterWake;
     active.attempts = afterWake ? kAttemptsAfterWake : 1;
+    attachPump(nullptr);
     session_ = std::move(active);
     if (!startAttempt()) failSession(session::QuitReason::SetupFailed, "session could not be started");
 }
@@ -489,6 +553,7 @@ bool AppController::startAttempt() {
         if (options_.mediaSink) options_.mediaSink->end();
         return false;
     }
+    attachPump(nullptr); // nothing of ours may still talk to a session this one replaces
     session_->session = std::move(created);
     session_->connected = false;
     session_->loginPinRequested = false;

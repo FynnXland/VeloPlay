@@ -191,6 +191,8 @@ int Application::run() {
     videoReady_ = videoRenderer_.create(device_.device(), device_.context(), renderError);
     if (!videoReady_) spdlog::error("Video output is not available: {}", renderError);
     audioOutput_ = std::make_unique<audio::WasapiOutput>();
+    microphone_ = std::make_unique<audio::WasapiInput>();
+    options.microphone = microphone_.get();
     // The DualSense shows up as a sound device of its own when it is on a cable.
     hapticsOutput_ = std::make_unique<audio::WasapiOutput>(
         std::vector<std::wstring>{L"Wireless Controller", L"DualSense"});

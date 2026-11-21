@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 0.14.0
+    VERSION 0.15.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -124,6 +124,7 @@ if(WIN32)
         src/render/FrameGenerator.cpp
         src/render/NvofMotion.cpp
         src/render/RtxVideoScaler.cpp
+        src/audio/WasapiInput.cpp
         src/audio/WasapiOutput.cpp
     )
     target_link_libraries(veloplay_platform PUBLIC veloplay_core d3d11 dxgi d3dcompiler ole32 avrt)

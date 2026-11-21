@@ -66,8 +66,17 @@ enum class JitterMode { LowLatency, Stable };
 struct NetworkSettings {
     JitterMode jitter = JitterMode::LowLatency;
     bool statsOverlay = true;
+    /// With the display on: only the few figures everybody wants (pictures per second, link), not all of them.
+    bool statsCompact = false;
 
     friend bool operator==(const NetworkSettings&, const NetworkSettings&) = default;
+};
+
+struct AudioSettings {
+    /// Sends the default microphone's sound to the console, for voice chat. Off unless the user asks for it.
+    bool microphone = false;
+
+    friend bool operator==(const AudioSettings&, const AudioSettings&) = default;
 };
 
 struct UpdateSettings {
@@ -102,6 +111,7 @@ struct AppConfig {
     ControllerSettings controller{};
     RemoteApiSettings remoteApi{};
     NetworkSettings network{};
+    AudioSettings audio{};
     UpdateSettings updates{};
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast

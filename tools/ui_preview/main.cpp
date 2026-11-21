@@ -319,6 +319,8 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager&) {
              withConsoles(model);
              model.state = AppState::Streaming;
+             model.microphoneAvailable = true;
+             model.microphoneLive = true;
              model.session.consoleName = "Wohnzimmer";
              model.session.connectedSeconds = 240;
              model.stream = playingStats();
@@ -334,6 +336,15 @@ std::vector<Scene> scenes() {
              model.rtxVideoAvailable = true;
              model.config->graphics.superResolutionLevel = 2;
              ui.showUpscalingNote();
+         }},
+        {"34-stream-small-display",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.config->network.statsCompact = true;
          }},
         {"26-stream-playing",
          [](UiModel& model, UiManager&) {
@@ -357,6 +368,9 @@ std::vector<Scene> scenes() {
              model.controller.batteryPercent = 80;
              model.rtxVideoAvailable = true;
              model.config->graphics.superResolutionLevel = 2;
+             model.microphoneAvailable = true;
+             model.microphoneLive = true;
+             model.config->audio.microphone = true;
              model.stream = playingStats();
              ui.showPauseMenu();
          }},

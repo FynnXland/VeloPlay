@@ -205,6 +205,53 @@ TEST(AudioDecoder, DecodesAnOpusPacket) {
     EXPECT_FALSE(media::AudioDecoder::create(48000, 6).ok());
 }
 
+TEST(MicEncoder, FillsEveryPacketExactly) {
+    media::MicEncoder encoder;
+    ASSERT_TRUE(encoder.valid());
+    std::vector<std::int16_t> block(static_cast<std::size_t>(media::kMicFrameSamples * media::kMicChannels));
+
+    // The console drops every packet that is not exactly forty bytes. Loud,
+    // quiet and silent blocks alike have to come out that size.
+    const auto fill = [&](double amplitude, int offset) {
+        for (int i = 0; i < media::kMicFrameSamples; ++i) {
+            const double t = static_cast<double>(offset + i) / media::kMicSampleRate;
+            const auto sample = static_cast<std::int16_t>(amplitude * 32767.0 * std::sin(2.0 * 3.14159265358979 * 440.0 * t));
+            block[static_cast<std::size_t>(i * 2)] = sample;
+            block[static_cast<std::size_t>(i * 2 + 1)] = sample;
+        }
+    };
+    int offset = 0;
+    for (const double amplitude : {0.8, 0.8, 0.01, 0.0, 0.0, 0.0, 0.5}) {
+        for (int repeat = 0; repeat < 20; ++repeat, offset += media::kMicFrameSamples) {
+            fill(amplitude, offset);
+            const std::span<const std::uint8_t> packet = encoder.encode(block);
+            ASSERT_EQ(packet.size(), media::kMicPacketSize) << "amplitude " << amplitude;
+        }
+    }
+
+    // What was packed is the sound that went in: an Opus decoder gets the tone back.
+    int error = 0;
+    OpusDecoder* decoder = opus_decoder_create(media::kMicSampleRate, media::kMicChannels, &error);
+    ASSERT_EQ(error, OPUS_OK);
+    std::vector<std::int16_t> out(block.size());
+    double loudest = 0.0;
+    for (int repeat = 0; repeat < 30; ++repeat, offset += media::kMicFrameSamples) {
+        fill(0.5, offset);
+        const std::span<const std::uint8_t> packet = encoder.encode(block);
+        ASSERT_EQ(packet.size(), media::kMicPacketSize);
+        const int samples = opus_decode(decoder, packet.data(), static_cast<opus_int32>(packet.size()), out.data(),
+                                        media::kMicFrameSamples, 0);
+        ASSERT_EQ(samples, media::kMicFrameSamples);
+        for (const std::int16_t sample : out) loudest = std::max(loudest, std::abs(static_cast<double>(sample)));
+    }
+    opus_decoder_destroy(decoder);
+    EXPECT_GT(loudest, 0.25 * 32767.0);
+
+    // A block of the wrong size is refused instead of being sent as something else.
+    block.pop_back();
+    EXPECT_TRUE(encoder.encode(block).empty());
+}
+
 TEST(AudioBuffer, WaitsForItsReserveBeforePlaying) {
     media::AudioBuffer buffer(48000, 2, 20ms, 100ms); // 960 frames reserve
     std::vector<std::int16_t> packet(480 * 2, 1000);

@@ -68,6 +68,7 @@ private:
     void drawPauseMenu(const UiModel& model);
     void drawUpscalingNote(const UiModel& model);
     void drawKeyOverlay(const UiModel& model);
+    void drawMicrophoneBadge(const UiModel& model);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);

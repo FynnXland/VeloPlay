@@ -3,6 +3,41 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.15.0
+
+- **Microphone for voice chat.** New under Settings > Advanced and in the menu behind Esc, off
+  until you switch it on. While you are connected, the sound of your default microphone goes
+  to the PS5, so the others in a party hear you. The top right corner of the picture says
+  “Microphone on” for as long as that is the case. If Windows switches to another microphone
+  or yours is plugged in later, VeloPlay follows. Use headphones, or the others hear the game's
+  sound as well. New and not yet tried with a real party.
+- **A small display.** F9 now steps through three: off, a small one with pictures per second,
+  response time and bitrate on one line, and the one with all figures. The menu behind Esc and
+  the settings offer the same choice.
+- **Less flicker around the game's own display.** With frame generation, a button or a number
+  the game had just put up over a moving scene was dragged along with the scene for about a
+  second, which showed as a flicker. What is the same in two pictures in a row now stays where
+  it is from the first moment. The grounds of VeloPlay's own displays are solid now instead of
+  see-through, and the menu darkens the picture more, so nothing flickers behind them.
+
+**Deutsch**
+
+- **Mikrofon für den Sprachchat.** Neu unter Einstellungen > Erweitert und im Menü hinter Esc,
+  aus, bis du es einschaltest. Solange du verbunden bist, geht der Ton deines Standard-Mikrofons
+  an die PS5, die anderen in einer Party hören dich also. Oben rechts im Bild steht „Mikrofon
+  an“, solange das so ist. Wechselt Windows auf ein anderes Mikrofon oder steckst du deines
+  später ein, zieht VeloPlay mit. Nimm Kopfhörer, sonst hören die anderen den Ton des Spiels
+  mit. Neu und noch mit keiner echten Party ausprobiert.
+- **Eine kleine Anzeige.** F9 schaltet jetzt durch drei Stufen: aus, eine kleine mit Bildern pro
+  Sekunde, Antwortzeit und Datenrate in einer Zeile, und die mit allen Werten. Das Menü hinter
+  Esc und die Einstellungen bieten dieselbe Auswahl.
+- **Weniger Flackern an der Anzeige des Spiels.** Mit Zwischenbildern wurde ein Knopf oder eine
+  Zahl, die das Spiel gerade über eine bewegte Szene gelegt hatte, etwa eine Sekunde lang mit
+  der Szene mitgezogen; das sah man als Flackern. Was in zwei Bildern nacheinander gleich ist,
+  bleibt jetzt vom ersten Moment an, wo es ist. Die Hintergründe von VeloPlays eigenen Anzeigen
+  sind jetzt deckend statt durchscheinend, und das Menü dunkelt das Bild stärker ab, damit
+  dahinter nichts mehr flackert.
+
 ## 0.14.0
 
 - **A new menu in the game.** Esc now shows at a glance how picture, connection and controls are
