@@ -573,7 +573,7 @@ TEST(FramePacer, WalksThroughAllStepsAtHigherFactors) {
     EXPECT_EQ(last.step, 0);
 }
 
-TEST(FramePacer, CatchesUpWhenPicturesArriveInABurst) {
+TEST(FramePacer, GivesAPictureThatArrivesRightBehindAnotherItsOwnTime) {
     using Clock = media::FramePacer::Clock;
     media::FramePacer pacer;
     const auto period = 33'333us;
@@ -583,12 +583,20 @@ TEST(FramePacer, CatchesUpWhenPicturesArriveInABurst) {
     pacer.onFrame(2, start + period);
     // The third comes 2 ms after the second: Wi-Fi delivered both together.
     pacer.onFrame(3, start + period + 2ms);
-    // Picture 1 is gone. Nothing older than picture 2 is shown any more,
-    // and time never runs backwards between choices.
+    // Picture 1 is gone, so nothing older than picture 2 is shown any more ...
     media::FrameChoice choice = pacer.choose(start + period + 3ms);
     ASSERT_TRUE(choice.valid);
     EXPECT_EQ(choice.base, 2u);
+    EXPECT_EQ(choice.step, 0);
+    // ... but picture 3 is not squeezed in 2 ms later. It gets nearly a whole
+    // period, with the picture between the two halfway.
     choice = pacer.choose(start + period + 2ms + 17ms);
+    EXPECT_EQ(choice.base, 2u);
+    choice = pacer.choose(start + 2 * period + 4ms);
+    EXPECT_EQ(choice.base, 2u);
+    EXPECT_EQ(choice.next, 3u);
+    EXPECT_EQ(choice.step, 1);
+    choice = pacer.choose(start + 2 * period + 20ms);
     EXPECT_EQ(choice.base, 3u);
     EXPECT_EQ(choice.step, 0);
 
@@ -597,6 +605,41 @@ TEST(FramePacer, CatchesUpWhenPicturesArriveInABurst) {
     choice = pacer.choose(start + period + 3ms);
     EXPECT_EQ(choice.base, 3u);
     EXPECT_EQ(choice.step, 0);
+}
+
+TEST(FramePacer, EvensOutPicturesThatArriveUnevenly) {
+    using Clock = media::FramePacer::Clock;
+    media::FramePacer pacer;
+    const auto period = 33'333us;
+    pacer.configure(2, period);
+    const Clock::time_point start{};
+    // Every third picture is 14 ms late, the one after it on time again.
+    Clock::time_point before{};
+    Clock::duration shortest = Clock::duration::max();
+    Clock::duration longest = Clock::duration::zero();
+    Clock::duration lateness{};
+    for (int index = 0; index < 90; ++index) {
+        const Clock::time_point arrival = start + index * period + (index % 3 == 1 ? 14ms : 0ms);
+        pacer.onFrame(static_cast<std::uint64_t>(index + 1), arrival);
+        const Clock::time_point due = pacer.newestDue();
+        EXPECT_GE(due, arrival + pacer.addedDelay()); // never before it can be shown
+        if (index > 0) {
+            shortest = std::min(shortest, due - before);
+            longest = std::max(longest, due - before);
+        }
+        lateness = due - (arrival + pacer.addedDelay());
+        before = due;
+    }
+    // Shown as they arrive, the distances would swing between 19 and 47 ms.
+    EXPECT_GE(shortest, Clock::duration(32ms));
+    EXPECT_LE(longest, Clock::duration(48ms));
+    // And the display does not drift ever further behind.
+    EXPECT_LE(lateness, Clock::duration(15ms));
+
+    // After a long pause it does not trail behind; it starts afresh.
+    const Clock::time_point later = start + 200 * period;
+    pacer.onFrame(500, later);
+    EXPECT_EQ(pacer.newestDue(), later + pacer.addedDelay());
 }
 
 TEST(FramePacer, KeepsItsRhythmWhenStepsFallRightOnTheRefreshes) {

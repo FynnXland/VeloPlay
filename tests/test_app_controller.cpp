@@ -689,7 +689,10 @@ TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
 
 TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
     test::MockConsole console({});
-    Harness h(console, "session_stall.json", true, 150ms);
+    // The timeout is real time. It has to be long against how late a sleep can
+    // come back on a busy machine: the self-hosted runner builds with low
+    // priority while its owner plays, and 150 ms was not enough there.
+    Harness h(console, "session_stall.json", true, 700ms);
     ASSERT_TRUE(h.pair());
     h.app->config().stream.bitrateKbps = 40'000;
     h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
@@ -717,7 +720,7 @@ TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
 
     // It keeps halving down to the floor, then gives up and says so.
     for (int i = 0; i < 4; ++i) h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
-    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Error; }, 6000ms));
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Error; }, 15000ms));
     ASSERT_EQ(h.sessions->configs.size(), 4u);
     EXPECT_EQ(h.sessions->configs[2].stream.bitrateKbps, 10'000);
     EXPECT_EQ(h.sessions->configs[3].stream.bitrateKbps, 5'000);

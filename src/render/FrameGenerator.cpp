@@ -109,10 +109,39 @@ Texture2D frameA : register(t0);
 Texture2D frameB : register(t1);
 Texture2D flow : register(t2);
 SamplerState linearSampler : register(s0);
+SamplerState pointSampler : register(s1);
+
+// A fetch between pixels with the linear filter blurs a little, and the new
+// picture is made of two such fetches. Next to the real pictures, which are
+// not blurred, that shows as a flicker in sharpness sixty times a second.
+// A cubic filter with a strong negative lobe (Keys, a = -1) keeps the new
+// picture about as crisp as the ones around it.
+float cubicWeight(float d) {
+    d = abs(d);
+    if (d <= 1.0) return d * d * d - 2.0 * d * d + 1.0;
+    if (d < 2.0) return -d * d * d + 5.0 * d * d - 8.0 * d + 4.0;
+    return 0.0;
+}
+float3 fetch(Texture2D picture, float2 at) {
+    float2 p = at * frameSize - 0.5;
+    float2 base = floor(p);
+    float2 f = p - base;
+    float3 sum = float3(0.0, 0.0, 0.0);
+    float total = 0.0;
+    [unroll] for (int j = -1; j <= 2; ++j) {
+        [unroll] for (int i = -1; i <= 2; ++i) {
+            float w = cubicWeight(float(i) - f.x) * cubicWeight(float(j) - f.y);
+            sum += picture.SampleLevel(pointSampler, (base + float2(i, j) + 0.5) / frameSize, 0).rgb * w;
+            total += w;
+        }
+    }
+    return saturate(sum / total);
+}
+
 float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float2 shift = flow.SampleLevel(linearSampler, uv, 0).xy / frameSize;
-    float3 a = frameA.SampleLevel(linearSampler, uv - phase * shift, 0).rgb;
-    float3 b = frameB.SampleLevel(linearSampler, uv + (1.0 - phase) * shift, 0).rgb;
+    float3 a = fetch(frameA, uv - phase * shift);
+    float3 b = fetch(frameB, uv + (1.0 - phase) * shift);
     float difference = dot(abs(a - b), float3(0.299, 0.587, 0.114));
     float doubt = smoothstep(0.10, 0.30, difference);
     float3 plain = lerp(frameA.SampleLevel(linearSampler, uv, 0).rgb, frameB.SampleLevel(linearSampler, uv, 0).rgb, phase);
@@ -196,7 +225,10 @@ bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* conte
     buffer.Usage = D3D11_USAGE_DEFAULT;
     buffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
+    D3D11_SAMPLER_DESC point = sampler;
+    point.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
     if (FAILED(device_->CreateSamplerState(&sampler, sampler_.GetAddressOf())) ||
+        FAILED(device_->CreateSamplerState(&point, pointSampler_.GetAddressOf())) ||
         FAILED(device_->CreateRasterizerState(&rasterizer, rasterizer_.GetAddressOf())) ||
         FAILED(device_->CreateBuffer(&buffer, nullptr, constants_.GetAddressOf()))) {
         error = "render states could not be created";
@@ -286,7 +318,7 @@ void FlowFrameGenerator::pass(ID3D11PixelShader* shader, ID3D11RenderTargetView*
     viewport.Width = static_cast<float>(width);
     viewport.Height = static_cast<float>(height);
     viewport.MaxDepth = 1.0f;
-    ID3D11SamplerState* samplers[1] = {sampler_.Get()};
+    ID3D11SamplerState* samplers[2] = {sampler_.Get(), pointSampler_.Get()};
     ID3D11Buffer* buffers[1] = {constants_.Get()};
     const float blendFactor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -301,7 +333,7 @@ void FlowFrameGenerator::pass(ID3D11PixelShader* shader, ID3D11RenderTargetView*
     context_->GSSetShader(nullptr, nullptr, 0);
     context_->PSSetShader(shader, nullptr, 0);
     context_->PSSetShaderResources(0, viewCount, views);
-    context_->PSSetSamplers(0, 1, samplers);
+    context_->PSSetSamplers(0, 2, samplers);
     context_->PSSetConstantBuffers(0, 1, buffers);
     context_->Draw(3, 0);
 

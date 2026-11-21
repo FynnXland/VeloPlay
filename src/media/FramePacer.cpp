@@ -51,6 +51,13 @@ void FramePacer::onFrame(std::uint64_t id, Clock::time_point arrival) {
     slot.valid = true;
     slot.id = id;
     slot.due = arrival + addedDelay();
+    if (current_.valid && factor_ > 1) {
+        // Even distances: 97 % of a period after the picture before, which
+        // takes about a second to make up for one that came 10 ms late.
+        const Clock::time_point even = current_.due + period_ * 97 / 100;
+        // Far behind (a long pause, or a pile of pictures at once): start afresh instead of trailing.
+        if (even > slot.due && even - slot.due <= 2 * period_) slot.due = even;
+    }
     // Pictures never go backwards in time, also when the factor was just lowered.
     if (current_.valid && slot.due < current_.due) slot.due = current_.due;
     previous_ = current_;

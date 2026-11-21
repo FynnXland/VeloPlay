@@ -76,6 +76,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> flowShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> synthesisShader_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler_;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> pointSampler_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> constants_;
 

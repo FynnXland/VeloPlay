@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.7.0</span>
+    <span class="pill">Version 0.7.1</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -346,7 +346,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Verfahren „VeloPlay Flow“:</strong> Beide Bilder werden auf Helligkeit in halber Größe reduziert, mit immer kleineren Kopien darunter. Von der kleinsten Kopie zur größten sucht jeder Block die Verschiebung, bei der beide Bilder am besten zusammenpassen, ausgehend vom Ergebnis der Stufe darüber. Gesucht wird um den Zeitpunkt dazwischen herum, deshalb entstehen im neuen Bild keine Löcher.</li>
           <li><strong>Zusammensetzen:</strong> Jeder Bildpunkt wird entlang dieser Verschiebung aus beiden Bildern geholt und gemischt. Wo die beiden nicht zusammenpassen (etwas kommt ins Bild oder die Suche lag falsch), wird stattdessen schlicht überblendet.</li>
           <li><strong>Für jede Karte:</strong> nur Pixel-Shader, kein Compute, nichts von einem Hersteller. Die Schnittstelle <code>IFrameGenerator</code> lässt Platz für schnellere Verfahren mit Hardware von NVIDIA.</li>
-          <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln.</li>
+          <li><strong>Taktung:</strong> Das berechnete Bild erscheint in dem Moment, in dem das nächste Bild der PS5 ankommt, das echte eine halbe Bildperiode später (<code>FramePacer</code>). Bei 3x und 4x entsprechend in Dritteln und Vierteln. Kommen Bilder aus dem WLAN ungleichmäßig an, werden sie trotzdem in gleichmäßigen Abständen gezeigt.</li>
+          <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
           <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
           <li><strong>Hochskalieren:</strong> Lanczos mit 16 Stützstellen, begrenzt auf den Wertebereich der Nachbarn, damit neben harten Kanten kein Schatten entsteht. Beim Verkleinern bleibt es beim einfachen Filter.</li>
           <li><strong>RTX Video Super Resolution:</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich.</li>
@@ -606,7 +607,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.7.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.7.1</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -669,7 +670,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>234 automatische Tests unter Linux und 244 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>235 automatische Tests unter Linux und 245 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

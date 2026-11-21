@@ -61,7 +61,18 @@ public:
     void reset();
 
     /// A picture from the console is ready. Ids must grow.
+    ///
+    /// With generation on, pictures are laid out at even distances and not
+    /// at the distances they arrived at. Wi-Fi delivers unevenly: one
+    /// picture late, the next right behind it. Shown as they come, motion
+    /// would stutter in that rhythm. So a picture is due one period after
+    /// the one before it, or when it can be shown at the earliest, whichever
+    /// is later; a slightly shortened period lets the display catch up
+    /// again after a late picture.
     void onFrame(std::uint64_t id, Clock::time_point arrival);
+
+    /// When the newest picture itself goes to the screen. For tests and the log.
+    [[nodiscard]] Clock::time_point newestDue() const { return current_.due; }
 
     /// What goes out with the refresh that happens at `now`. A screen shows
     /// pictures only at its refreshes, and a picture that is due a hair

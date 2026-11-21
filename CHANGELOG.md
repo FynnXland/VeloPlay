@@ -3,6 +3,25 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.7.1
+
+Two changes against frame generation looking "a bit pixelated and a bit laggy":
+
+- **Computed pictures are as sharp as the real ones.** They used to be slightly softer, which
+  showed as a flicker in sharpness between every two pictures.
+- **Pictures are shown at even distances.** Wi-Fi delivers unevenly: one picture late, the next
+  right behind it. The display followed that rhythm; now each picture gets its full time.
+
+**Deutsch**
+
+Zwei Änderungen dagegen, dass Zwischenbilder „etwas pixelig und etwas laggy“ aussahen:
+
+- **Berechnete Bilder sind so scharf wie die echten.** Sie waren bisher etwas weicher, was als
+  Flimmern in der Schärfe zwischen je zwei Bildern auffiel.
+- **Bilder werden in gleichmäßigen Abständen gezeigt.** Ein WLAN liefert ungleichmäßig: ein Bild
+  verspätet, das nächste direkt dahinter. Die Anzeige folgte diesem Takt; jetzt bekommt jedes
+  Bild seine volle Zeit.
+
 ## 0.7.0
 
 - **RTX Video Super Resolution.** On NVIDIA cards the output settings offer a third way to
