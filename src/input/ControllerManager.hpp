@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <span>
@@ -22,7 +23,15 @@ public:
 
     explicit ControllerManager(std::unique_ptr<IControllerBackend> backend);
 
-    void setDeadzone(float deadzone) { deadzone_ = deadzone; }
+    void setDeadzone(float deadzone) {
+        deadzone_ = deadzone;
+        liveDeadzone_.store(deadzone, std::memory_order_relaxed);
+    }
+
+    /// State of the active controller as the device reports it this moment,
+    /// with the dead zone applied. Unlike state(), which is what update() saw
+    /// last, this may be called from any thread and as often as wanted.
+    [[nodiscard]] ControllerState readNow();
 
     /// Name of the controller the user prefers. Empty means automatic choice.
     void setPreferredName(std::string name);
@@ -60,6 +69,10 @@ private:
     float deadzone_ = 0.08f;
     ControllerState state_{};
     std::vector<Event> events_;
+    // What readNow() needs, readable from another thread. Id 0 is never a controller.
+    std::atomic<std::uint32_t> liveActiveId_{0};
+    std::atomic<bool> liveHasActive_{false};
+    std::atomic<float> liveDeadzone_{0.08f};
 };
 
 /// How well a controller suits a PS5 session. Higher is better.

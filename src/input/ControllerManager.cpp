@@ -50,11 +50,21 @@ void ControllerManager::update() {
     controllers_ = std::move(current);
 
     selectActive();
+    liveActiveId_.store(activeId_.value_or(0), std::memory_order_relaxed);
+    liveHasActive_.store(activeId_.has_value(), std::memory_order_relaxed);
 
     state_ = {};
     if (activeId_) {
         if (const auto raw = backend_->read(*activeId_)) state_ = applyDeadzoneToSticks(*raw, deadzone_);
     }
+}
+
+ControllerState ControllerManager::readNow() {
+    if (!backend_ || !liveHasActive_.load(std::memory_order_relaxed)) return {};
+    backend_->refresh();
+    const auto raw = backend_->read(liveActiveId_.load(std::memory_order_relaxed));
+    if (!raw) return {};
+    return applyDeadzoneToSticks(*raw, liveDeadzone_.load(std::memory_order_relaxed));
 }
 
 void ControllerManager::selectActive() {

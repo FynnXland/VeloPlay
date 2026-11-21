@@ -7,6 +7,7 @@
 
 #include <windows.h>
 
+#include <array>
 #include <deque>
 
 #include "app/AppController.hpp"
@@ -76,6 +77,11 @@ private:
     media::FrameChoice lastChoice_{};     // what the last refresh showed
     bool generatorFailureLogged_ = false;
     bool rtxFailureLogged_ = false;
+    // Which picture arrived when, for the newest few; and from that, how long pictures take through this PC.
+    std::array<std::pair<std::uint64_t, std::chrono::steady_clock::time_point>, 8> arrivals_{};
+    std::size_t arrivalsNext_ = 0;
+    double insideMs_ = 0.0;
+    bool timerRaised_ = false; // the system timer runs at 1 ms while a stream is shown
     std::chrono::steady_clock::time_point lastRefresh_{}; // when the picture for the last refresh was chosen
     double refreshMs_ = 0.0;                              // smoothed time between two refreshes
     std::chrono::steady_clock::time_point nextSummary_{};

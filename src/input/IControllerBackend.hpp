@@ -36,6 +36,11 @@ public:
     /// created the backend.
     virtual void poll() = 0;
 
+    /// Fetches what the devices report right now, so that read() returns
+    /// fresh values between two calls of poll(). Together with read() this
+    /// may be called from any thread, also while another one is in poll().
+    virtual void refresh() {}
+
     [[nodiscard]] virtual std::vector<ControllerInfo> controllers() const = 0;
 
     /// Raw state without dead zone. Empty if the controller is gone.

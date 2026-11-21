@@ -3,6 +3,28 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.8.0
+
+Against the delay between pressing a button and seeing the result:
+
+- **The controller is read 500 times a second** instead of once per picture. A press used to
+  wait up to 17 ms before it was even sent to the console.
+- **The display shows how long a picture spends in the PC** ("Inside the PC"): from its data
+  arriving to being drawn. The number also goes into the log every ten seconds.
+- **No picture is lost when two arrive right behind each other.** Only the newer one used to be
+  kept, and the picture computed in between then bridged twice the motion.
+
+**Deutsch**
+
+Gegen die Verzögerung zwischen Tastendruck und Bild:
+
+- **Der Controller wird 500-mal pro Sekunde gelesen** statt einmal pro Bild. Ein Tastendruck
+  wartete bisher bis zu 17 ms, bevor er überhaupt zur Konsole ging.
+- **Die Anzeige nennt, wie lange ein Bild im PC unterwegs ist** („Im PC“): vom Eintreffen der
+  Daten bis zum Zeichnen. Die Zahl steht auch alle zehn Sekunden im Protokoll.
+- **Kein Bild geht mehr verloren, wenn zwei direkt hintereinander ankommen.** Bisher blieb nur
+  das neuere, und das berechnete Zwischenbild überbrückte dann die doppelte Bewegung.
+
 ## 0.7.1
 
 Two changes against frame generation looking "a bit pixelated and a bit laggy":

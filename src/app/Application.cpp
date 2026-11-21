@@ -3,6 +3,7 @@
 #include <dwmapi.h>
 #include <objbase.h>
 #include <shellapi.h>
+#include <timeapi.h>
 
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
@@ -10,6 +11,8 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/spdlog.h>
+
+#include <utility>
 
 #include "app/HangProbe.hpp"
 #include "app/HelpLinks.hpp"
@@ -143,6 +146,10 @@ int Application::run() {
     options.controllerBackend = input::createSdlControllerBackend();
     options.openHelp = [this](std::string_view topic) { openHelp(topic); };
     options.sessionFactory = session::chiakiSessionFactory();
+    // The controller is read every two milliseconds on a thread of its own.
+    // Read once per picture, a press waited up to a whole refresh of the
+    // screen before it was even sent.
+    options.inputInterval = std::chrono::microseconds{2000};
 
     // Account lookup: Sony's sign-in page in a window of our own. What the
     // embedded browser stores (cookies of the sign-in) is deleted at every
@@ -244,6 +251,7 @@ int Application::run() {
         frame();
     }
 
+    if (std::exchange(timerRaised_, false)) timeEndPeriod(1);
     // From here on the window stops answering on purpose.
     hangProbe_.request_stop();
     if (hangProbe_.joinable()) hangProbe_.join();
@@ -327,6 +335,13 @@ void Application::frame() {
     model_.rtxVideoAvailable = videoRenderer_.rtxAvailable();
 
     const bool streaming = model_.state == AppState::Streaming;
+    // Windows wakes sleeping threads only every 15 ms unless asked for more.
+    // While a stream runs, the input thread needs its two milliseconds.
+    if (streaming != timerRaised_) {
+        if (streaming) timeBeginPeriod(1);
+        else timeEndPeriod(1);
+        timerRaised_ = streaming;
+    }
     const AppConfig& config = controller_->config();
     if (pipeline_) {
         const auto now = std::chrono::steady_clock::now();
@@ -340,6 +355,8 @@ void Application::frame() {
             pacer_.reset();
             lastRefresh_ = {};
             refreshMs_ = 0.0;
+            insideMs_ = 0.0;
+            arrivals_ = {};
             inputRate_.reset(config.stream.fps);
             nextRateSample_ = {};
         } else if (model_.stream && now >= nextRateSample_) {
@@ -369,6 +386,7 @@ void Application::frame() {
             stats.outputWidth = videoRenderer_.shownWidth();
             stats.outputHeight = videoRenderer_.shownHeight();
             stats.scaler = videoRenderer_.scalerName();
+            stats.insidePcMs = static_cast<float>(insideMs_);
             stats.frameGenerationFactor = wanted;
             stats.frameGenerationAvailable = available;
             stats.frameGenerationActive = available && pacer_.factor() > 1;
@@ -401,8 +419,12 @@ void Application::frame() {
     if (pipeline_ && streaming) {
         diag::setStep("taking over a picture");
         const auto now = std::chrono::steady_clock::now();
-        if (auto picture = pipeline_->takeFrame()) {
-            if (videoRenderer_.submit(*picture)) pacer_.onFrame(videoRenderer_.newestId(), now);
+        for (const media::VideoFrame& picture : pipeline_->takeFrames()) {
+            if (!videoRenderer_.submit(picture)) continue;
+            // Laid out by when the decoder finished, not by when this loop came around.
+            const bool stamped = picture.decodedAt != std::chrono::steady_clock::time_point{};
+            pacer_.onFrame(videoRenderer_.newestId(), stamped ? picture.decodedAt : now);
+            arrivals_[arrivalsNext_++ % arrivals_.size()] = {videoRenderer_.newestId(), picture.receivedAt};
             if (!videoRenderer_.frameGenerationAvailable() && !generatorFailureLogged_) {
                 generatorFailureLogged_ = true;
                 spdlog::warn("Frame generation is not available: {}", videoRenderer_.frameGeneratorError());
@@ -430,6 +452,14 @@ void Application::frame() {
         if (output.choice.valid && !(output.choice == lastChoice_)) {
             lastChoice_ = output.choice;
             shownMeter_.addVideo(0, 0);
+            // How long a real picture spent in this PC, from its data arriving to being drawn.
+            if (output.choice.step == 0) {
+                for (const auto& [id, received] : arrivals_) {
+                    if (id != output.choice.base || received == std::chrono::steady_clock::time_point{}) continue;
+                    const double ms = std::chrono::duration<double, std::milli>(now - received).count();
+                    insideMs_ = insideMs_ == 0.0 ? ms : insideMs_ * 0.9 + ms * 0.1;
+                }
+            }
             if (lastPicture_ != std::chrono::steady_clock::time_point{}) {
                 frameTimes_.push_back(std::chrono::duration<float, std::milli>(now - lastPicture_).count());
                 if (frameTimes_.size() > 90) frameTimes_.pop_front();
@@ -504,10 +534,10 @@ void Application::logStreamSummary(std::chrono::steady_clock::time_point now) {
     const StreamStats& stream = *model_.stream;
     const media::MediaPipeline::Stats media = pipeline_ ? pipeline_->stats() : media::MediaPipeline::Stats{};
     spdlog::info("Stream: console {:.1f} fps, shown {:.1f} fps, {:.1f} Mbit/s, loss {:.1f} %, decoder {:.1f} ms "
-                 "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x{}",
+                 "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x, {:.0f} ms inside the PC{}",
                  stream.streamFps, stream.outputFps, stream.bitrateMbps,
                  stream.packetLossPercent, media.decodeMs, media.decodeMaxMs, media.decodedFrames, media.droppedFrames,
-                 media.failedFrames, pacer_.factor(), IsIconic(window_) ? ", window minimised" : "");
+                 media.failedFrames, pacer_.factor(), insideMs_, IsIconic(window_) ? ", window minimised" : "");
 }
 
 void Application::toggleFullscreen() {

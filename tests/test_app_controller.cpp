@@ -37,7 +37,8 @@ struct Harness {
     UiModel model;
 
     Harness(const test::MockConsole& console, const char* fileName, bool removeOld = true,
-            std::chrono::milliseconds stallTimeout = 60s) {
+            std::chrono::milliseconds stallTimeout = 60s, std::chrono::microseconds inputInterval = 0us,
+            std::unique_ptr<input::IControllerBackend> backend = nullptr) {
         const auto dir = std::filesystem::temp_directory_path() / "veloplay_tests";
         std::filesystem::create_directories(dir);
         configPath = dir / fileName;
@@ -57,6 +58,8 @@ struct Harness {
         options.retryDelay = 20ms;
         options.mediaSink = &sink;
         options.stallTimeout = stallTimeout;
+        options.inputInterval = inputInterval;
+        options.controllerBackend = std::move(backend);
         app = std::make_unique<AppController>(std::move(options));
     }
 
@@ -652,6 +655,85 @@ TEST(AppControllerSession, TellsTheMediaSinkAboutEverySession) {
     h.app->disconnect();
     ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
     EXPECT_EQ(h.sink.ends, 2);
+}
+
+namespace {
+
+/// One DualSense whose buttons a test presses from outside.
+class ScriptedPad final : public input::IControllerBackend {
+public:
+    struct Shared {
+        std::mutex mutex;
+        input::ControllerState state{};
+        int refreshes = 0;
+    };
+    explicit ScriptedPad(std::shared_ptr<Shared> shared) : shared_(std::move(shared)) {}
+
+    void poll() override {}
+    void refresh() override {
+        std::lock_guard lock(shared_->mutex);
+        ++shared_->refreshes;
+    }
+    std::vector<input::ControllerInfo> controllers() const override {
+        input::ControllerInfo info;
+        info.id = 7;
+        info.name = "DualSense";
+        info.type = input::ControllerType::DualSense;
+        info.connection = input::ConnectionType::Usb;
+        return {info};
+    }
+    std::optional<input::ControllerState> read(std::uint32_t id) override {
+        if (id != 7) return std::nullopt;
+        std::lock_guard lock(shared_->mutex);
+        return shared_->state;
+    }
+    bool rumble(std::uint32_t, std::uint16_t, std::uint16_t, std::chrono::milliseconds) override { return true; }
+    bool sendEffect(std::uint32_t, std::span<const std::uint8_t>) override { return true; }
+
+private:
+    std::shared_ptr<Shared> shared_;
+};
+
+} // namespace
+
+TEST(AppControllerSession, PassesAButtonPressOnWithoutWaitingForTheNextPicture) {
+    test::MockConsole console({});
+    auto pad = std::make_shared<ScriptedPad::Shared>();
+    Harness h(console, "session_pump.json", true, 60s, 1000us, std::make_unique<ScriptedPad>(pad));
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    // One more round, so the pump knows the session.
+    h.app->update();
+
+    // From here on nobody calls update(): that is the window busy drawing, or
+    // waiting for the screen. The press has to reach the console anyway.
+    const int before = h.sessions->inputs();
+    {
+        std::lock_guard lock(pad->mutex);
+        pad->state.buttons |= input::mask(input::Button::Cross);
+        pad->state.r2 = 200;
+    }
+    ASSERT_TRUE(test::waitFor(
+        [&] { return (h.sessions->input().buttons & input::mask(input::Button::Cross)) != 0; }, 2000ms));
+    EXPECT_EQ(h.sessions->input().r2, 200);
+    EXPECT_GT(h.sessions->inputs(), before);
+
+    // It keeps reading: releasing arrives the same way.
+    {
+        std::lock_guard lock(pad->mutex);
+        pad->state.buttons = 0;
+    }
+    ASSERT_TRUE(test::waitFor(
+        [&] { return (h.sessions->input().buttons & input::mask(input::Button::Cross)) == 0; }, 2000ms));
+
+    // After the session ended the pump leaves the session alone.
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    const int after = h.sessions->inputs();
+    std::this_thread::sleep_for(30ms);
+    EXPECT_EQ(h.sessions->inputs(), after);
 }
 
 TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {

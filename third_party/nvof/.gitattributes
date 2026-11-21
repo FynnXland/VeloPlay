@@ -1,0 +1,2 @@
+# Kept byte for byte as NVIDIA ships them (CRLF line endings).
+*.h -text

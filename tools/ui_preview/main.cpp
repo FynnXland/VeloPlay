@@ -95,6 +95,7 @@ StreamStats playingStats() {
     stats.outputWidth = 2560;
     stats.outputHeight = 1440;
     stats.scaler = "RTX Video";
+    stats.insidePcMs = 24.0f;
     stats.frameGenerationFactor = 2;
     stats.frameGenerationActive = true;
     stats.frameGenerationEngine = "VeloPlay Flow";

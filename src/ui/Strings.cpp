@@ -280,6 +280,7 @@ constexpr Strings kGerman = {
     .inputApply = "Jetzt neu verbinden",
     .pauseOverlay = "Anzeige oben links",
     .hudUnavailable = "nicht verfügbar",
+    .hudInsidePc = "Im PC",
 };
 
 constexpr Strings kEnglish = {
@@ -551,6 +552,7 @@ constexpr Strings kEnglish = {
     .inputApply = "Connect again now",
     .pauseOverlay = "Display in the top left corner",
     .hudUnavailable = "not available",
+    .hudInsidePc = "Inside the PC",
 };
 
 } // namespace

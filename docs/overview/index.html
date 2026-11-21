@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.7.1</span>
+    <span class="pill">Version 0.8.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -469,6 +469,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Datenrate, Antwortzeit, Verlust:</strong> wie es der Verbindung geht.</li>
         <li><strong>Dekoder:</strong> „D3D11VA“ heißt, die Grafikkarte entpackt. Dahinter die mittlere Zeit pro Bild.</li>
         <li><strong>Langsamstes Bild:</strong> das Bild der letzten ein bis zwei Sekunden, das am längsten zum Entpacken brauchte. Liegt der Wert weit über dem Mittel, ruckelt es, auch wenn das Mittel gut aussieht.</li>
+        <li><strong>Im PC:</strong> wie lange ein Bild vom Eintreffen der Daten bis zum Zeichnen braucht. Mit Zwischenbildern ist die halbe Bildperiode Wartezeit darin enthalten.</li>
         <li><strong>Bildabstände:</strong> gleichmäßige Balken bedeuten ruhiges Bild, orange Balken sind verspätete Bilder.</li>
         <li><strong>Unten:</strong> ein Hinweis auf <kbd>Esc</kbd>, <kbd>F11</kbd> und <kbd>F9</kbd>, der nach einigen Sekunden verschwindet.</li>
         <li><strong>Esc:</strong> Menü über dem Bild mit „Weiter“, „Trennen“ und „PS5 in den Ruhemodus“. Der Controller gehört weiter der PS5, das Menü bedienst du mit der Maus.</li>
@@ -586,7 +587,7 @@ flowchart LR
 
   <h3>Controller</h3>
   <p>Erkannt wird alles, was SDL3 als Gamepad kennt. Sind mehrere angeschlossen, gewinnt ein DualSense vor einem DualShock 4 vor einem Xbox-Controller, und Kabel vor Funk. Der einmal gewählte Controller bleibt aktiv, auch wenn später ein besserer dazukommt. Mit Steuerkreuz und Kreuz-Taste lässt sich die Oberfläche bedienen, Kreis schließt Dialoge.</p>
-  <p>Während einer Verbindung gehen Tasten, Sticks, Trigger, Touchpad und Bewegungssensor zur PS5, etwa 60-mal pro Sekunde abgeglichen. Zurück kommen drei Dinge: Vibration, der Widerstand der adaptiven Trigger und die Haptik des DualSense. Vibration und Trigger lassen sich in den Einstellungen einzeln abschalten. Beim Trennen gibt VeloPlay die Trigger wieder frei und stoppt die Motoren.</p>
+  <p>Während einer Verbindung gehen Tasten, Sticks, Trigger, Touchpad und Bewegungssensor zur PS5, alle zwei Millisekunden frisch vom Controller gelesen, unabhängig davon, wie schnell das Bild gezeichnet wird. Zurück kommen drei Dinge: Vibration, der Widerstand der adaptiven Trigger und die Haptik des DualSense. Vibration und Trigger lassen sich in den Einstellungen einzeln abschalten. Beim Trennen gibt VeloPlay die Trigger wieder frei und stoppt die Motoren.</p>
   <p>Am USB-Kabel gibt es alles drei. Für die Haptik muss das Tongerät „Wireless Controller“ in den Windows-Soundeinstellungen auf Quadrofonie stehen; steht es auf Stereo, schreibt VeloPlay das ins Protokoll und nimmt die Vibrationsmotoren. Über Bluetooth gibt es Trigger und Vibration.</p>
 
   <h3>Fernsteuerung für Skripte</h3>
@@ -607,7 +608,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.7.1</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.8.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -670,7 +671,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>235 automatische Tests unter Linux und 245 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>237 automatische Tests unter Linux und 247 unter Windows, davon zwei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

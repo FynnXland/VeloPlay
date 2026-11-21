@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 
@@ -30,6 +31,10 @@ struct VideoFrame {
     int d3d11Index = 0;           // slice of the texture array
     ColorInfo color{};
     std::uint64_t sequence = 0;   // counts decoded frames, starting at 1
+    // When its data arrived from the network and when the decoder was done
+    // with it. Both empty for a picture that did not come through the pipeline.
+    std::chrono::steady_clock::time_point receivedAt{};
+    std::chrono::steady_clock::time_point decodedAt{};
     std::shared_ptr<void> owner;  // keeps the decoder's buffers alive
 };
 

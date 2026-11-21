@@ -41,7 +41,7 @@ void MediaPipeline::end() {
     {
         // Pictures hold on to the decoder's buffers, so they go first.
         std::lock_guard lock(mutex_);
-        pending_.reset();
+        pending_.clear();
     }
     video_.reset();
     audio_.reset();
@@ -61,8 +61,9 @@ bool DecodeQueue::push(std::vector<std::uint8_t> unit, Clock::time_point now, st
     return true;
 }
 
-std::optional<std::vector<std::uint8_t>> DecodeQueue::pop() {
+std::optional<std::vector<std::uint8_t>> DecodeQueue::pop(Clock::time_point* since) {
     if (units_.empty()) return std::nullopt;
+    if (since) *since = units_.front().since;
     std::vector<std::uint8_t> unit = std::move(units_.front().unit);
     units_.pop_front();
     return unit;
@@ -103,13 +104,14 @@ void MediaPipeline::decodeLoop() {
     std::chrono::steady_clock::time_point slowestSince{};
     while (true) {
         std::vector<std::uint8_t> unit;
+        std::chrono::steady_clock::time_point received{};
         {
             std::unique_lock lock(queueMutex_);
             decoding_ = false;
             queueChanged_.notify_all();
             queueChanged_.wait(lock, [&] { return stopping_ || !queue_.empty(); });
             if (stopping_) return;
-            unit = std::move(*queue_.pop());
+            unit = std::move(*queue_.pop(&received));
             decoding_ = true;
         }
         if (failedForGood) continue;
@@ -151,7 +153,11 @@ void MediaPipeline::decodeLoop() {
             stats_.decodeMs = stats_.decodeMs == 0.0 ? ms : stats_.decodeMs * 0.9 + ms * 0.1;
             stats_.hardware = video_->hardware();
             stats_.decoder = video_->description();
-            pending_ = std::move(**decoded);
+            (*decoded)->receivedAt = received;
+            (*decoded)->decodedAt = std::chrono::steady_clock::now();
+            pending_.push_back(std::move(**decoded));
+            // Nobody fetches: keep the newest few, so a window that is busy does not pile up pictures.
+            while (pending_.size() > 4) pending_.pop_front();
         }
     }
 }
@@ -192,7 +198,15 @@ bool MediaPipeline::onHaptics(std::span<const std::int16_t> stereo) {
 std::optional<VideoFrame> MediaPipeline::takeFrame() {
     std::lock_guard lock(mutex_);
     std::optional<VideoFrame> out;
-    out.swap(pending_);
+    if (!pending_.empty()) out = std::move(pending_.back());
+    pending_.clear();
+    return out;
+}
+
+std::vector<VideoFrame> MediaPipeline::takeFrames() {
+    std::lock_guard lock(mutex_);
+    std::vector<VideoFrame> out(std::make_move_iterator(pending_.begin()), std::make_move_iterator(pending_.end()));
+    pending_.clear();
     return out;
 }
 

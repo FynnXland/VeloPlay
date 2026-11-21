@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <deque>
 #include <memory>
 #include <string>
@@ -27,6 +28,15 @@ struct FakeSessionHub {
     int sleeps = 0;
     int controllerUpdates = 0;
     input::ControllerState lastInput{};
+    std::mutex inputMutex; // guards the two above when an input pump runs
+    input::ControllerState input() {
+        std::lock_guard lock(inputMutex);
+        return lastInput;
+    }
+    int inputs() {
+        std::lock_guard lock(inputMutex);
+        return controllerUpdates;
+    }
     std::vector<std::string> pins;
     session::SessionStats stats{};
 
@@ -88,6 +98,8 @@ public:
     }
 
     void setControllerState(const input::ControllerState& state, session::Clock::time_point) override {
+        // May come from the input pump's thread while a test looks.
+        std::lock_guard lock(hub_->inputMutex);
         ++hub_->controllerUpdates;
         hub_->lastInput = state;
     }

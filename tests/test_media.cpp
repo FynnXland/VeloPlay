@@ -428,6 +428,31 @@ TEST(MediaPipeline, DecodesABurstWithoutDroppingAnything) {
     pipeline.end();
 }
 
+TEST(MediaPipeline, HandsOutEveryPictureWithItsTimes) {
+    media::MediaPipeline pipeline({});
+    StreamSettings settings;
+    settings.codec = VideoCodec::H264;
+    pipeline.begin(settings);
+    const auto before = std::chrono::steady_clock::now();
+    for (const Bytes& unit : accessUnits(readClip("clip.h264"), false)) EXPECT_TRUE(pipeline.onVideo(unit, 0, false));
+    ASSERT_TRUE(pipeline.waitUntilIdle(10'000ms));
+    const auto after = std::chrono::steady_clock::now();
+
+    // Several pictures were decoded before anyone fetched. All that are kept
+    // come out, oldest first, each with when it arrived and when it was done.
+    const std::vector<media::VideoFrame> frames = pipeline.takeFrames();
+    ASSERT_GE(frames.size(), 2u);
+    ASSERT_LE(frames.size(), 4u);
+    for (std::size_t i = 0; i < frames.size(); ++i) {
+        EXPECT_GE(frames[i].receivedAt, before);
+        EXPECT_GE(frames[i].decodedAt, frames[i].receivedAt);
+        EXPECT_LE(frames[i].decodedAt, after);
+        if (i > 0) EXPECT_GT(frames[i].sequence, frames[i - 1].sequence);
+    }
+    EXPECT_TRUE(pipeline.takeFrames().empty()); // handed out once
+    pipeline.end();
+}
+
 TEST(MediaPipeline, WorksWithoutSoundDevices) {
     FakeAudioOutput audio;
     audio.available = false;

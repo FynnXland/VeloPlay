@@ -102,12 +102,19 @@ AppController::AppController(Options options)
 }
 
 AppController::~AppController() {
+    // The pump goes first: it reads the controllers and talks to the session.
+    if (pump_.joinable()) {
+        pump_.request_stop();
+        pump_.join();
+    }
     if (session_ && session_->session) {
+        attachPump(nullptr);
         session_->session.reset(); // waits for the session thread
         if (options_.mediaSink) options_.mediaSink->end();
         controllers_.rumble(0, 0, milliseconds{0});
         controllers_.clearTriggerEffects();
     }
+    attachPump(nullptr);
     session_.reset();
     probe_.stop();
     updater_.reset();
@@ -118,6 +125,9 @@ AppController::~AppController() {
 }
 
 void AppController::start() {
+    if (options_.inputInterval.count() > 0 && !pump_.joinable()) {
+        pump_ = std::jthread([this](std::stop_token stop) { pumpInput(stop); });
+    }
     if (store_) {
         auto loaded = store_->load();
         if (loaded) {
@@ -233,6 +243,22 @@ void AppController::fillModel(UiModel& model) {
     model.config = &config_;
 }
 
+void AppController::attachPump(session::ISession* session) {
+    std::lock_guard lock(pumpMutex_);
+    pumpSession_ = session;
+}
+
+void AppController::pumpInput(std::stop_token stop) {
+    while (!stop.stop_requested()) {
+        std::this_thread::sleep_for(options_.inputInterval);
+        std::lock_guard lock(pumpMutex_);
+        if (!pumpSession_) continue;
+        const auto now = Clock::now();
+        // Straight from the device, not what update() saw at the last picture.
+        pumpSession_->setControllerState(input::mergeInputs(controllers_.readNow(), virtualController_.state(now)), now);
+    }
+}
+
 input::ControllerState AppController::sessionInput() {
     return input::mergeInputs(controllers_.state(), virtualController_.state(Clock::now()));
 }
@@ -327,6 +353,7 @@ void AppController::disconnect() {
         session_->session->stop(); // the Quit event finishes the job in updateSession()
     } else {
         stateMachine_.handle(AppEvent::Disconnected);
+        attachPump(nullptr);
         session_.reset();
     }
 }
@@ -436,7 +463,10 @@ void AppController::updateSession(Clock::time_point now) {
     if (!session_->session) return;
 
     if (session_->connected) {
-        session_->session->setControllerState(sessionInput(), now);
+        // With the pump running, input goes out from its thread, every few
+        // milliseconds. Without it, once per call, as it always did.
+        if (options_.inputInterval.count() > 0) attachPump(session_->session.get());
+        else session_->session->setControllerState(sessionInput(), now);
 
         // A stream that stands still does not recover by waiting: on a link
         // that cannot carry the bitrate, the requests for repair get lost
@@ -498,6 +528,7 @@ void AppController::updateSession(Clock::time_point now) {
 
 void AppController::handleQuit(session::QuitReason reason, const std::string& detail, Clock::time_point now) {
     spdlog::info("Session ended: {} ({})", session::toString(reason), detail);
+    attachPump(nullptr);
     session_->session.reset(); // joins the session thread
     if (options_.mediaSink) options_.mediaSink->end();
     if (session_->connected) {
@@ -536,6 +567,7 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
     if (orderly) {
         if (state != AppState::Disconnecting) stateMachine_.handle(AppEvent::DisconnectRequested);
         stateMachine_.handle(AppEvent::Disconnected);
+        attachPump(nullptr);
         session_.reset();
         return;
     }
@@ -561,6 +593,7 @@ void AppController::failSession(session::QuitReason reason, const std::string& d
     if (state == AppState::Streaming) stateMachine_.handle(AppEvent::ConnectionLost);
     if (state == AppState::Connecting) stateMachine_.handle(AppEvent::ConnectionFailed);
     else stateMachine_.handle(AppEvent::ReconnectFailed);
+    attachPump(nullptr);
     session_.reset();
 }
 

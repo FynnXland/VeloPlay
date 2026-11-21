@@ -41,7 +41,8 @@ public:
     /// cannot be decoded, so the stream has to restart from a key frame.
     bool push(std::vector<std::uint8_t> unit, Clock::time_point now, std::size_t& dropped);
 
-    std::optional<std::vector<std::uint8_t>> pop();
+    /// The oldest unit. `since`, if given, receives when it was pushed.
+    std::optional<std::vector<std::uint8_t>> pop(Clock::time_point* since = nullptr);
     void clear() { units_.clear(); }
     [[nodiscard]] bool empty() const { return units_.empty(); }
     [[nodiscard]] std::size_t size() const { return units_.size(); }
@@ -105,6 +106,12 @@ public:
     /// The newest picture that was not handed out yet. Called by the renderer.
     std::optional<VideoFrame> takeFrame();
 
+    /// Every picture decoded since the last call, oldest first. Two pictures
+    /// that arrive right behind each other are both handed out; takeFrame()
+    /// would only give the newer one, and whoever computes pictures in
+    /// between would then bridge twice the motion.
+    std::vector<VideoFrame> takeFrames();
+
     Stats stats();
 
     /// Waits until everything handed to onVideo() so far is decoded. For tests.
@@ -135,7 +142,7 @@ private:
     std::atomic<bool> pictureLost_{false};
 
     std::mutex mutex_;
-    std::optional<VideoFrame> pending_;
+    std::deque<VideoFrame> pending_; // decoded and not fetched yet; a handful at most
     Stats stats_;
 };
 

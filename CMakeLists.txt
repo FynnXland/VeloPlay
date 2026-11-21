@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 0.7.1
+    VERSION 0.8.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -141,7 +141,7 @@ if(VELOPLAY_BUILD_APP)
         src/app/veloplay.rc
     )
     target_link_libraries(veloplay PRIVATE veloplay_ui veloplay_platform SDL3::SDL3 unofficial::webview2::webview2
-        dwmapi ole32)
+        dwmapi ole32 winmm)
     set_target_properties(veloplay PROPERTIES
         OUTPUT_NAME "VeloPlay"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app")

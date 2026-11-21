@@ -8,6 +8,8 @@
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+
+#include <mutex>
 #include <spdlog/spdlog.h>
 
 namespace veloplay::input {
@@ -50,20 +52,29 @@ public:
     }
 
     void poll() override {
+        // Events have to be fetched on the thread that started SDL. Opening
+        // and closing happens here, under the lock that read() takes too.
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            if (event.type != SDL_EVENT_GAMEPAD_ADDED && event.type != SDL_EVENT_GAMEPAD_REMOVED) continue;
+            std::lock_guard lock(mutex_);
             if (event.type == SDL_EVENT_GAMEPAD_ADDED) open(event.gdevice.which);
-            if (event.type == SDL_EVENT_GAMEPAD_REMOVED) close(event.gdevice.which);
+            else close(event.gdevice.which);
         }
     }
 
+    // SDL allows SDL_UpdateGamepads and the getters from any thread.
+    void refresh() override { SDL_UpdateGamepads(); }
+
     std::vector<ControllerInfo> controllers() const override {
+        std::lock_guard lock(mutex_);
         std::vector<ControllerInfo> result;
         for (const auto& [id, pad] : pads_) result.push_back(pad.info);
         return result;
     }
 
     std::optional<ControllerState> read(std::uint32_t id) override {
+        std::lock_guard lock(mutex_);
         const auto it = pads_.find(id);
         if (it == pads_.end()) return std::nullopt;
         SDL_Gamepad* pad = it->second.handle;
@@ -120,12 +131,14 @@ public:
     }
 
     bool rumble(std::uint32_t id, std::uint16_t low, std::uint16_t high, std::chrono::milliseconds duration) override {
+        std::lock_guard lock(mutex_);
         const auto it = pads_.find(id);
         if (it == pads_.end()) return false;
         return SDL_RumbleGamepad(it->second.handle, low, high, static_cast<Uint32>(duration.count()));
     }
 
     bool sendEffect(std::uint32_t id, std::span<const std::uint8_t> block) override {
+        std::lock_guard lock(mutex_);
         const auto it = pads_.find(id);
         if (it == pads_.end()) return false;
         return SDL_SendGamepadEffect(it->second.handle, block.data(), static_cast<int>(block.size()));
@@ -144,6 +157,8 @@ private:
         SDL_Gamepad* handle = nullptr;
         ControllerInfo info;
     };
+    // Guards pads_: the window's thread opens and closes, another one reads.
+    mutable std::mutex mutex_;
 
     void open(SDL_JoystickID id) {
         if (pads_.contains(id)) return;

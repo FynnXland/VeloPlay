@@ -124,6 +124,17 @@ redistribute it freely, subject to the following restrictions:
    distribution.
 ```
 
+## NVIDIA Optical Flow interface headers
+
+`third_party/nvof/nvOpticalFlowCommon.h`, `nvOpticalFlowD3D11.h` and `nvOpticalFlowD3D12.h`,
+unchanged from the NVIDIA Optical Flow SDK 5.0.7 (https://developer.nvidia.com/opticalflow-sdk).
+
+- License: MIT, per the notice at the top of each file, which applies to that header file only
+- Copyright (c) 2018-2023 NVIDIA Corporation (the years differ per file, see
+  `third_party/nvof/README.md`)
+- Nothing else from the SDK is included. The optical flow library itself (`nvofapi64.dll`) is
+  part of the NVIDIA display driver and is not shipped with VeloPlay.
+
 ## Libraries from vcpkg
 
 WebView2 SDK (BSD 3-Clause; the browser itself is part of Windows), FFmpeg (libavcodec and libavutil, LGPL 2.1 or later; built without GPL or non-free parts, shipped

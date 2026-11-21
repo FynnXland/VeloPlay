@@ -1215,6 +1215,8 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
         rows.emplace_back(t.hudDecoder, stats.decoder + "  ·  " + format(t.msValue, {number(stats.decodeMs, 1)}));
         // The slowest picture says more about stutter than the average does.
         rows.emplace_back(t.hudDecodeSlowest, format(t.msValue, {number(stats.decodeMaxMs, 1)}));
+        // The whole way through this PC: waiting, decoding, waiting for its turn, drawing.
+        if (stats.insidePcMs > 0.0f) rows.emplace_back(t.hudInsidePc, format(t.msValue, {number(stats.insidePcMs, 0)}));
     }
     // Only worth a row when it happens: the decoder could not keep up.
     if (stats.presenting && stats.droppedFrames > 0) rows.emplace_back(t.hudDropped, std::to_string(stats.droppedFrames));

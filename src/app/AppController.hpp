@@ -60,6 +60,11 @@ public:
         /// A connected session that delivers no picture for this long is
         /// started again at half the bitrate.
         std::chrono::milliseconds stallTimeout{6'000};
+        /// How often the controller is read and handed to the console while a
+        /// session runs, on a thread of its own. Zero: once per update(), on
+        /// the caller's thread. A button press should not have to wait for
+        /// the next picture to be drawn.
+        std::chrono::microseconds inputInterval{0};
         /// Pause before a failed or lost connection is tried again.
         std::chrono::milliseconds retryDelay{2'000};
     };
@@ -202,6 +207,15 @@ private:
 
     // Requests from the remote control thread, handled in update().
     std::mutex remoteMutex_;
+
+    // The input pump: reads the controller every few milliseconds and passes
+    // it on. pumpSession_ is the session it may talk to; it is cleared under
+    // the mutex before that session goes away.
+    void pumpInput(std::stop_token stop);
+    void attachPump(session::ISession* session);
+    std::mutex pumpMutex_;
+    session::ISession* pumpSession_ = nullptr;
+    std::jthread pump_; // last member: stops first
     std::vector<input::QuickAction> pendingActions_;
     std::string remoteStatusJson_ = "{}";
     Clock::time_point nextRemoteStatus_{};

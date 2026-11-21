@@ -272,6 +272,7 @@ struct Strings {
     const char* inputApply;
     const char* pauseOverlay;
     const char* hudUnavailable;          // frame generation could not be started
+    const char* hudInsidePc;             // row label: how long a picture takes from arriving to being drawn
 };
 
 const Strings& strings(Language language);
