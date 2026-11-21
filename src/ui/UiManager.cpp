@@ -1390,14 +1390,18 @@ void UiManager::drawSession(const UiModel& model) {
         heading(format(t.connecting, {session.consoleName}), true);
         space(8.0f);
         paragraph(TextStyle::Body,
-                  session.attempt > 1 ? format(t.connectingAttempt, {attempt, attempts}) : std::string(t.connectingHint),
+                  session.waitingForRelease ? std::string(t.waitingForRelease)
+                  : session.attempt > 1     ? format(t.connectingAttempt, {attempt, attempts})
+                                            : std::string(t.connectingHint),
                   p.textSecondary);
         space(24.0f);
         if (button(t.cancel, ButtonKind::Secondary) || cancelPressed()) actions_.disconnect();
     } else if (model.state == AppState::Reconnecting) {
         heading(format(t.reconnectingTitle, {session.consoleName}), true);
         space(8.0f);
-        paragraph(TextStyle::Body, format(t.reconnectingBody, {attempt, attempts}), p.textSecondary);
+        paragraph(TextStyle::Body,
+                  session.waitingForRelease ? std::string(t.waitingForRelease) : format(t.reconnectingBody, {attempt, attempts}),
+                  p.textSecondary);
         space(24.0f);
         if (button(t.cancel, ButtonKind::Secondary) || cancelPressed()) actions_.disconnect();
     } else if (model.state == AppState::Disconnecting) {

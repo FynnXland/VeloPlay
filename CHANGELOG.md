@@ -3,6 +3,33 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.10.1
+
+- **"Game 30 fps" no longer drops out while the camera moves.** With every turn the detection
+  switched off and on again, and frame generation with it. A repeated picture is not identical
+  to the one before: the encoder uses it to touch the picture up, the more the faster it moves.
+  The detection now judges the rhythm (every other picture changes clearly less than its
+  neighbours) instead of a fixed limit, and only changes its mind after more than half a second
+  of evidence.
+- **Connecting again right after a session waits for the console.** After "Connect again now",
+  or a quick disconnect and connect, the PS5 still counted the old session as running and
+  answered "in use", which ended in an error. VeloPlay now keeps trying with the waiting screen
+  until the console lets go, for up to 75 seconds.
+
+**Deutsch**
+
+- **„Spiel 30 fps“ fällt bei Kamerabewegung nicht mehr aus.** Bei jeder Drehung schaltete die
+  Erkennung ab und wieder an, und die Zwischenbilder mit ihr. Ein wiederholtes Bild ist nicht
+  gleich dem davor: Der Encoder bessert darin nach, umso mehr, je schneller sich das Bild
+  bewegt. Die Erkennung beurteilt jetzt den Rhythmus (jedes zweite Bild ändert sich deutlich
+  weniger als seine Nachbarn) statt einer festen Grenze und ändert ihre Meinung erst nach mehr
+  als einer halben Sekunde.
+- **Neuverbinden direkt nach einer Sitzung wartet auf die Konsole.** Nach „Jetzt neu
+  verbinden“ oder nach schnellem Trennen und Verbinden zählte die PS5 die alte Sitzung noch als
+  laufend und meldete „wird schon genutzt“, was in einer Fehlermeldung endete. VeloPlay
+  versucht es jetzt mit dem Wartebildschirm weiter, bis die Konsole freigibt, höchstens 75
+  Sekunden.
+
 ## 0.10.0
 
 - **Notes over the running picture.** VeloPlay now says what is wrong while it is wrong: no

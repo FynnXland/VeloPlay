@@ -75,6 +75,7 @@ private:
     media::InputRateDetector inputRate_;  // 30 or 60 fps, by what arrives
     media::CadenceDetector cadence_;      // a game at 30 fps inside a 60 fps stream
     bool skipRepeats_ = false;            // its repeated pictures are measured but not shown
+    bool loggedHalved_ = false;           // what the log said last about the rate of the game
     double displayHz_ = 0.0;              // refreshes per second of the screen the window is on
     std::chrono::steady_clock::time_point nextDisplayCheck_{};
     std::chrono::steady_clock::time_point nextRateSample_{};

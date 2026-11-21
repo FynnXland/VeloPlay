@@ -51,7 +51,8 @@ public:
     /// How much of a picture differs from the one before it.
     struct Change {
         std::uint64_t picture = 0; // counted like submitted()
-        double share = 0.0;        // 0 = the same picture again, 1 = everything changed
+        double share = 0.0;        // part of the picture that changed visibly; 0 = none of it, 1 = all
+        double mean = 0.0;         // mean difference in brightness levels, 0 to 255
     };
     /// The next finished comparison, oldest first.
     std::optional<Change> takeChange();

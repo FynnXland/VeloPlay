@@ -67,6 +67,11 @@ public:
         std::chrono::microseconds inputInterval{0};
         /// Pause before a failed or lost connection is tried again.
         std::chrono::milliseconds retryDelay{2'000};
+        /// After a session of ours ended, the console keeps its place taken
+        /// for a while and turns the next one away as "in use". That long it
+        /// is tried again, this often.
+        std::chrono::milliseconds releaseWait{75'000};
+        std::chrono::milliseconds releaseRetry{4'000};
     };
 
     explicit AppController(Options options);
@@ -153,6 +158,8 @@ private:
         bool restart = false;          // we stopped it to connect again with new settings
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
+        bool waitingForRelease = false; // the console still holds the place of our session before
+        Clock::time_point releaseDeadline{}; // until when that is waited for; zero = not waiting
     };
 
     void addNotice(Notice::Kind kind, Notice::Topic topic, std::string detail, std::string technical = {});
@@ -224,6 +231,8 @@ private:
     std::mutex pumpMutex_;
     session::ISession* pumpSession_ = nullptr;
     std::uint64_t droppedFrames_ = 0; // see noteDroppedFrames()
+    std::string lastEndedHostId_;     // the console our last session ran with, and when it ended
+    Clock::time_point lastEndedAt_{};
     std::jthread pump_; // last member: stops first
     std::vector<input::QuickAction> pendingActions_;
     std::string remoteStatusJson_ = "{}";

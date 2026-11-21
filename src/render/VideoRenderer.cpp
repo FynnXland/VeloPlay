@@ -278,10 +278,14 @@ void VideoRenderer::probe() {
                 // A repeat that went through the encoder again differs by a level or two
                 // here and there. More than three levels is a real change.
                 std::size_t changed = 0;
+                std::uint64_t sum = 0;
                 for (std::size_t i = 0; i < now.size(); ++i) {
-                    if (std::abs(static_cast<int>(now[i]) - static_cast<int>(probeBefore_[i])) > 3) ++changed;
+                    const int difference = std::abs(static_cast<int>(now[i]) - static_cast<int>(probeBefore_[i]));
+                    if (difference > 3) ++changed;
+                    sum += static_cast<std::uint64_t>(difference);
                 }
-                changes_.push_back({copy.picture, static_cast<double>(changed) / static_cast<double>(now.size())});
+                const double count = static_cast<double>(now.size());
+                changes_.push_back({copy.picture, static_cast<double>(changed) / count, static_cast<double>(sum) / count});
                 if (changes_.size() > 64) changes_.pop_front();
             }
             probeBefore_ = std::move(now);

@@ -137,7 +137,15 @@ jobs:
         run: |
           if ($env:VELOPLAY_LOW_PRIORITY) { (Get-Process -Id $PID).PriorityClass = 'BelowNormal' }
           ctest --preset windows
-          exit $LASTEXITCODE
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # On a machine with a real graphics card the tests for it measure
+          # something: how far off computed pictures are and how long they
+          # take. ctest hides what passing tests print, so they run once
+          # more here, for the numbers.
+          if ($env:RUNNER_ENVIRONMENT -eq 'self-hosted') {
+            ctest --preset windows -R OnTheGraphicsCard --verbose | Select-String -Pattern 'graphics card|motion search|SKIPPED|  OK |FAILED'
+          }
+          exit 0
 
       # Starts the packaged client the way a user would and checks that it gets
       # as far as a window with a working renderer. The runner has no graphics

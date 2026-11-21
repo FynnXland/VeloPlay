@@ -380,6 +380,7 @@ void Application::frame() {
             inputRate_.reset(model_.requestedStream.fps);
             cadence_.reset();
             skipRepeats_ = false;
+            loggedHalved_ = false;
             loggedGenerator_.clear();
             nextRateSample_ = {};
         } else if (model_.stream && now >= nextRateSample_) {
@@ -453,7 +454,14 @@ void Application::frame() {
             // The repeats of a game that runs at half the stream's rate are compared and left out.
             const bool repeat = skipRepeats_ && cadence_.isRepeat(videoRenderer_.submitted() + 1);
             const bool taken = videoRenderer_.submit(picture, !repeat);
-            while (const auto change = videoRenderer_.takeChange()) cadence_.add(change->picture, change->share);
+            while (const auto change = videoRenderer_.takeChange()) cadence_.add(change->picture, change->mean);
+            if (cadence_.halved() != loggedHalved_) {
+                loggedHalved_ = cadence_.halved();
+                const double* lately = cadence_.recent();
+                spdlog::info("Game rate: {} (change of the last three pictures: {:.2f}, {:.2f}, {:.2f} levels)",
+                             loggedHalved_ ? "30 fps, every other picture repeats" : "as the stream", lately[0],
+                             lately[1], lately[2]);
+            }
             if (!taken || repeat) continue;
             // Laid out by when the decoder finished, not by when this loop came around.
             const bool stamped = picture.decodedAt != std::chrono::steady_clock::time_point{};

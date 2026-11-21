@@ -286,6 +286,7 @@ struct Strings {
     const char* alertLost;
     const char* alertDecoder;
     const char* alertFewer;
+    const char* waitingForRelease; // the console has not let go of the session before
 };
 
 const Strings& strings(Language language);

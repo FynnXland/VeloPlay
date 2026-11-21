@@ -92,6 +92,9 @@ struct SessionView {
     bool loginPinWrong = false; // the passcode entered before was rejected
     int attempt = 1;            // which try this is, 1-based
     int attempts = 1;           // how many tries there are in total
+    /// The console still counts our session before as running and turns the
+    /// new one away. It is tried again until the console lets go.
+    bool waitingForRelease = false;
     std::uint64_t videoFrames = 0;
     std::uint64_t audioPackets = 0;
     std::uint64_t framesLost = 0;

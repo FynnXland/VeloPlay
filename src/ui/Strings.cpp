@@ -298,6 +298,8 @@ constexpr Strings kGerman = {
     .alertLost = "Bilder gehen unterwegs verloren",
     .alertDecoder = "Dein PC kommt mit dem Entpacken der Bilder nicht nach",
     .alertFewer = "Die PS5 schickt gerade weniger Bilder",
+    .waitingForRelease = "Die PS5 hat die letzte Verbindung noch nicht freigegeben. Das dauert bis zu einer Minute, "
+                         "VeloPlay versucht es so lange weiter.",
 };
 
 constexpr Strings kEnglish = {
@@ -586,6 +588,8 @@ constexpr Strings kEnglish = {
     .alertLost = "Pictures are getting lost on the way",
     .alertDecoder = "Your PC cannot keep up with unpacking the pictures",
     .alertFewer = "The PS5 is sending fewer pictures right now",
+    .waitingForRelease = "The PS5 has not let go of the last connection yet. That takes up to a minute; VeloPlay "
+                         "keeps trying until then.",
 };
 
 } // namespace

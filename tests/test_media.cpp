@@ -551,65 +551,102 @@ TEST(CadenceDetector, NoticesAGameAtHalfTheRateOfTheStream) {
     EXPECT_FALSE(detector.halved());
     // Odd pictures are new, even ones repeat them: a 30 fps game in a 60 fps stream.
     std::uint64_t picture = 1;
-    for (int i = 0; i < 16; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0005);
-    ASSERT_TRUE(detector.halved());
+    for (int i = 0; i < 8; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 12.0 : 0.1);
+    EXPECT_FALSE(detector.halved()); // a few pictures are not a rhythm yet
+    for (int i = 0; i < 8; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 12.0 : 0.1);
+    ASSERT_TRUE(detector.halved()); // a quarter of a second is
     EXPECT_TRUE(detector.isRepeat(picture + (picture % 2 == 0 ? 0 : 1)));  // the next even one
     EXPECT_FALSE(detector.isRepeat(picture + (picture % 2 == 1 ? 0 : 1))); // the next odd one
+    // The longer it lasts, the firmer it is believed.
+    for (int i = 0; i < 60; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 12.0 : 0.1);
 
     // The game stands still for a moment (a menu): everything repeats. That says nothing.
-    for (int i = 0; i < 30; ++i, ++picture) detector.add(picture, 0.0);
+    for (int i = 0; i < 300; ++i, ++picture) detector.add(picture, 0.02);
     EXPECT_TRUE(detector.halved());
 
-    // It runs at the full rate now: every picture is new.
-    for (int i = 0; i < 6; ++i, ++picture) detector.add(picture, 0.3);
+    // It runs at the full rate now: every picture is new. Believed after a good half second.
+    for (int i = 0; i < 20; ++i, ++picture) detector.add(picture, 9.0 + (i % 3));
+    EXPECT_TRUE(detector.halved());
+    for (int i = 0; i < 40; ++i, ++picture) detector.add(picture, 9.0 + (i % 3));
     EXPECT_FALSE(detector.halved());
     EXPECT_FALSE(detector.isRepeat(picture));
+}
+
+TEST(CadenceDetector, HoldsOnWhileTheCameraTurns) {
+    // What a player reported: fine while standing, but with every turn of
+    // the camera the detection dropped out and came back. Under fast motion
+    // the encoder cannot keep up and uses the repeats to touch the picture
+    // up, so a repeat then differs a good deal from the picture before.
+    media::CadenceDetector detector;
+    std::uint64_t picture = 1;
+    for (int i = 0; i < 40; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 6.0 : 0.3);
+    ASSERT_TRUE(detector.halved());
+    const bool evenRepeats = detector.isRepeat(100);
+    int dropouts = 0;
+    // Ten seconds of turning, speed going up and down.
+    for (int i = 0; i < 600; ++i, ++picture) {
+        const double speed = 20.0 + 15.0 * std::sin(i * 0.05);
+        // The touching up is a third of the motion, at times half of it.
+        const double touchUp = speed * (i % 50 < 10 ? 0.5 : 0.33);
+        detector.add(picture, picture % 2 == 1 ? speed : touchUp);
+        if (!detector.halved() || detector.isRepeat(100) != evenRepeats) ++dropouts;
+    }
+    EXPECT_EQ(dropouts, 0);
+
+    // Now and then the game stumbles and a new picture comes one place late. Nothing flips for that.
+    for (int i = 0; i < 600; ++i, ++picture) {
+        const bool stumble = i % 97 == 40;
+        const double change = picture % 2 == 1 ? (stumble ? 0.4 : 18.0) : (stumble ? 18.0 : 5.0);
+        detector.add(picture, change);
+        if (!detector.halved()) ++dropouts;
+    }
+    EXPECT_EQ(dropouts, 0);
 }
 
 TEST(CadenceDetector, LeavesASixtyFpsGameAlone) {
     media::CadenceDetector detector;
     std::uint64_t picture = 1;
-    // Moving all the time.
-    for (int i = 0; i < 40; ++i, ++picture) detector.add(picture, 0.25);
-    EXPECT_FALSE(detector.halved());
-    // It stumbles: a repeat now and then, without a rhythm.
-    const int stumbles[] = {3, 4, 9, 17, 18, 19, 26};
-    for (int i = 0; i < 30; ++i, ++picture) {
-        const bool repeat = std::find(std::begin(stumbles), std::end(stumbles), i) != std::end(stumbles);
-        detector.add(picture, repeat ? 0.0 : 0.25);
+    // Moving all the time, now faster, now slower.
+    for (int i = 0; i < 400; ++i, ++picture) {
+        detector.add(picture, 10.0 + 6.0 * std::sin(i * 0.3) + (i * 7 % 5) * 0.5);
+        EXPECT_FALSE(detector.halved());
     }
-    EXPECT_FALSE(detector.halved());
+    // It stumbles: a repeat now and then, without a rhythm.
+    const int stumbles[] = {3, 4, 9, 17, 18, 19, 26, 40, 41, 55};
+    for (int i = 0; i < 60; ++i, ++picture) {
+        const bool repeat = std::find(std::begin(stumbles), std::end(stumbles), i) != std::end(stumbles);
+        detector.add(picture, repeat ? 0.05 : 10.0);
+        EXPECT_FALSE(detector.halved());
+    }
     // Standing still and barely moving say nothing either.
-    for (int i = 0; i < 30; ++i, ++picture) detector.add(picture, i % 2 == 0 ? 0.0 : 0.01);
+    for (int i = 0; i < 60; ++i, ++picture) detector.add(picture, i % 2 == 0 ? 0.0 : 0.3);
     EXPECT_FALSE(detector.halved());
 }
 
 TEST(CadenceDetector, FollowsARhythmThatShiftsByOnePicture) {
     media::CadenceDetector detector;
     std::uint64_t picture = 1;
-    for (int i = 0; i < 16; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
+    for (int i = 0; i < 60; ++i, ++picture) detector.add(picture, picture % 2 == 1 ? 12.0 : 0.5);
     ASSERT_TRUE(detector.halved());
     ASSERT_TRUE(detector.isRepeat(100));
     // A picture got lost on the way: from here on the even ones are new.
-    for (int i = 0; i < 4; ++i, ++picture) detector.add(picture, picture % 2 == 0 ? 0.4 : 0.0);
-    EXPECT_TRUE(detector.halved()); // never left in between
+    for (int i = 0; i < 40; ++i, ++picture) {
+        detector.add(picture, picture % 2 == 0 ? 12.0 : 0.5);
+        EXPECT_TRUE(detector.halved()); // never left in between
+    }
     EXPECT_TRUE(detector.isRepeat(101));
     EXPECT_FALSE(detector.isRepeat(100));
-    for (int i = 0; i < 20; ++i, ++picture) detector.add(picture, picture % 2 == 0 ? 0.4 : 0.0);
-    EXPECT_TRUE(detector.halved());
-    EXPECT_TRUE(detector.isRepeat(101));
 }
 
 TEST(CadenceDetector, GetsByWithComparisonsThatAreMissing) {
     media::CadenceDetector detector;
-    // Every fifth comparison never arrives; the rhythm shows all the same.
-    for (std::uint64_t picture = 1; picture < 60; ++picture) {
-        if (picture % 5 == 0) continue;
-        detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
+    // Every seventh comparison never arrives; the rhythm shows all the same.
+    for (std::uint64_t picture = 1; picture < 120; ++picture) {
+        if (picture % 7 == 0) continue;
+        detector.add(picture, picture % 2 == 1 ? 12.0 : 0.5);
     }
-    EXPECT_FALSE(detector.halved()); // never a full window: stays careful
-    for (std::uint64_t picture = 60; picture < 80; ++picture) detector.add(picture, picture % 2 == 1 ? 0.4 : 0.0);
     EXPECT_TRUE(detector.halved());
+    EXPECT_TRUE(detector.isRepeat(200));
 }
 
 TEST(FramePacer, ShowsEveryPictureAtOnceWithoutGeneration) {

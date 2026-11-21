@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.10.0</span>
+    <span class="pill">Version 0.10.1</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -307,6 +307,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li>Ohne „Automatisch“ gilt, was in den Einstellungen steht: 1080p oder 720p, 30 oder 60 Bilder pro Sekunde, HEVC oder H.264, 5 bis 60 Mbit/s. Lehnt die Konsole das Profil ab, wird automatisch eine Stufe tiefer verhandelt.</li>
           <li>Kommt sechs Sekunden lang kein Bild an, trägt die Strecke die Datenrate nicht. VeloPlay verbindet dann neu mit der halben Rate, bis hinunter zu 5 Mbit/s, und sagt das nach der Sitzung in einem Hinweis.</li>
           <li>Nach dem Aufwecken nimmt die PS5 erst nach einigen Sekunden Verbindungen an. VeloPlay versucht es bis zu sechsmal im Abstand von zwei Sekunden.</li>
+          <li>Direkt nach einer eigenen Sitzung hält die PS5 den Platz noch kurz besetzt und meldet „wird schon genutzt“. VeloPlay versucht es dann alle vier Sekunden erneut, bis zu 75 Sekunden lang, und zeigt so lange den Wartebildschirm.</li>
           <li>Bricht der Stream ab, folgen drei neue Versuche. Erst danach erscheint ein Hinweis. Geht die PS5 selbst in den Ruhemodus, gilt das als normales Ende.</li>
           <li>Die PS5 nennt den Grund, wenn sie ablehnt: Remote Play aus, ein anderes Gerät ist verbunden, unbekannte Protokollversion. VeloPlay zeigt dazu einen Satz und klein darunter die Meldung der Konsole.</li>
           <li>Der Anmelde-Code wird nur an die Sitzung übergeben und nicht gespeichert.</li>
@@ -485,6 +486,21 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
+    <img class="shot" src="img/hinweise.png" alt="Laufender Stream mit zwei Hinweisen oben in der Mitte: Kein Controller verbunden und Die Verbindung hakt" width="1100" height="720">
+    <div>
+      <h3>Hinweise im Spiel</h3>
+      <ul>
+        <li><strong>Kein Controller verbunden:</strong> nach anderthalb Sekunden ohne Controller, und so lange, bis einer da ist.</li>
+        <li><strong>Die Verbindung hakt:</strong> seit mehr als 0,3 Sekunden ist kein Bild angekommen.</li>
+        <li><strong>Bilder gehen unterwegs verloren:</strong> mindestens drei in fünf Sekunden. Einzelne repariert die Übertragung unbemerkt.</li>
+        <li><strong>Dein PC kommt mit dem Entpacken der Bilder nicht nach:</strong> der PC hat Bilder verworfen, das Netz ist dann nicht schuld.</li>
+        <li><strong>Die PS5 schickt gerade weniger Bilder:</strong> deutlich weniger als verlangt, ohne dass etwas verloren ging. Das liegt am Spiel oder an der Konsole.</li>
+        <li>Ein Hinweis bleibt ein paar Sekunden stehen, nachdem die Ursache weg ist, und steht mit Uhrzeit im Protokoll.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
     <img class="shot" src="img/verbunden.png" alt="Bildschirm Verbunden mit Wohnzimmer vor dem ersten Bild, darunter die Knöpfe Trennen und PS5 in den Ruhemodus" width="1100" height="720">
     <div>
       <h3>Verbunden, bevor das Bild da ist</h3>
@@ -615,7 +631,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.10.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.10.1</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -678,7 +694,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>254 automatische Tests unter Linux und 267 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>257 automatische Tests unter Linux und 270 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -687,7 +703,7 @@ flowchart LR
       <tr><td>Bild entpacken</td><td>Zwei kurze Testvideos (HEVC und H.264) durch den Dekoder auf dem Prozessor: Anzahl, Größe und Farbwerte der Bilder, auch mit einem beschädigten Bild mittendrin</td><td class="state ok">bestanden</td></tr>
       <tr><td>Bild zeichnen</td><td>Unter Windows mit dem Software-Renderer in ein Testbild gezeichnet und Pixel nachgemessen: Farben, Seitenverhältnis, Ränder, Wechsel der Bildgröße</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ton, Haptik, Trigger</td><td>Opus-Paket entpackt, Puffer bei Lücken und Stau, Haptik auf vier Kanäle umgerechnet, Effektblock für die Trigger Byte für Byte</td><td class="state ok">bestanden</td></tr>
-      <tr><td>Erkennen eines Spiels mit 30 Bildern in einem Stream mit 60</td><td>Die Entscheidung mit erfundenen Bildfolgen: gleichmäßiger Wechsel, Stillstand, Stolpern eines 60er-Spiels, ein verlorenes Bild. Der Vergleich der Bilder unter Windows auf dem Software-Renderer mit einem Muster, das jedes zweite Mal fast unverändert wiederkommt. An einem echten Spiel noch nicht gesehen.</td><td class="state soon">Logik bestanden, echtes Spiel offen</td></tr>
+      <tr><td>Erkennen eines Spiels mit 30 Bildern in einem Stream mit 60</td><td>Die Entscheidung mit erfundenen Bildfolgen: gleichmäßiger Wechsel, Stillstand, Stolpern eines 60er-Spiels, ein verlorenes Bild. Der Vergleich der Bilder unter Windows auf dem Software-Renderer mit einem Muster, das jedes zweite Mal fast unverändert wiederkommt. Am 21.11.2026 an einem echten Spiel: erkannt, fiel bei Kamerabewegung aber immer wieder aus. Seit 0.10.1 zählt der Rhythmus statt einer festen Grenze; ob das am Spiel hält, ist noch zu bestätigen.</td><td class="state soon">erkennt, Stabilität noch zu bestätigen</td></tr>
       <tr><td>Automatische Datenrate</td><td>Die Regeln mit erfundenen Sitzungen: sauber, mit Verlust, zu kurz, mit stehendem Stream. Ob 15 bis 30 Mbit/s das Bild einer PS5 im WLAN sichtbar verbessern, ist nicht gemessen.</td><td class="state soon">Logik bestanden, Wirkung offen</td></tr>
       <tr><td>Hinweise über dem Bild</td><td>Die Regeln mit eingespeister Zeit: wann ein Hinweis kommt, wie lange er bleibt, was in den ersten Sekunden eines Streams ignoriert wird. Dazu eine nachgestellte Sitzung ohne Controller und mit stehendem Bild.</td><td class="state ok">bestanden</td></tr>
       <tr><td>Zwischenbilder mit NVIDIA Optical Flow</td><td>Die Grafikprogramme dafür werden auf jedem Rechner übersetzt. Die Suche selbst läuft nur auf einer NVIDIA-Karte: Dort vergleicht ein Test sie mit der eigenen Suche an vier Bildfolgen, darunter eine Leiter bei bewegter Kamera, und misst die Rechenzeit.</td><td class="state soon">gebaut, an echter Karte noch nicht gelaufen</td></tr>

@@ -56,6 +56,8 @@ struct Harness {
         options.wakeTimeout = 3000ms;
         options.sessionFactory = sessions->factory(sessions);
         options.retryDelay = 20ms;
+        options.releaseRetry = 20ms;
+        options.releaseWait = 600ms;
         options.mediaSink = &sink;
         options.stallTimeout = stallTimeout;
         options.inputInterval = inputInterval;
@@ -770,6 +772,54 @@ TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
     ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
     EXPECT_FALSE(h.model.session.settingsChanged);
     EXPECT_TRUE(h.model.notices.empty());
+}
+
+TEST(AppControllerSession, WaitsUntilTheConsoleLetsGoOfTheSessionBefore) {
+    test::MockConsole console({});
+    Harness h(console, "session_release.json");
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    // Connecting again right after our own session: the console still counts
+    // that one as running and says "in use", twice, before it lets go.
+    h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::InUse)});
+    h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::InUse)});
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+
+    h.app->applyStreamSettings();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.session.waitingForRelease; }));
+    EXPECT_EQ(h.model.state, AppState::Reconnecting); // the screen with the spinner, not an error
+    EXPECT_TRUE(h.model.notices.empty());
+
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_EQ(h.sessions->configs.size(), 4u);
+    EXPECT_FALSE(h.model.session.waitingForRelease);
+    EXPECT_TRUE(h.model.notices.empty());
+
+    // The same after disconnecting and connecting again from the start screen.
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::InUse)});
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_TRUE(h.model.notices.empty());
+}
+
+TEST(AppControllerSession, GivesUpWaitingWhenTheConsoleStaysTaken) {
+    test::MockConsole console({});
+    Harness h(console, "session_release_never.json");
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    // Somebody else took the console the moment we let go: it stays "in use".
+    for (int i = 0; i < 200; ++i) h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::InUse)});
+    h.app->applyStreamSettings();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.session.waitingForRelease; }));
+    ASSERT_TRUE(h.runUntil([&] { return h.hasNotice(Notice::Topic::SessionInUse); }, 5000ms));
+    EXPECT_EQ(h.model.state, AppState::Error);
 }
 
 TEST(AppControllerSession, SaysOverThePictureWhatIsWrong) {

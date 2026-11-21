@@ -37,41 +37,59 @@ int frameGenerationFactorFor(int setting, int inputFps, double refreshHz) {
 
 void CadenceDetector::reset() { *this = CadenceDetector{}; }
 
-void CadenceDetector::add(std::uint64_t picture, double changed) {
-    const std::size_t at = static_cast<std::size_t>(picture % kWindow);
-    kinds_[at] = changed < kRepeatBelow ? Kind::Repeat : changed > kNewAbove ? Kind::New : Kind::Unknown;
-    numbers_[at] = picture;
-    filled_[at] = true;
+void CadenceDetector::add(std::uint64_t picture, double change) {
+    // A picture is judged against the one before and the one after it, so one picture late.
+    if (filled_ == 3) {
+        changes_[0] = changes_[1];
+        changes_[1] = changes_[2];
+        numbers_[0] = numbers_[1];
+        numbers_[1] = numbers_[2];
+        filled_ = 2;
+    }
+    // A gap in the numbers: what came before does not border on this picture.
+    if (filled_ > 0 && numbers_[filled_ - 1] + 1 != picture) filled_ = 0;
+    changes_[filled_] = change;
+    numbers_[filled_] = picture;
+    ++filled_;
+    if (filled_ == 3) judge(numbers_[1], changes_[0], changes_[1], changes_[2]);
+}
 
-    // Count over the pictures right before this one, by even and odd number.
-    int repeats[2] = {0, 0};
-    int news[2] = {0, 0};
-    int seen[2] = {0, 0};
-    int lately[2][2] = {{0, 0}, {0, 0}}; // the last four pictures: [side][0] repeats, [side][1] new ones
-    for (std::size_t i = 0; i < kWindow; ++i) {
-        if (!filled_[i] || numbers_[i] > picture || picture - numbers_[i] >= kWindow) continue;
-        const std::size_t side = static_cast<std::size_t>(numbers_[i] & 1U);
-        ++seen[side];
-        if (kinds_[i] == Kind::Repeat) ++repeats[side];
-        if (kinds_[i] == Kind::New) ++news[side];
-        if (picture - numbers_[i] < 4 && kinds_[i] != Kind::Unknown) ++lately[side][kinds_[i] == Kind::New ? 1 : 0];
+void CadenceDetector::judge(std::uint64_t picture, double before, double here, double after) {
+    const double less = std::min(before, after);
+    const double more = std::max(before, after);
+    const std::size_t side = static_cast<std::size_t>(picture & 1U);
+
+    const auto speaksFor = [&](std::size_t repeats) {
+        score_[repeats] = std::min(score_[repeats] + 1, kMost);
+        score_[1 - repeats] = std::max(score_[1 - repeats] - 2, 0);
+    };
+    if (less >= kMoving && here <= less * kClearlyLess) {
+        // A calm picture between two that move: this one repeats.
+        speaksFor(side);
+    } else if (here >= kMoving && more <= here * kClearlyLess) {
+        // A picture that moves between two calm ones: its neighbours repeat.
+        speaksFor(1 - side);
+    } else if (less >= kMoving && here >= kMoving) {
+        // Three in a row that move alike: the game runs at the rate of the stream.
+        score_[0] = std::max(score_[0] - 1, 0);
+        score_[1] = std::max(score_[1] - 1, 0);
     }
-    const int half = static_cast<int>(kWindow / 2);
-    for (std::size_t side = 0; side < 2; ++side) {
-        // All of one side repeat, and the other side moves: that is the rhythm.
-        if (seen[side] == half && repeats[side] == half && news[1 - side] >= half - 2) {
-            halved_ = true;
-            parity_ = side;
-            return;
+    // Anything else, standing still above all, says nothing.
+
+    if (!halved_) {
+        for (std::size_t repeats = 0; repeats < 2; ++repeats) {
+            if (score_[repeats] >= kEnter && score_[repeats] > score_[1 - repeats]) {
+                halved_ = true;
+                parity_ = repeats;
+            }
         }
+        return;
     }
-    if (!halved_) return;
     const std::size_t was = static_cast<std::size_t>(parity_);
-    if (lately[was][1] == 2 && lately[1 - was][0] == 2) {
-        // The rhythm is still there, shifted by one: a picture got lost on the way.
+    if (score_[1 - was] >= kEnter && score_[1 - was] > score_[was]) {
+        // The rhythm is still there, shifted by one: a picture got lost or the game stumbled.
         parity_ = 1 - was;
-    } else if (news[was] >= 2) {
-        // New pictures where repeats were expected: the game runs at the full rate again.
+    } else if (score_[0] == 0 && score_[1] == 0) {
         halved_ = false;
     }
 }

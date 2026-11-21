@@ -451,6 +451,7 @@ TEST(VideoRenderer, TellsARepeatedPictureFromANewOne) {
     constexpr int kWidth = 320;
     constexpr int kHeight = 180;
     std::map<std::uint64_t, double> shares; // by picture, counted from 1
+    std::map<std::uint64_t, double> means;
     for (int i = 0; i < 12; ++i) {
         PatternFrame picture(kWidth, kHeight, 6.0 * (i / 2), 2.0 * (i / 2));
         if (i % 2 == 1) {
@@ -464,20 +465,25 @@ TEST(VideoRenderer, TellsARepeatedPictureFromANewOne) {
         EXPECT_EQ(renderer.submitted(), static_cast<std::uint64_t>(i + 1));
         if (i % 2 == 1) EXPECT_EQ(renderer.newestId(), shownBefore);
         canvas.context->Flush();
-        while (const auto change = renderer.takeChange()) shares[change->picture] = change->share;
+        while (const auto change = renderer.takeChange()) {
+            shares[change->picture] = change->share;
+            means[change->picture] = change->mean;
+        }
     }
     // The comparisons come a few pictures late; most of them are there by now.
     ASSERT_GE(shares.size(), 6u);
     double repeated = 0.0;
-    double fresh = 1.0;
+    double fresh = 255.0;
     for (const auto& [picture, share] : shares) {
         // Pictures 2, 4, 6, ... repeat the one before; 3, 5, 7, ... are new.
         if (picture % 2 == 0) {
-            EXPECT_LT(share, media::CadenceDetector::kRepeatBelow) << "picture " << picture;
-            repeated = std::max(repeated, share);
+            EXPECT_LT(share, 0.004) << "picture " << picture;
+            EXPECT_LT(means[picture], 1.0) << "picture " << picture;
+            repeated = std::max(repeated, means[picture]);
         } else {
             EXPECT_GT(share, 0.2) << "picture " << picture;
-            fresh = std::min(fresh, share);
+            EXPECT_GT(means[picture], 3.0) << "picture " << picture;
+            fresh = std::min(fresh, means[picture]);
         }
     }
 

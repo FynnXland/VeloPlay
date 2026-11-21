@@ -219,6 +219,7 @@ void AppController::fillModel(UiModel& model) {
         model.session.loginPinWrong = session_->loginPinWrong;
         model.session.attempt = session_->attempt;
         model.session.attempts = session_->attempts;
+        model.session.waitingForRelease = session_->waitingForRelease;
         if (session_->session && session_->connected) {
             const session::SessionStats stats = session_->session->stats(now);
             model.session.videoFrames = stats.videoFrames;
@@ -505,6 +506,8 @@ void AppController::updateSession(Clock::time_point now) {
                 session_->everConnected = true;
                 session_->connectedAt = now;
                 session_->alerts.reset(now);
+                session_->waitingForRelease = false;
+                session_->releaseDeadline = {};
                 session_->lastPicture = now;
                 session_->videoFrames = 0;
                 session_->attempt = 1;
@@ -544,6 +547,10 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
     spdlog::info("Session ended: {} ({})", session::toString(reason), detail);
     attachPump(nullptr);
     rememberLink(now);
+    if (session_->connected) {
+        lastEndedHostId_ = session_->hostId;
+        lastEndedAt_ = now;
+    }
     session_->session.reset(); // joins the session thread
     if (options_.mediaSink) options_.mediaSink->end();
     if (session_->connected) {
@@ -575,6 +582,24 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
         session_->retryAt = now; // nothing to wait for: the console is there
         return;
     }
+    // "In use" right after a session of our own: the console has not let go
+    // of that one yet. It does so by itself, so this is waited out instead
+    // of reported; connecting again after a restart or a quick disconnect
+    // would fail every time otherwise.
+    const bool oursJustEnded = lastEndedHostId_ == session_->hostId && lastEndedAt_ != Clock::time_point{} &&
+                               now - lastEndedAt_ < std::chrono::minutes(2);
+    if (reason == session::QuitReason::InUse && !session_->userStopped && oursJustEnded) {
+        if (session_->releaseDeadline == Clock::time_point{}) session_->releaseDeadline = now + options_.releaseWait;
+        if (now < session_->releaseDeadline) {
+            if (!session_->waitingForRelease) spdlog::info("The console still holds our last session; trying again until it lets go");
+            session_->waitingForRelease = true;
+            if (state == AppState::Streaming) stateMachine_.handle(AppEvent::ConnectionLost);
+            session_->retryAt = now + options_.releaseRetry;
+            return;
+        }
+    }
+    session_->waitingForRelease = false;
+
     // Rest mode ends a session from the console's side. That is an orderly
     // end, whether we asked for it or the user did it on the console.
     const bool orderly = session_->userStopped || reason == session::QuitReason::Stopped ||

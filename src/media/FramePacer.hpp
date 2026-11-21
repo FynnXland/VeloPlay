@@ -43,24 +43,26 @@ private:
 
 /// Notices a game that runs at 30 fps inside a 60 fps stream. The console
 /// then sends every picture twice, and computing a picture between two that
-/// are the same gains nothing. Fed with how much of each picture differs
-/// from the one before it.
+/// are the same gains nothing. Fed with how much each picture differs from
+/// the one before it.
 ///
-/// Only a strict rhythm counts: one picture new, the next a repeat, over
-/// and over. A game that stands still repeats everything and says nothing;
-/// a 60 fps game that stumbles repeats now and then, without a rhythm.
+/// A repeat is not the same picture bit for bit: the encoder uses it to
+/// touch up what it had no data for the first time, the more the faster the
+/// picture moves. So no fixed limit says "repeat". What counts is the
+/// rhythm: every other picture changes clearly less than the ones around
+/// it. Each picture that fits the rhythm adds to a score, each one that
+/// speaks against it takes away, and the answer only changes when the score
+/// has gone all the way. A game that stands still says nothing; a moment
+/// that does not fit, such as a stumble of the game or a hard cut, changes
+/// nothing.
 class CadenceDetector {
 public:
-    /// A picture of which less than this share changed repeats the one before.
-    static constexpr double kRepeatBelow = 0.004;
-    /// A picture of which more than this share changed is a new one.
-    static constexpr double kNewAbove = 0.02;
-
     void reset();
 
     /// `picture` counts every picture from the console, shown or not.
-    /// `changed` is the share of it that differs from the picture before, 0 to 1.
-    void add(std::uint64_t picture, double changed);
+    /// `change` is how much it differs from the picture before, as the mean
+    /// difference in brightness levels (0 to 255).
+    void add(std::uint64_t picture, double change);
 
     /// True while every other picture repeats the one before it.
     [[nodiscard]] bool halved() const { return halved_; }
@@ -68,13 +70,24 @@ public:
     /// With halved(): whether this picture is one of the repeats.
     [[nodiscard]] bool isRepeat(std::uint64_t picture) const { return halved_ && (picture & 1U) == parity_; }
 
-private:
-    enum class Kind : std::uint8_t { Unknown, Repeat, New };
-    static constexpr std::size_t kWindow = 12;
+    /// The change of the newest picture and of the two before it, newest last. For the log.
+    [[nodiscard]] const double* recent() const { return changes_; }
 
-    Kind kinds_[kWindow]{};        // by picture number modulo the window
-    std::uint64_t numbers_[kWindow]{};
-    bool filled_[kWindow]{};
+private:
+    // Below this, nothing moves and nothing can be told.
+    static constexpr double kMoving = 0.5;
+    // A repeat changes at most this much of what its neighbours change.
+    static constexpr double kClearlyLess = 0.6;
+    // Pictures in the rhythm it takes to believe it, and the most that are remembered.
+    static constexpr int kEnter = 10;
+    static constexpr int kMost = 40;
+
+    void judge(std::uint64_t picture, double before, double here, double after);
+
+    double changes_[3]{};          // of the last three pictures, oldest first
+    std::uint64_t numbers_[3]{};
+    int filled_ = 0;
+    int score_[2] = {0, 0};        // how much speaks for even, and for odd, numbers being the repeats
     bool halved_ = false;
     std::uint64_t parity_ = 0;     // numbers with this lowest bit are the repeats
 };
