@@ -82,6 +82,7 @@ inline constexpr int Right = 0x27;
 inline constexpr int Down = 0x28;
 inline constexpr int Delete = 0x2E;
 inline constexpr int F1 = 0x70;
+inline constexpr int F8 = 0x77;
 inline constexpr int F9 = 0x78;
 inline constexpr int F11 = 0x7A;
 inline constexpr int F12 = 0x7B;

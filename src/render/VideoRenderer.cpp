@@ -574,8 +574,13 @@ void VideoRenderer::draw(UINT targetWidth, UINT targetHeight, const Output& outp
 
     ID3D11RenderTargetView* screenTarget = screen.Get();
     ID3D11ShaderResourceView* enlarged = nullptr;
-    if (lanczos && output.rtx && rtx_) {
-        // NVIDIA's network does the enlarging. If the driver refuses, it is not asked again.
+    // NVIDIA's network has work to do even when the picture keeps its size:
+    // it also takes out what the encoder left behind. Measured on an RTX 4070,
+    // a 1080p picture shown at 1080p came back changed in nearly half of its
+    // points. So it runs whenever the picture is not shrunk.
+    const bool network = output.upscale && output.rtx && rtx_ && shownWidth >= width_ && shownHeight >= height_;
+    if (network) {
+        // If the driver refuses, it is not asked again.
         ComPtr<ID3D11Resource> resource;
         ComPtr<ID3D11Texture2D> texture;
         picture->GetResource(resource.GetAddressOf());

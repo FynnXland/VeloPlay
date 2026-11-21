@@ -149,7 +149,7 @@ jobs:
           # take. ctest hides what passing tests print, so they run once
           # more here, for the numbers.
           if ($env:RUNNER_ENVIRONMENT -eq 'self-hosted') {
-            ctest --preset windows -R OnTheGraphicsCard --verbose | Select-String -Pattern 'graphics card|motion search|SKIPPED|  OK |FAILED'
+            ctest --preset windows -R OnTheGraphicsCard --verbose | Select-String -Pattern 'graphics card|motion search|RTX Video|SKIPPED|  OK |FAILED'
           }
           exit 0
 

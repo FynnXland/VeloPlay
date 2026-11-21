@@ -126,6 +126,9 @@ struct Strings {
     const char* upscaling;
     const char* upscalingHint;
     const char* upscalingRtxHint;
+    const char* upscalingNote;        // {0} = method; shown over the picture after F8
+    const char* upscalingNotEnlarged; // second line of that note
+    const char* upscalingRtxRefused;  // second line of that note
     const char* sharpness;
     const char* sharpnessHint;
     const char* vsync;

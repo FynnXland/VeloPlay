@@ -46,6 +46,18 @@ ControllerState moveFor(KeyboardMouseMapper& mapper, Clock::time_point& now, std
 
 } // namespace
 
+TEST(KeyboardMouse, KeepsTheProgramsOwnKeysAwayFromTheGame) {
+    // Menu, upscaling, display, full screen: these work while playing and never reach the console.
+    for (const int code : {key::Escape, key::F8, key::F9, key::F11}) EXPECT_TRUE(isReservedKey(code)) << code;
+    EXPECT_FALSE(isReservedKey('W'));
+    // A layout that names one of them loses that entry instead of swallowing the key.
+    KeyboardMouseSettings settings;
+    settings.keys = defaultKeyBindings();
+    settings.keys[static_cast<std::size_t>(PadControl::Cross)] = key::F8;
+    sanitize(settings);
+    EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Cross)], key::None);
+}
+
 TEST(KeyboardMouse, DefaultLayoutUsesEachKeyOnce) {
     const auto keys = defaultKeyBindings();
     std::set<int> seen;

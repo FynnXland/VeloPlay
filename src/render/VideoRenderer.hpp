@@ -33,7 +33,8 @@ public:
     struct Output {
         media::FrameChoice choice; // which picture; not valid means the newest
         bool upscale = false;      // Lanczos instead of soft enlargement
-        bool rtx = false;          // with `upscale`: RTX Video Super Resolution where the card offers it
+        bool rtx = false;          // with `upscale`: RTX Video Super Resolution where the card offers it,
+                                   // also for a picture that keeps its size
         float sharpness = 0.0f;    // 0 = leave as it is, 1 = strongest
     };
 
@@ -98,7 +99,8 @@ public:
     /// applies its network depends on NVIDIA's own settings.
     [[nodiscard]] bool rtxAvailable() const { return rtx_ != nullptr; }
     [[nodiscard]] const std::string& rtxError() const { return rtxError_; }
-    /// How the last draw() enlarged the picture: "RTX Video", "Lanczos" or empty.
+    /// What the last draw() put the picture through on its way to the window:
+    /// "RTX Video", "Lanczos" or, for the card's plain filter, nothing.
     [[nodiscard]] const char* scalerName() const { return scalerName_; }
     /// Size of the picture on screen at the last draw(), in pixels; 0 before the first.
     [[nodiscard]] int shownWidth() const { return shownWidth_; }

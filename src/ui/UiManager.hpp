@@ -38,6 +38,8 @@ public:
     void closeSheet();
     /// Opens the menu over a running picture, as Esc does.
     void showPauseMenu() { pauseMenu_ = true; }
+    /// Shows the note that follows a press of F8, for a picture of it.
+    void showUpscalingNote() { upscalingNoteFor_ = 1.0e9; }
     /// True while the picture of the game is all there is on screen: no
     /// menu, no settings. Keys and mouse can go to the game then.
     [[nodiscard]] bool pictureOwnsInput() const { return pictureOwnsInput_; }
@@ -61,6 +63,7 @@ private:
     void drawConnection(const UiModel& model);
     void drawStreamOverlay(const UiModel& model);
     void drawStreamAlerts(const UiModel& model);
+    void drawUpscalingNote(const UiModel& model);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);
@@ -101,6 +104,7 @@ private:
     bool adviceApplied_ = false;
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
     bool pictureOwnsInput_ = false;
+    double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to
     int bindingControl_ = -1; // the control that waits for its key in the settings, or -1
     bool settingsFromGame_ = false; // the settings sheet was opened from that menu

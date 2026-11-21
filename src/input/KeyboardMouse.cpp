@@ -50,7 +50,9 @@ std::optional<PadControl> parsePadControl(std::string_view name) {
     return std::nullopt;
 }
 
-bool isReservedKey(int code) { return code == key::Escape || code == key::F9 || code == key::F11; }
+bool isReservedKey(int code) {
+    return code == key::Escape || code == key::F8 || code == key::F9 || code == key::F11;
+}
 
 std::array<int, kPadControlCount> defaultKeyBindings() {
     std::array<int, kPadControlCount> keys{};

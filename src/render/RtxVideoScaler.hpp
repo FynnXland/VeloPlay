@@ -32,6 +32,16 @@ public:
     /// if the driver refused; error() then says why.
     ID3D11ShaderResourceView* scale(ID3D11Texture2D* source, int sourceWidth, int sourceHeight, int width, int height);
 
+    /// With false the picture goes through the same video processor, but
+    /// NVIDIA's extension is never switched on: the driver's ordinary filter
+    /// enlarges it. Comparing the two results is the only way to tell whether
+    /// the driver applies its network at all.
+    void useNetwork(bool use) {
+        if (use == network_) return;
+        network_ = use;
+        processor_.Reset(); // a processor that once had the extension is not trusted to forget it
+    }
+
     [[nodiscard]] const std::string& error() const { return error_; }
 
 private:
@@ -51,6 +61,7 @@ private:
     int sourceHeight_ = 0;
     int width_ = 0;
     int height_ = 0;
+    bool network_ = true;
     std::string error_;
 };
 

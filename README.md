@@ -158,6 +158,7 @@ connecting.
 | Esc | Menu with **Resume**, **Disconnect** and **Put PS5 in rest mode** |
 | F11 | Full screen on and off |
 | F9 | Display with the figures of the link on and off |
+| F8 | Steps through the ways the picture is enlarged (off, Lanczos, RTX Video on NVIDIA cards), to compare them while playing |
 
 The display in the top left corner names how many frames per second arrive and are shown, the
 bitrate, the response time, the packet loss and the decoder. “D3D11VA” there means the graphics

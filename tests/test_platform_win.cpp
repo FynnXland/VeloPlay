@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -18,6 +19,7 @@
 #include <wrl/client.h>
 
 #include "audio/WasapiOutput.hpp"
+#include "render/RtxVideoScaler.hpp"
 #include "render/VideoRenderer.hpp"
 #include "util/ThreadStack.hpp"
 
@@ -1047,4 +1049,171 @@ TEST(ThreadStack, ShowsWhereAnotherThreadWaits) {
     }
     EXPECT_TRUE(sawThisProgram);
     EXPECT_TRUE(sawFunctionName);
+}
+
+// Whether the driver applies its network cannot be asked. It can be seen:
+// the same picture goes through the video processor twice, once with
+// NVIDIA's extension switched on and once without it ever being touched.
+// If the two results are the same, the extension does nothing on this PC,
+// whatever the setting in VeloPlay says. Nothing is asserted about the
+// difference, because it depends on NVIDIA's own settings; the numbers are
+// printed and read from the build's log.
+TEST(OnTheGraphicsCard, ShowsWhetherNvidiasNetworkDoesAnything) {
+    Surface surface;
+    if (!surface.create(16, 16, true)) GTEST_SKIP() << "no graphics card in this machine";
+    render::RtxVideoScaler scaler;
+    std::string reason;
+    if (!scaler.create(surface.device.Get(), surface.context.Get(), reason)) GTEST_SKIP() << "no RTX Video on this card: " << reason;
+
+    DEVMODEW mode{};
+    mode.dmSize = sizeof(mode);
+    if (EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &mode)) {
+        std::printf("RTX Video: the primary screen is %lu x %lu at %lu Hz\n", static_cast<unsigned long>(mode.dmPelsWidth),
+                    static_cast<unsigned long>(mode.dmPelsHeight), static_cast<unsigned long>(mode.dmDisplayFrequency));
+    }
+
+    struct Case {
+        int sourceWidth, sourceHeight, width, height;
+    };
+    const std::array<Case, 4> cases = {{
+        {960, 540, 1920, 1080},
+        {1920, 1080, 2560, 1440},
+        {1920, 1080, 3840, 2160},
+        {1920, 1080, 1920, 1080}, // not enlarged at all: does the driver clean the picture up anyway?
+    }};
+    for (const Case& test : cases) {
+        // Something like a game picture after the encoder: soft structure,
+        // hard edges, thin lines, and blocks of eight pixels that are a
+        // level or two off.
+        std::vector<std::uint8_t> pixels(static_cast<std::size_t>(test.sourceWidth) * test.sourceHeight * 4);
+        for (int y = 0; y < test.sourceHeight; ++y) {
+            for (int x = 0; x < test.sourceWidth; ++x) {
+                double value = 0.15 + 0.6 * (0.6 * noise(x + 1000.5, y + 1000.5, 48.0, 1) + 0.4 * noise(x + 1000.5, y + 1000.5, 9.0, 2));
+                if ((x / 160 + y / 120) % 2 == 0 && x % 160 > 40 && y % 120 > 30) value += 0.2;
+                if ((x + y) % 97 < 2 || (x * 3 - y + 4000) % 211 < 2) value = 0.9;
+                value += (cell(x / 8, y / 8, 3) - 0.5) * 0.012;
+                const auto grey = static_cast<std::uint8_t>(std::lround(255.0 * std::clamp(value, 0.0, 1.0)));
+                std::uint8_t* out = &pixels[(static_cast<std::size_t>(y) * test.sourceWidth + x) * 4];
+                out[0] = out[1] = out[2] = grey;
+                out[3] = 255;
+            }
+        }
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = static_cast<UINT>(test.sourceWidth);
+        desc.Height = static_cast<UINT>(test.sourceHeight);
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        D3D11_SUBRESOURCE_DATA data{};
+        data.pSysMem = pixels.data();
+        data.SysMemPitch = static_cast<UINT>(test.sourceWidth) * 4;
+        ComPtr<ID3D11Texture2D> source;
+        ASSERT_TRUE(SUCCEEDED(surface.device->CreateTexture2D(&desc, &data, source.GetAddressOf())));
+
+        desc.Width = static_cast<UINT>(test.width);
+        desc.Height = static_cast<UINT>(test.height);
+        desc.BindFlags = 0;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        ComPtr<ID3D11Texture2D> staging;
+        ASSERT_TRUE(SUCCEEDED(surface.device->CreateTexture2D(&desc, nullptr, staging.GetAddressOf())));
+
+        // The result as grey levels and the time one call takes, the read-back included.
+        const auto run = [&](bool network, std::vector<int>& out, double& ms) {
+            scaler.useNetwork(network);
+            constexpr int kRounds = 6; // the first one sets the processor up and is not timed
+            double total = 0.0;
+            for (int round = 0; round < kRounds; ++round) {
+                const auto start = std::chrono::steady_clock::now();
+                ID3D11ShaderResourceView* view =
+                    scaler.scale(source.Get(), test.sourceWidth, test.sourceHeight, test.width, test.height);
+                if (!view) return false;
+                ComPtr<ID3D11Resource> result;
+                view->GetResource(result.GetAddressOf());
+                surface.context->CopyResource(staging.Get(), result.Get());
+                D3D11_MAPPED_SUBRESOURCE mapped{};
+                if (FAILED(surface.context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) return false;
+                if (round == kRounds - 1) {
+                    out.resize(static_cast<std::size_t>(test.width) * test.height);
+                    for (int y = 0; y < test.height; ++y) {
+                        const auto* row = static_cast<const std::uint8_t*>(mapped.pData) + static_cast<std::size_t>(y) * mapped.RowPitch;
+                        for (int x = 0; x < test.width; ++x) out[static_cast<std::size_t>(y) * test.width + x] = row[x * 4];
+                    }
+                }
+                surface.context->Unmap(staging.Get(), 0);
+                if (round > 0) total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+            }
+            ms = total / (kRounds - 1);
+            return true;
+        };
+
+        std::vector<int> plain, network;
+        double plainMs = 0.0, networkMs = 0.0;
+        if (!run(false, plain, plainMs)) {
+            std::printf("RTX Video %d x %d to %d x %d: the video processor refused: %s\n", test.sourceWidth, test.sourceHeight,
+                        test.width, test.height, scaler.error().c_str());
+            continue;
+        }
+        if (!run(true, network, networkMs)) {
+            std::printf("RTX Video %d x %d to %d x %d: refused with the network switched on: %s\n", test.sourceWidth,
+                        test.sourceHeight, test.width, test.height, scaler.error().c_str());
+            continue;
+        }
+        double sum = 0.0;
+        int largest = 0;
+        std::size_t differing = 0;
+        for (std::size_t i = 0; i < plain.size(); ++i) {
+            const int difference = std::abs(plain[i] - network[i]);
+            sum += difference;
+            largest = std::max(largest, difference);
+            if (difference > 1) ++differing;
+        }
+        std::printf("RTX Video %d x %d to %d x %d: with the network %.2f grey levels away from the plain filter on average, "
+                    "%d at most, %.1f %% of the picture differs; %.2f ms against %.2f ms\n",
+                    test.sourceWidth, test.sourceHeight, test.width, test.height, sum / static_cast<double>(plain.size()),
+                    largest, 100.0 * static_cast<double>(differing) / static_cast<double>(plain.size()), networkMs, plainMs);
+    }
+}
+
+// The user's own case: a 1080p stream on a 1080p screen. Nothing is enlarged,
+// and still the network is to get the picture, because it cleans it up.
+TEST(OnTheGraphicsCard, LetsNvidiasNetworkWorkOnAPictureThatKeepsItsSize) {
+    constexpr int kWidth = 1920;
+    constexpr int kHeight = 1080;
+    Surface surface;
+    if (!surface.create(kWidth, kHeight, true)) GTEST_SKIP() << "no graphics card in this machine";
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+    if (!renderer.rtxAvailable()) GTEST_SKIP() << "no RTX Video on this card: " << renderer.rtxError();
+
+    PatternFrame picture(kWidth, kHeight, 0, 0);
+    ASSERT_TRUE(renderer.submit(picture.frame));
+    render::VideoRenderer::Output output;
+    output.upscale = true;
+    surface.begin();
+    renderer.draw(kWidth, kHeight, output);
+    // Lanczos has nothing to do at the same size and says so.
+    EXPECT_STREQ(renderer.scalerName(), "");
+    const std::vector<int> plain = surface.read();
+    const double plainMean = surface.mean();
+
+    output.rtx = true;
+    surface.begin();
+    renderer.draw(kWidth, kHeight, output);
+    EXPECT_STREQ(renderer.scalerName(), "RTX Video") << renderer.rtxError();
+    const std::vector<int> cleaned = surface.read();
+    const double apart = meanDifference(cleaned, plain, kWidth, kHeight, 16);
+    std::printf("RTX Video at the same size: mean %.1f against %.1f untouched, %.2f grey levels apart on average\n",
+                surface.mean(), plainMean, apart);
+    // The same picture, not a different one.
+    EXPECT_NEAR(surface.mean(), plainMean, 4.0);
+    EXPECT_LT(apart, 12.0);
+
+    // A window smaller than the stream: the picture is shrunk by the plain filter, the network stays out of it.
+    surface.begin();
+    renderer.draw(kWidth / 2, kHeight / 2, output);
+    EXPECT_STREQ(renderer.scalerName(), "");
 }

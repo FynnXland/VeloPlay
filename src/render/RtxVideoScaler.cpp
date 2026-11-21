@@ -123,13 +123,15 @@ bool RtxVideoScaler::configure(int sourceWidth, int sourceHeight, int width, int
         context1->VideoProcessorSetOutputColorSpace1(processor_.Get(), DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
     }
 
-    NvidiaStreamExtension extension{1, 2, 1};
-    result = videoContext_->VideoProcessorSetStreamExtension(processor_.Get(), 0, &kNvidiaPpeInterface,
-                                                             sizeof(extension), &extension);
-    if (FAILED(result)) {
-        error_ = failure("switching on RTX Video Super Resolution", result);
-        processor_.Reset();
-        return false;
+    if (network_) {
+        NvidiaStreamExtension extension{1, 2, 1};
+        result = videoContext_->VideoProcessorSetStreamExtension(processor_.Get(), 0, &kNvidiaPpeInterface,
+                                                                 sizeof(extension), &extension);
+        if (FAILED(result)) {
+            error_ = failure("switching on RTX Video Super Resolution", result);
+            processor_.Reset();
+            return false;
+        }
     }
     sourceWidth_ = sourceWidth;
     sourceHeight_ = sourceHeight;

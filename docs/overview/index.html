@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.12.0</span>
+    <span class="pill">Version 0.13.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -317,7 +317,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Am PC spielen</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
+          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> blendet die Anzeige der Werte ein und aus, <kbd>F8</kbd> schaltet die Hochskalierung um. Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
         <div><span class="label">Was dahinter passiert</span>
           <p>Jedes Bild kommt als gepacktes Paket an. Die Grafikkarte entpackt es, ein kleines Programm auf der Karte rechnet die Farben um und passt die Größe ans Fenster an. Der Ton wird entpackt und mit einer kleinen Reserve abgespielt, damit verspätete Pakete nicht knacken.</p></div>
       </div>
@@ -357,7 +357,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
           <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
           <li><strong>Hochskalieren:</strong> Lanczos mit 16 Stützstellen, begrenzt auf den Wertebereich der Nachbarn, damit neben harten Kanten kein Schatten entsteht. Beim Verkleinern bleibt es beim einfachen Filter.</li>
-          <li><strong>RTX Video Super Resolution:</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich.</li>
+          <li><strong>RTX Video Super Resolution:</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich. Ein Test schickt deshalb dasselbe Bild einmal mit und einmal ohne diesen Schalter durch den Videoprozessor und vergleicht. Auf der RTX 4070 (21.11.2026): Das Ergebnis weicht im Mittel um 3,2 bis 3,5 Graustufen ab, wenn vergrößert wird, und um 1,9, wenn das Bild seine Größe behält (1080p auf 1080p); knapp die Hälfte der Bildpunkte ändert sich. Das Netz arbeitet also auch ohne Vergrößern. Seit 0.13.0 läuft RTX Video deshalb immer, wenn das Bild nicht verkleinert wird. Rechenzeit in der Messung: etwa 2 ms mehr von 540p auf 1080p, etwa 6 ms mehr bei einem 1080p-Bild.</li>
           <li><strong>Schärfen:</strong> nach dem Verfahren RCAS aus AMDs FidelityFX Super Resolution 1 (MIT-Lizenz): Kanten werden angehoben, aber nur so weit, wie der Kontrast der Umgebung es zulässt.</li>
           <li><strong>Geht etwas nicht:</strong> Kann die Karte das Verfahren nicht einrichten, zeigt VeloPlay die Bilder, wie sie ankommen, und die Anzeige nennt „nicht verfügbar“.</li>
         </ul>
@@ -446,7 +446,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>Die Zeile oben:</strong> links, was die PS5 sendet, rechts, was auf dem Bildschirm ankommt. Der umrandete Kasten gehört zum offenen Reiter.</li>
         <li><strong>Zwischenbilder:</strong> „Auto“ verdoppelt 30 Bilder pro Sekunde und lässt 60 in Ruhe. Darunter steht, was das gerade heißt und wie viel später das Bild dadurch erscheint. Mehr Bilder, als der Bildschirm pro Sekunde zeigen kann, berechnet VeloPlay nicht: 3x und 4x wirken erst auf Bildschirmen mit 90 oder 120 Hz.</li>
-        <li><strong>Hochskalierung:</strong> „Lanczos“ ist ein schärferer Filter beim Vergrößern auf das Fenster. Auf NVIDIA-Karten gibt es zusätzlich „RTX Video“: Das neuronale Netz von NVIDIA vergrößert und glättet dabei Klötzchen. Dafür muss in der NVIDIA-App die RTX-Video-Verbesserung eingeschaltet sein.</li>
+        <li><strong>Hochskalierung:</strong> „Lanczos“ ist ein schärferer Filter beim Vergrößern auf das Fenster. Auf NVIDIA-Karten gibt es zusätzlich „RTX Video“: Das neuronale Netz von NVIDIA vergrößert und glättet dabei Klötzchen. Dafür muss in der NVIDIA-App die RTX-Video-Verbesserung eingeschaltet sein. Ist das Fenster so groß wie der Stream (zum Beispiel 1080p auf einem 1080p-Bildschirm), ändern „Aus“ und „Lanczos“ nichts am Bild; „RTX Video“ glättet dann nur. Mit <kbd>F8</kbd> schaltest du im Spiel um.</li>
         <li><strong>Schärfe:</strong> 0 % lässt das Bild, wie es ist.</li>
       </ul>
     </div>
@@ -465,7 +465,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/im-spiel.png" alt="Laufender Stream: oben links die Anzeige mit Bildraten, Datenrate, Antwortzeit, Verlust, Dekoder und Bildabständen, unten der Hinweis auf die Tasten Esc, F11 und F9" width="1100" height="720">
+    <img class="shot" src="img/im-spiel.png" alt="Laufender Stream: oben links die Anzeige mit Bildraten, Datenrate, Antwortzeit, Verlust, Dekoder und Bildabständen, unten der Hinweis auf die Tasten Esc, F11, F9 und F8" width="1100" height="720">
     <div>
       <h3>Im Spiel</h3>
       <p class="small muted">Im Beispielbild ist die Fläche schwarz, weil das Vorschau-Werkzeug kein Spielbild hat. Dort liegt im Betrieb das Bild der PS5.</p>
@@ -480,7 +480,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Langsamstes Bild:</strong> das Bild der letzten ein bis zwei Sekunden, das am längsten zum Entpacken brauchte. Liegt der Wert weit über dem Mittel, ruckelt es, auch wenn das Mittel gut aussieht.</li>
         <li><strong>Im PC:</strong> wie lange ein Bild vom Eintreffen der Daten bis zum Zeichnen braucht. Mit Zwischenbildern ist die halbe Bildperiode Wartezeit darin enthalten.</li>
         <li><strong>Bildabstände:</strong> gleichmäßige Balken bedeuten ruhiges Bild, orange Balken sind verspätete Bilder.</li>
-        <li><strong>Unten:</strong> ein Hinweis auf <kbd>Esc</kbd>, <kbd>F11</kbd> und <kbd>F9</kbd>, der nach einigen Sekunden verschwindet.</li>
+        <li><strong>Unten:</strong> ein Hinweis auf <kbd>Esc</kbd>, <kbd>F11</kbd>, <kbd>F9</kbd> und <kbd>F8</kbd>, der nach einigen Sekunden verschwindet.</li>
+        <li><strong>F8, Vorher und Nachher (seit 0.13.0):</strong> schaltet im laufenden Spiel zwischen „Aus“, „Lanczos“ und, auf NVIDIA-Karten, „RTX Video“ um. Ein Hinweis unten nennt für vier Sekunden, was gerade gilt. Er sagt auch, wenn das Bild gar nicht vergrößert wird, weil das Fenster nicht größer ist als der Stream. Dann kann keine der drei Stufen etwas ändern.</li>
         <li><strong>Esc:</strong> Menü über dem Bild mit „Weiter“, „Trennen“ und „PS5 in den Ruhemodus“. Der Controller gehört weiter der PS5, das Menü bedienst du mit der Maus.</li>
       </ul>
     </div>
@@ -494,7 +495,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Einschalten:</strong> Einstellungen &gt; Controller &gt; „Mit Maus und Tastatur spielen“. Zunächst aus.</li>
         <li><strong>Was passiert:</strong> Die PS5 kennt nur Controller. Tasten werden zu Knöpfen und zum linken Stick, die Maus zum rechten Stick: Je schneller du die Maus bewegst, desto weiter ist der Stick gedrückt.</li>
         <li><strong>Belegung:</strong> Klick auf einen Teil des gezeichneten Controllers oder auf sein Feld, dann die Taste drücken. <kbd>Entf</kbd> leert ein Feld, <kbd>Esc</kbd> bricht ab. Voreingestellt: W A S D laufen, Maus umsehen, linke Maustaste R2, rechte L2.</li>
-        <li><strong>Im Spiel:</strong> Der Mauszeiger verschwindet, Maus und Tastatur gehören der PS5. <kbd>Esc</kbd> öffnet das Menü und gibt sie wieder frei. <kbd>Esc</kbd>, <kbd>F9</kbd> und <kbd>F11</kbd> bleiben bei VeloPlay.</li>
+        <li><strong>Im Spiel:</strong> Der Mauszeiger verschwindet, Maus und Tastatur gehören der PS5. <kbd>Esc</kbd> öffnet das Menü und gibt sie wieder frei. <kbd>Esc</kbd>, <kbd>F8</kbd>, <kbd>F9</kbd> und <kbd>F11</kbd> bleiben bei VeloPlay.</li>
         <li><strong>Grenzen:</strong> Die PS5 zeigt weiter Controller-Symbole. Eine Maus über einen Stick fühlt sich nie ganz an wie in einem PC-Spiel; stell im Spiel die Kamera-Empfindlichkeit hoch.</li>
       </ul>
     </div>
@@ -646,7 +647,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.12.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.13.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -709,7 +710,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>271 automatische Tests unter Linux und 286 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>272 automatische Tests unter Linux und 289 unter Windows, davon fünf nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -740,7 +741,7 @@ flowchart LR
       <tr><td>Trigger, Haptik und Aufwecken an echten Geräten</td><td>Nur an Konsole und Controller möglich, Rückmeldung steht aus</td><td class="state no">offen</td></tr>
       <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
       <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Das öffentliche Repository gibt es seit dem 21.11.2026. Geprüft ist das Update erst, wenn dort zwei Versionen nacheinander erschienen sind und ein Programm sich von der einen auf die andere gebracht hat.</td><td class="state no">offen</td></tr>
-      <tr><td>RTX Video Super Resolution</td><td>Der Test läuft nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Ob es besser aussieht, kann kein Test sagen.</td><td class="state no">am Bild zu beurteilen</td></tr>
+      <tr><td>RTX Video Super Resolution</td><td>Die Tests laufen nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Der Vergleich mit und ohne NVIDIAs Schalter belegt auf der RTX 4070, dass das Netz das Bild verändert, auch bei gleicher Größe. Ob es besser aussieht, kann kein Test sagen; dafür gibt es <kbd>F8</kbd> im Spiel.</td><td class="state no">am Bild zu beurteilen</td></tr>
     </tbody>
   </table></div>
 </section>

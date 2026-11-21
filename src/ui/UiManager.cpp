@@ -401,7 +401,12 @@ void UiManager::draw(const UiModel& model) {
         }
         if (model.stream) drawStreamOverlay(model);
         // Over the picture only; the screens before and around it say more than a note could.
-        if (presenting && !pauseMenu_ && !settingsInGame) drawStreamAlerts(model);
+        if (presenting && !pauseMenu_ && !settingsInGame) {
+            drawStreamAlerts(model);
+            drawUpscalingNote(model);
+        } else {
+            upscalingNoteFor_ = 0.0;
+        }
         pictureOwnsInput_ = presenting && !pauseMenu_ && !settingsInGame;
         return;
     }
@@ -1218,6 +1223,52 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
         ink.w *= shown;
         drawText(draw, ImVec2(min.x + padX + dot + gap, min.y + padY), TextStyle::Body, ink, text);
         y += (height + px(8.0f)) * shown;
+    }
+}
+
+void UiManager::drawUpscalingNote(const UiModel& model) {
+    if (!model.config || !model.stream) return;
+    const Strings& t = *text_;
+    int& level = model.config->graphics.superResolutionLevel;
+    const int highest = model.rtxVideoAvailable ? 2 : 1;
+
+    // F8 steps through the ways to enlarge the picture while the game runs,
+    // so the difference can be seen where it matters: off, Lanczos, RTX Video.
+    if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) {
+        level = level >= highest ? 0 : level + 1;
+        actions_.configChanged();
+        upscalingNoteFor_ = 4.0;
+    }
+    if (upscalingNoteFor_ <= 0.0) return;
+    upscalingNoteFor_ -= static_cast<double>(ImGui::GetIO().DeltaTime);
+
+    // The first line says what was chosen, the second what happens if that is something else.
+    const char* chosen = level <= 0 ? t.off : (level >= 2 && model.rtxVideoAvailable ? "RTX Video" : "Lanczos");
+    const std::string title = format(t.upscalingNote, {chosen});
+    const char* remark = nullptr;
+    if (level > 0 && model.stream->scaler.empty()) remark = t.upscalingNotEnlarged;
+    else if (level >= 2 && model.stream->scaler == "Lanczos") remark = t.upscalingRtxRefused;
+
+    const Palette& p = palette();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 titleSize = measure(TextStyle::Body, title.c_str());
+    const ImVec2 remarkSize = remark ? measure(TextStyle::Caption, remark) : ImVec2(0.0f, 0.0f);
+    const float padX = px(16.0f);
+    const float padY = px(10.0f);
+    const float width = padX * 2.0f + std::max(titleSize.x, remarkSize.x);
+    const float height = padY * 2.0f + titleSize.y + (remark ? px(4.0f) + remarkSize.y : 0.0f);
+    const float shown = static_cast<float>(std::clamp(upscalingNoteFor_ / 0.25, 0.0, 1.0));
+    const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, viewport->Pos.y + viewport->Size.y - height - px(72.0f));
+    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, 0.86f * shown), px(12.0f));
+    ImVec4 ink = p.text;
+    ink.w *= shown;
+    drawText(draw, ImVec2(min.x + (width - titleSize.x) * 0.5f, min.y + padY), TextStyle::Body, ink, title.c_str());
+    if (remark) {
+        ImVec4 quiet = p.textSecondary;
+        quiet.w *= shown;
+        drawText(draw, ImVec2(min.x + (width - remarkSize.x) * 0.5f, min.y + padY + titleSize.y + px(4.0f)),
+                 TextStyle::Caption, quiet, remark);
     }
 }
 

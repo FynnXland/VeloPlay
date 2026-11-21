@@ -298,6 +298,17 @@ std::vector<Scene> scenes() {
              model.stream = playingStats();
              model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
          }},
+        {"32-stream-upscaling-note",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.rtxVideoAvailable = true;
+             model.config->graphics.superResolutionLevel = 2;
+             ui.showUpscalingNote();
+         }},
         {"26-stream-playing",
          [](UiModel& model, UiManager&) {
              withConsoles(model);

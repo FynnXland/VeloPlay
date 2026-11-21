@@ -3,6 +3,35 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.13.0
+
+- **Compare the upscaling while you play: F8.** During a stream F8 steps through off, Lanczos
+  and, on NVIDIA cards, RTX Video. A note at the bottom names what is active for four seconds.
+  It also says when a step cannot change anything, because the window is no larger than the
+  stream.
+- **RTX Video now also works when the picture keeps its size.** Until now it only ran when the
+  picture was enlarged. With a 1080p stream on a 1080p screen that never happened, so switching
+  it on made no difference. A new test on a real card sends the same picture through NVIDIA's
+  video processor with and without its network. On an RTX 4070 the network changed close to
+  half of the picture's points even at the same size: it also smooths what the video
+  compression left. It costs the graphics card a few milliseconds per picture; F8 or the
+  settings switch it off. Whether the picture looks better is for your eyes to judge.
+
+**Deutsch**
+
+- **Hochskalierung im Spiel vergleichen: F8.** Im laufenden Stream schaltet F8 zwischen Aus,
+  Lanczos und, auf NVIDIA-Karten, RTX Video um. Ein Hinweis unten nennt für vier Sekunden, was
+  gerade gilt. Er sagt auch, wenn eine Stufe nichts ändern kann, weil das Fenster nicht größer
+  ist als der Stream.
+- **RTX Video wirkt jetzt auch, wenn das Bild seine Größe behält.** Bisher lief es nur, wenn
+  das Bild vergrößert wurde. Bei einem 1080p-Stream auf einem 1080p-Bildschirm kam das nie
+  vor, das Einschalten änderte also nichts. Ein neuer Test auf einer echten Karte schickt
+  dasselbe Bild mit und ohne NVIDIAs Netz durch den Videoprozessor. Auf einer RTX 4070
+  veränderte das Netz auch bei gleicher Größe knapp die Hälfte der Bildpunkte: Es glättet auch,
+  was die Videokompression hinterlassen hat. Das kostet die Grafikkarte einige Millisekunden
+  pro Bild; mit F8 oder in den Einstellungen schaltest du es ab. Ob das Bild besser aussieht,
+  entscheiden deine Augen.
+
 ## 0.12.0
 
 - **Playing with mouse and keyboard.** New under Settings > Controller, off by default. Keys

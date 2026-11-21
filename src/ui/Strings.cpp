@@ -114,11 +114,16 @@ constexpr Strings kGerman = {
     .frameGenerationOffHint = "Das Bild wird mit {0} fps angezeigt, so wie die PS5 es sendet.",
     .upscaling = "Hochskalierung",
     .upscalingHint = "Lanczos rechnet das Bild mit einem schärferen Filter auf die Größe des Fensters hoch. Aus: Das "
-                     "Bild wird weich vergrößert.",
+                     "Bild wird weich vergrößert. Ist das Fenster nicht größer als der Stream, ändert beides nichts.",
     .upscalingRtxHint = "RTX Video Super Resolution vergrößert das Bild mit einem neuronalen Netz deiner NVIDIA-Karte "
-                        "und glättet dabei Klötzchen aus der Übertragung. Dafür muss in der NVIDIA-App unter System > "
-                        "Video die RTX-Video-Verbesserung mit Superauflösung eingeschaltet sein. VeloPlay kann nicht "
-                        "erkennen, ob der Treiber sie anwendet; die NVIDIA-App zeigt es dort an.",
+                        "und glättet dabei Klötzchen aus der Übertragung. Ist das Fenster so groß wie der Stream, "
+                        "bleibt die Größe gleich und nur das Glätten wirkt. Dafür muss in der NVIDIA-App unter "
+                        "System > Video die RTX-Video-Verbesserung mit Superauflösung eingeschaltet sein. VeloPlay "
+                        "kann nicht erkennen, ob der Treiber sie anwendet; die NVIDIA-App zeigt es dort an. Mit F8 "
+                        "schaltest du im Spiel um und siehst den Unterschied.",
+    .upscalingNote = "Hochskalierung: {0}",
+    .upscalingNotEnlarged = "Das Fenster ist nicht größer als der Stream. Diese Stufe ändert gerade nichts am Bild.",
+    .upscalingRtxRefused = "RTX Video steht nicht zur Verfügung, Lanczos übernimmt.",
     .sharpness = "Schärfe",
     .sharpnessHint = "Hebt Kanten nach dem Vergrößern wieder hervor. 0 % lässt das Bild, wie es ist.",
     .vsync = "VSync",
@@ -256,7 +261,7 @@ constexpr Strings kGerman = {
     .pauseBody = "Das Spiel läuft weiter, und dein Controller steuert weiter die PS5. Diese Knöpfe bedienst du mit der "
                  "Maus.",
     .resume = "Weiter",
-    .streamKeys = "Esc: Menü  ·  F11: Vollbild  ·  F9: Anzeige",
+    .streamKeys = "Esc: Menü  ·  F11: Vollbild  ·  F9: Anzeige  ·  F8: Hochskalierung",
     .hudDecoder = "Dekoder",
     .noticeBitrateLowered = "Bei der eingestellten Datenrate kam kein Bild mehr an. VeloPlay hat neu verbunden und sie "
                             "für diese Sitzung auf {0} Mbit/s gesenkt. Dauerhaft änderst du sie unter Einstellungen > "
@@ -452,11 +457,16 @@ constexpr Strings kEnglish = {
     .frameGenerationOffHint = "The picture is shown at {0} fps, as the PS5 sends it.",
     .upscaling = "Upscaling",
     .upscalingHint = "Lanczos scales the picture to the size of the window with a sharper filter. Off: the picture is "
-                     "enlarged softly.",
+                     "enlarged softly. If the window is no larger than the stream, neither changes anything.",
     .upscalingRtxHint = "RTX Video Super Resolution enlarges the picture with a neural network on your NVIDIA card and "
-                        "smooths compression blocks while doing so. It needs RTX Video Enhancement with Super "
+                        "smooths compression blocks while doing so. If the window is as large as the stream, the "
+                        "size stays and only the smoothing takes effect. It needs RTX Video Enhancement with Super "
                         "Resolution switched on in the NVIDIA app under System > Video. VeloPlay cannot tell whether "
-                        "the driver applies it; the NVIDIA app shows that there.",
+                        "the driver applies it; the NVIDIA app shows that there. F8 switches while you play, so "
+                        "you can see the difference.",
+    .upscalingNote = "Upscaling: {0}",
+    .upscalingNotEnlarged = "The window is no larger than the stream. This step changes nothing in the picture right now.",
+    .upscalingRtxRefused = "RTX Video is not available, Lanczos takes over.",
     .sharpness = "Sharpness",
     .sharpnessHint = "Brings edges back out after enlarging. 0 % leaves the picture as it is.",
     .vsync = "VSync",
@@ -591,7 +601,7 @@ constexpr Strings kEnglish = {
                           "%APPDATA%\\VeloPlay names the reason. The controller drives the PS5 all the same.",
     .pauseBody = "The game keeps running and your controller keeps driving the PS5. Use the mouse for these buttons.",
     .resume = "Resume",
-    .streamKeys = "Esc: menu  ·  F11: full screen  ·  F9: display",
+    .streamKeys = "Esc: menu  ·  F11: full screen  ·  F9: display  ·  F8: upscaling",
     .hudDecoder = "Decoder",
     .noticeBitrateLowered = "No picture arrived at the bitrate that was set. VeloPlay reconnected and lowered it to "
                             "{0} Mbit/s for this session. Change it for good under Settings > Stream.",    .accountSignIn = "Sign in with PlayStation",
