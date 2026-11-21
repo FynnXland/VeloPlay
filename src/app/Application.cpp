@@ -438,6 +438,11 @@ void Application::frame() {
     ImGui::NewFrame();
     ui_->draw(model_);
     ImGui::Render();
+    // Keys and mouse go to the game while its picture is all there is on
+    // screen and this window is the one in front; a menu, the settings or
+    // another window take them back.
+    setGameInput(streaming && config.controller.keyboardMouse.enabled && ui_->pictureOwnsInput() &&
+                 !controller_->capturingKey() && GetForegroundWindow() == window_);
 
     // Waits for the display here, where no lock is held, instead of in present().
     diag::setStep("waiting for the display");
@@ -592,6 +597,97 @@ void Application::logStreamSummary(std::chrono::steady_clock::time_point now) {
                  IsIconic(window_) ? ", window minimised" : "");
 }
 
+void Application::setGameInput(bool on) {
+    if (on == gameInput_ || !window_) return;
+    gameInput_ = on;
+    // The mouse as it moves, not where its pointer is: a pointer stops at
+    // the edge of the screen, a hand does not.
+    RAWINPUTDEVICE mouse{};
+    mouse.usUsagePage = 0x01; // generic desktop controls
+    mouse.usUsage = 0x02;     // mouse
+    mouse.dwFlags = on ? 0 : RIDEV_REMOVE;
+    mouse.hwndTarget = on ? window_ : nullptr;
+    if (!RegisterRawInputDevices(&mouse, 1, sizeof(mouse)) && on) {
+        spdlog::warn("The mouse cannot be read directly (error {}); looking around with it will not work", GetLastError());
+    }
+    ImGuiIO& io = ImGui::GetIO();
+    if (on) {
+        // The pointer is hidden and kept in the middle of the window, so a click never lands elsewhere.
+        RECT client{};
+        GetClientRect(window_, &client);
+        POINT centre{(client.left + client.right) / 2, (client.top + client.bottom) / 2};
+        ClientToScreen(window_, &centre);
+        const RECT hold{centre.x, centre.y, centre.x + 1, centre.y + 1};
+        ClipCursor(&hold);
+        while (ShowCursor(FALSE) >= 0) {}
+        io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    } else {
+        ClipCursor(nullptr);
+        while (ShowCursor(TRUE) < 0) {}
+        io.ConfigFlags &= ~(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange);
+        if (controller_) controller_->keyboardMouse().releaseAll();
+    }
+    spdlog::info("Keys and mouse belong to the {}", on ? "game" : "program");
+}
+
+bool Application::routeInput(UINT message, WPARAM wParam, LPARAM lParam) {
+    const bool capturing = controller_->capturingKey();
+    if (!gameInput_ && !capturing) return false;
+
+    // Which key or mouse button, and did it go down or up?
+    int code = 0;
+    bool down = false;
+    bool system = false; // with Alt held: Windows needs to see these too (Alt+Tab, Alt+F4)
+    switch (message) {
+        case WM_SYSKEYDOWN: system = true; [[fallthrough]];
+        case WM_KEYDOWN: code = static_cast<int>(wParam); down = true; break;
+        case WM_SYSKEYUP: system = true; [[fallthrough]];
+        case WM_KEYUP: code = static_cast<int>(wParam); break;
+        case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK: code = VK_LBUTTON; down = true; break;
+        case WM_LBUTTONUP: code = VK_LBUTTON; break;
+        case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK: code = VK_RBUTTON; down = true; break;
+        case WM_RBUTTONUP: code = VK_RBUTTON; break;
+        case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK: code = VK_MBUTTON; down = true; break;
+        case WM_MBUTTONUP: code = VK_MBUTTON; break;
+        case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK:
+            code = GET_XBUTTON_WPARAM(wParam) == XBUTTON1 ? VK_XBUTTON1 : VK_XBUTTON2;
+            down = true;
+            break;
+        case WM_XBUTTONUP: code = GET_XBUTTON_WPARAM(wParam) == XBUTTON1 ? VK_XBUTTON1 : VK_XBUTTON2; break;
+        case WM_MOUSEWHEEL: {
+            const int notches = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
+            if (capturing) {
+                if (notches != 0) controller_->keyCaptured(notches > 0 ? input::key::WheelUp : input::key::WheelDown);
+            } else {
+                controller_->keyboardMouse().wheel(notches, std::chrono::steady_clock::now());
+            }
+            return true;
+        }
+        case WM_INPUT: {
+            if (!gameInput_) return false;
+            RAWINPUT raw{};
+            UINT size = sizeof(raw);
+            if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER)) != static_cast<UINT>(-1) &&
+                raw.header.dwType == RIM_TYPEMOUSE && (raw.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) == 0) {
+                controller_->keyboardMouse().mouseMoved(raw.data.mouse.lLastX, raw.data.mouse.lLastY);
+            }
+            return false; // Windows still has to tidy this message up
+        }
+        case WM_MOUSEMOVE: return gameInput_; // the pointer is of no interest while the game has the mouse
+        default: return false;
+    }
+
+    if (capturing) {
+        // The settings wait for a key. Esc ends the waiting without one; key-ups are of no interest.
+        if (down) controller_->keyCaptured(code == VK_ESCAPE ? 0 : code);
+        return true;
+    }
+    // Esc, F9 and F11 stay with the program: the menu, the display, full screen.
+    if (input::isReservedKey(code)) return false;
+    controller_->keyboardMouse().key(code, down);
+    return !system;
+}
+
 void Application::toggleFullscreen() {
     // Borderless window over the whole monitor: no mode switch, and Alt+Tab stays instant.
     const LONG_PTR style = GetWindowLongPtrW(window_, GWL_STYLE);
@@ -631,6 +727,8 @@ LRESULT CALLBACK Application::windowProc(HWND window, UINT message, WPARAM wPara
 }
 
 LRESULT Application::handleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    // Keys and mouse that belong to the game never reach the interface.
+    if (controller_ && routeInput(message, wParam, lParam)) return 0;
     if (imguiReady_ && ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam)) return 1;
 
     switch (message) {
@@ -642,6 +740,10 @@ LRESULT Application::handleMessage(HWND window, UINT message, WPARAM wParam, LPA
                 spdlog::info("Window {}", minimised_ ? "minimised" : "restored");
             }
             return 0;
+        case WM_KILLFOCUS:
+            // Whatever was held is let go: the key that comes up later goes to another window.
+            if (gameInput_) setGameInput(false);
+            break;
         case WM_ACTIVATE:
             spdlog::info("Window is {}", LOWORD(wParam) == WA_INACTIVE ? "no longer in front" : "in front");
             break;

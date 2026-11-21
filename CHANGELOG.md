@@ -3,6 +3,31 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.12.0
+
+- **Playing with mouse and keyboard.** New under Settings > Controller, off by default. Keys
+  press the buttons and push the left stick, the mouse moves the right stick: the faster the
+  hand, the further the stick. The layout that comes with it suits games seen from behind the
+  character (W A S D to walk, mouse to look, left button to shoot, right button to aim) and can
+  be changed: click a part of the drawn controller or its field, then press the key. While the
+  game is shown, mouse and keyboard belong to the console; Esc opens the menu and frees them.
+  The PS5 keeps showing controller symbols, since a controller is all it sees. A mouse through a
+  stick never feels quite like a mouse in a PC game; raising the camera sensitivity in the game
+  helps. New and not yet played with on a real console.
+
+**Deutsch**
+
+- **Spielen mit Maus und Tastatur.** Neu unter Einstellungen > Controller, zunächst aus. Tasten
+  drücken die Knöpfe und bewegen den linken Stick, die Maus bewegt den rechten: je schneller
+  die Hand, desto weiter der Stick. Die mitgelieferte Belegung passt zu Spielen mit Blick von
+  hinten auf die Figur (W A S D zum Laufen, Maus zum Umsehen, linke Taste schießen, rechte
+  zielen) und lässt sich ändern: einen Teil des gezeichneten Controllers oder sein Feld
+  anklicken, dann die Taste drücken. Solange das Spiel zu sehen ist, gehören Maus und Tastatur
+  der Konsole; Esc öffnet das Menü und gibt sie frei. Die PS5 zeigt weiter Controller-Symbole,
+  denn sie sieht nur einen Controller. Eine Maus über einen Stick fühlt sich nie ganz an wie
+  eine Maus in einem PC-Spiel; die Kamera-Empfindlichkeit im Spiel hochzustellen hilft. Neu und
+  noch an keiner echten Konsole gespielt.
+
 ## 0.11.0
 
 - **Cuts no longer flash.** When the game jumps to another picture, a computed picture used to

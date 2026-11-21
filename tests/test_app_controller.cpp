@@ -822,6 +822,57 @@ TEST(AppControllerSession, GivesUpWaitingWhenTheConsoleStaysTaken) {
     EXPECT_EQ(h.model.state, AppState::Error);
 }
 
+TEST(AppControllerSession, PlaysWithKeysAndMouseInsteadOfAController) {
+    test::MockConsole console({});
+    Harness h(console, "session_keys.json"); // no controller is connected
+    ASSERT_TRUE(h.pair());
+    h.app->config().controller.keyboardMouse.enabled = true;
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+
+    // What the window passes on reaches the console as controller input.
+    h.app->keyboardMouse().key('W', true);
+    h.app->keyboardMouse().key(input::key::MouseLeft, true);
+    h.app->update();
+    input::ControllerState sent = h.sessions->input();
+    EXPECT_EQ(sent.leftY, -32767);
+    EXPECT_EQ(sent.r2, 255);
+    h.app->keyboardMouse().releaseAll();
+    h.app->update();
+    sent = h.sessions->input();
+    EXPECT_EQ(sent.leftY, 0);
+    EXPECT_EQ(sent.r2, 0);
+
+    // With keys and mouse set up, a missing controller is no fault.
+    for (int i = 0; i < 120; ++i) {
+        h.sessions->stats.videoFrames += 1;
+        h.app->update();
+        std::this_thread::sleep_for(15ms);
+    }
+    h.app->fillModel(h.model);
+    EXPECT_TRUE(std::find(h.model.alerts.begin(), h.model.alerts.end(), StreamAlert::NoController) == h.model.alerts.end());
+
+    // The settings ask for the next key: it arrives in the model, once.
+    h.app->captureKey();
+    h.app->fillModel(h.model);
+    EXPECT_TRUE(h.model.capturingKey);
+    EXPECT_EQ(h.model.capturedKey, 0);
+    h.app->keyCaptured('E');
+    h.app->fillModel(h.model);
+    EXPECT_FALSE(h.model.capturingKey);
+    EXPECT_EQ(h.model.capturedKey, 'E');
+    h.app->endKeyCapture();
+    h.app->fillModel(h.model);
+    EXPECT_EQ(h.model.capturedKey, 0);
+    // Esc ends the waiting without a key.
+    h.app->captureKey();
+    h.app->keyCaptured(0);
+    h.app->fillModel(h.model);
+    EXPECT_EQ(h.model.capturedKey, -1);
+}
+
 TEST(AppControllerSession, SaysOverThePictureWhatIsWrong) {
     test::MockConsole console({});
     // No controller is connected in this one, and the stream will stand still.

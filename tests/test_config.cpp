@@ -373,6 +373,37 @@ TEST(Config, KeepsWhatAutomaticLearnedAboutAConsole) {
     EXPECT_EQ(effectiveStream(*again, "001122334455").bitrateKbps, 22'500);
 }
 
+TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
+    test::FakeProtector protector;
+    AppConfig config;
+    // Off by default, with a layout ready for when it is switched on.
+    EXPECT_FALSE(config.controller.keyboardMouse.enabled);
+    EXPECT_EQ(config.controller.keyboardMouse.keys, input::defaultKeyBindings());
+
+    input::KeyboardMouseSettings& kbm = config.controller.keyboardMouse;
+    kbm.enabled = true;
+    kbm.mouseSensitivity = 1.75f;
+    kbm.invertY = true;
+    kbm.keys[static_cast<std::size_t>(input::PadControl::Triangle)] = 'E';
+    kbm.keys[static_cast<std::size_t>(input::PadControl::DpadRight)] = input::key::WheelUp;
+    kbm.keys[static_cast<std::size_t>(input::PadControl::Create)] = input::key::None;
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text.ok());
+    const auto again = parseConfig(*text, protector);
+    ASSERT_TRUE(again.ok());
+    EXPECT_EQ(again->controller.keyboardMouse, kbm);
+
+    // A file that names only some controls leaves the others at their default,
+    // and a key given twice stays with the first control that has it.
+    const auto partial = parseConfig(
+        R"({"settings_version":4,"keyboard_mouse":{"enabled":true,"keys":{"cross":69,"circle":69,"nonsense":5}}})", protector);
+    ASSERT_TRUE(partial.ok());
+    const auto& keys = partial->controller.keyboardMouse.keys;
+    EXPECT_EQ(keys[static_cast<std::size_t>(input::PadControl::Cross)], 'E');
+    EXPECT_EQ(keys[static_cast<std::size_t>(input::PadControl::Circle)], input::key::None);
+    EXPECT_EQ(keys[static_cast<std::size_t>(input::PadControl::LeftStickUp)], 'W');
+}
+
 TEST(Config, OldFilesGetAutomaticFrameGenerationAndUpscaling) {
     test::FakeProtector protector;
     // What the profiles stored before 0.6 did nothing yet. It becomes "automatic", which does the same.

@@ -365,6 +365,7 @@ void UiManager::draw(const UiModel& model) {
     ctx.text = text_;
     ctx.animator.setReducedMotion(model.reducedMotion);
 
+    pictureOwnsInput_ = false;
     const bool inSession = model.state == AppState::Connecting || model.state == AppState::Streaming ||
                            model.state == AppState::Reconnecting || model.state == AppState::Disconnecting;
     if (inSession) {
@@ -401,6 +402,7 @@ void UiManager::draw(const UiModel& model) {
         if (model.stream) drawStreamOverlay(model);
         // Over the picture only; the screens before and around it say more than a note could.
         if (presenting && !pauseMenu_ && !settingsInGame) drawStreamAlerts(model);
+        pictureOwnsInput_ = presenting && !pauseMenu_ && !settingsInGame;
         return;
     }
     if (std::exchange(settingsFromGame_, false)) {
@@ -1494,6 +1496,7 @@ void UiManager::drawSettings(const UiModel& model) {
     const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
     ImGui::BeginChild("settings-body", ImVec2(contentWidth + px(12.0f), bodyHeight), ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoBackground);
+    if (settingsScrollTo_ >= 0.0f) ImGui::SetScrollY(ImGui::GetScrollMaxY() * settingsScrollTo_);
     const float scrollY = ImGui::GetScrollY();
     const float scrollMax = ImGui::GetScrollMaxY();
     ImGui::BeginChild("settings-content", ImVec2(contentWidth, 0.0f), ImGuiChildFlags_AutoResizeY,
@@ -1691,6 +1694,341 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     space(2.0f);
     toggleRow(t.adaptiveTriggers, &config.controller.adaptiveTriggers);
     hint(t.adaptiveTriggersHint);
+
+    drawKeyboardMouse(model, config);
+}
+
+namespace {
+
+/// What a key is called on its cap.
+std::string keyLabel(const Strings& t, int code) {
+    namespace key = input::key;
+    if ((code >= 'A' && code <= 'Z') || (code >= '0' && code <= '9')) return std::string(1, static_cast<char>(code));
+    if (code >= key::F1 && code <= key::F1 + 23) return "F" + std::to_string(code - key::F1 + 1);
+    if (code >= 0x60 && code <= 0x69) return "Num " + std::to_string(code - 0x60);
+    switch (code) {
+        case key::None: return t.kbmUnassigned;
+        case key::MouseLeft: return t.keyMouseLeft;
+        case key::MouseRight: return t.keyMouseRight;
+        case key::MouseMiddle: return t.keyMouseMiddle;
+        case key::MouseBack: return format(t.keyMouseSide, {"4"});
+        case key::MouseForward: return format(t.keyMouseSide, {"5"});
+        case key::WheelUp: return t.keyWheelUp;
+        case key::WheelDown: return t.keyWheelDown;
+        case key::Space: return t.keySpace;
+        case key::Shift: return t.keyShift;
+        case key::Ctrl: return t.keyCtrl;
+        case key::Alt: return "Alt";
+        case key::Tab: return "Tab";
+        case key::Enter: return t.keyEnter;
+        case key::Backspace: return t.keyBackspace;
+        case key::Up: return format(t.keyArrow, {t.padUp});
+        case key::Down: return format(t.keyArrow, {t.padDown});
+        case key::Left: return format(t.keyArrow, {t.padLeft});
+        case key::Right: return format(t.keyArrow, {t.padRight});
+        case key::Home: return "Pos1 / Home";
+        case 0x23: return "Ende / End";
+        case 0x21: return "Bild auf / PgUp";
+        case 0x22: return "Bild ab / PgDn";
+        case 0x2D: return "Einfg / Ins";
+        case 0x14: return "Caps Lock";
+        default: return format(t.keyOther, {std::to_string(code)});
+    }
+}
+
+std::string controlLabel(const Strings& t, input::PadControl control) {
+    using input::PadControl;
+    switch (control) {
+        case PadControl::Cross: return t.padCross;
+        case PadControl::Circle: return t.padCircle;
+        case PadControl::Square: return t.padSquare;
+        case PadControl::Triangle: return t.padTriangle;
+        case PadControl::DpadUp: return format(t.padDpad, {t.padUp});
+        case PadControl::DpadDown: return format(t.padDpad, {t.padDown});
+        case PadControl::DpadLeft: return format(t.padDpad, {t.padLeft});
+        case PadControl::DpadRight: return format(t.padDpad, {t.padRight});
+        case PadControl::L1: return "L1";
+        case PadControl::R1: return "R1";
+        case PadControl::L2: return "L2";
+        case PadControl::R2: return "R2";
+        case PadControl::L3: return "L3";
+        case PadControl::R3: return "R3";
+        case PadControl::Options: return "Options";
+        case PadControl::Create: return "Create";
+        case PadControl::Touchpad: return t.padTouchpad;
+        case PadControl::Ps: return t.padPs;
+        case PadControl::LeftStickUp: return format(t.padLeftStick, {t.padUp});
+        case PadControl::LeftStickDown: return format(t.padLeftStick, {t.padDown});
+        case PadControl::LeftStickLeft: return format(t.padLeftStick, {t.padLeft});
+        case PadControl::LeftStickRight: return format(t.padLeftStick, {t.padRight});
+        case PadControl::RightStickUp: return format(t.padRightStick, {t.padUp});
+        case PadControl::RightStickDown: return format(t.padRightStick, {t.padDown});
+        case PadControl::RightStickLeft: return format(t.padRightStick, {t.padLeft});
+        case PadControl::RightStickRight: return format(t.padRightStick, {t.padRight});
+        case PadControl::Count: break;
+    }
+    return {};
+}
+
+/// A controller, drawn from above, with one of its parts lit. `lit` is how
+/// strongly, per control; the shapes follow the DualSense loosely.
+void drawGamepad(ImDrawList* draw, ImVec2 origin, float scale, const std::array<float, input::kPadControlCount>& lit) {
+    using input::PadControl;
+    const Palette& p = palette();
+    const auto at = [&](float x, float y) { return ImVec2(origin.x + x * scale, origin.y + y * scale); };
+    const auto glow = [&](PadControl control) { return lit[static_cast<std::size_t>(control)]; };
+    const auto mix = [&](const ImVec4& base, float amount) {
+        return toU32(ImVec4(base.x + (p.accent.x - base.x) * amount, base.y + (p.accent.y - base.y) * amount,
+                            base.z + (p.accent.z - base.z) * amount, 1.0f));
+    };
+    const ImU32 body = toU32(p.control);
+    const ImVec4 part = p.controlHover;
+    const ImVec4 ink = p.textTertiary;
+
+    // Triggers and shoulder buttons sit behind the body.
+    draw->AddRectFilled(at(70, 6), at(128, 40), mix(part, glow(PadControl::L2)), 10.0f * scale);
+    draw->AddRectFilled(at(292, 6), at(350, 40), mix(part, glow(PadControl::R2)), 10.0f * scale);
+    draw->AddRectFilled(at(56, 30), at(140, 52), mix(part, glow(PadControl::L1)), 8.0f * scale);
+    draw->AddRectFilled(at(280, 30), at(364, 52), mix(part, glow(PadControl::R1)), 8.0f * scale);
+    // The body with its two grips.
+    draw->AddRectFilled(at(40, 44), at(380, 170), body, 44.0f * scale);
+    draw->AddCircleFilled(at(82, 172), 46.0f * scale, body, 48);
+    draw->AddCircleFilled(at(338, 172), 46.0f * scale, body, 48);
+
+    draw->AddRectFilled(at(152, 50), at(268, 104), mix(part, glow(PadControl::Touchpad)), 10.0f * scale);
+    draw->AddRectFilled(at(132, 58), at(144, 76), mix(part, glow(PadControl::Create)), 5.0f * scale);
+    draw->AddRectFilled(at(276, 58), at(288, 76), mix(part, glow(PadControl::Options)), 5.0f * scale);
+    draw->AddCircleFilled(at(210, 136), 9.0f * scale, mix(part, glow(PadControl::Ps)), 24);
+
+    // Directional buttons.
+    const auto dpad = [&](PadControl control, float x, float y) {
+        draw->AddRectFilled(at(x - 9, y - 9), at(x + 9, y + 9), mix(part, glow(control)), 4.0f * scale);
+    };
+    dpad(PadControl::DpadUp, 92, 80);
+    dpad(PadControl::DpadDown, 92, 118);
+    dpad(PadControl::DpadLeft, 73, 99);
+    dpad(PadControl::DpadRight, 111, 99);
+
+    // The four buttons, each with its sign.
+    const float sign = 5.0f * scale;
+    const float line = std::max(1.0f, 1.6f * scale);
+    const auto face = [&](PadControl control, float x, float y) {
+        draw->AddCircleFilled(at(x, y), 12.0f * scale, mix(part, glow(control)), 24);
+        return at(x, y);
+    };
+    const ImU32 mark = toU32(ink, 1.0f);
+    ImVec2 c = face(PadControl::Triangle, 328, 76);
+    draw->AddTriangle(ImVec2(c.x, c.y - sign), ImVec2(c.x - sign, c.y + sign * 0.8f), ImVec2(c.x + sign, c.y + sign * 0.8f), mark, line);
+    c = face(PadControl::Circle, 351, 99);
+    draw->AddCircle(c, sign, mark, 20, line);
+    c = face(PadControl::Cross, 328, 122);
+    draw->AddLine(ImVec2(c.x - sign, c.y - sign), ImVec2(c.x + sign, c.y + sign), mark, line);
+    draw->AddLine(ImVec2(c.x - sign, c.y + sign), ImVec2(c.x + sign, c.y - sign), mark, line);
+    c = face(PadControl::Square, 305, 99);
+    draw->AddRect(ImVec2(c.x - sign, c.y - sign), ImVec2(c.x + sign, c.y + sign), mark, 0.0f, 0, line);
+
+    // The sticks: the ring lights up towards the side that is meant, the cap for a press.
+    const auto stick = [&](float x, float y, PadControl up, PadControl press) {
+        const ImVec2 centre = at(x, y);
+        draw->AddCircleFilled(centre, 24.0f * scale, toU32(part), 32);
+        const PadControl sides[4] = {up, static_cast<PadControl>(static_cast<int>(up) + 1),
+                                     static_cast<PadControl>(static_cast<int>(up) + 2),
+                                     static_cast<PadControl>(static_cast<int>(up) + 3)};
+        // Up, down, left, right as quarter arcs of the ring.
+        const float middles[4] = {-1.5708f, 1.5708f, 3.1416f, 0.0f};
+        for (int i = 0; i < 4; ++i) {
+            const float amount = glow(sides[i]);
+            if (amount < 0.02f) continue;
+            draw->PathArcTo(centre, 21.0f * scale, middles[i] - 0.7f, middles[i] + 0.7f, 16);
+            draw->PathStroke(toU32(p.accent, amount), 0, 5.0f * scale);
+        }
+        draw->AddCircleFilled(centre, 15.0f * scale, mix(p.control, glow(press)), 28);
+    };
+    stick(150, 142, PadControl::LeftStickUp, PadControl::L3);
+    stick(270, 142, PadControl::RightStickUp, PadControl::R3);
+}
+
+} // namespace
+
+void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
+    using input::PadControl;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    input::KeyboardMouseSettings& settings = config.controller.keyboardMouse;
+    Animator& animator = context().animator;
+
+    sectionTitle(t.kbmTitle);
+    toggleRow(t.kbmEnable, &settings.enabled);
+    paragraph(TextStyle::Caption, t.kbmHint, p.textSecondary);
+    if (!settings.enabled) {
+        if (bindingControl_ >= 0) {
+            bindingControl_ = -1;
+            actions_.endKeyCapture();
+        }
+        return;
+    }
+
+    space(16.0f);
+    float sensitivity = settings.mouseSensitivity * 100.0f;
+    if (sliderRow(t.kbmSensitivity, &sensitivity, 20.0f, 400.0f, std::to_string(static_cast<int>(std::lround(sensitivity))) + " %")) {
+        settings.mouseSensitivity = std::round(sensitivity / 5.0f) * 5.0f / 100.0f;
+    }
+    hint(t.kbmSensitivityHint);
+    space(8.0f);
+    toggleRow(t.kbmInvertY, &settings.invertY);
+
+    sectionTitle(t.kbmLayout);
+    paragraph(TextStyle::Caption, t.kbmLayoutHint, p.textSecondary);
+    space(12.0f);
+
+    // The key that was waited for has come.
+    if (bindingControl_ >= 0 && model.capturedKey != 0) {
+        const int code = model.capturedKey;
+        if (code == input::key::Delete) {
+            settings.keys[static_cast<std::size_t>(bindingControl_)] = input::key::None;
+        } else if (code > 0 && !input::isReservedKey(code)) {
+            // A key stands for one control: it leaves the one it stood for before.
+            for (int& other : settings.keys) {
+                if (other == code) other = input::key::None;
+            }
+            settings.keys[static_cast<std::size_t>(bindingControl_)] = code;
+        }
+        bindingControl_ = -1;
+        actions_.endKeyCapture();
+    }
+
+    // Left column: what the left hand does on a controller. Right column: the right hand.
+    static constexpr std::array<PadControl, 13> kLeft = {
+        PadControl::L2,           PadControl::L1,            PadControl::LeftStickUp,   PadControl::LeftStickLeft,
+        PadControl::LeftStickDown, PadControl::LeftStickRight, PadControl::L3,          PadControl::DpadUp,
+        PadControl::DpadLeft,     PadControl::DpadDown,      PadControl::DpadRight,     PadControl::Create,
+        PadControl::Touchpad,
+    };
+    static constexpr std::array<PadControl, 13> kRight = {
+        PadControl::R2,             PadControl::R1,             PadControl::Triangle,     PadControl::Circle,
+        PadControl::Cross,          PadControl::Square,         PadControl::R3,           PadControl::Options,
+        PadControl::Ps,             PadControl::RightStickUp,   PadControl::RightStickLeft, PadControl::RightStickDown,
+        PadControl::RightStickRight,
+    };
+
+    // The controller itself. Its parts light up for the row under the mouse and for the one that waits.
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float scale = std::min(1.0f, width / px(520.0f)) * px(1.0f);
+    const ImVec2 origin(ImGui::GetCursorScreenPos().x + (width - 420.0f * scale) * 0.5f, ImGui::GetCursorScreenPos().y);
+    const ImVec2 padSpace(width, 226.0f * scale);
+    const ImVec2 rowsStart(ImGui::GetCursorScreenPos().x, ImGui::GetCursorScreenPos().y + padSpace.y + px(8.0f));
+    // The drawing can be clicked as well: a part of the controller stands for its row below.
+    const bool padClicked = ImGui::InvisibleButton("kbm-pad", ImVec2(padSpace.x, padSpace.y + px(8.0f)));
+    int hovered = -1;
+    if (ImGui::IsItemHovered()) {
+        struct Spot {
+            PadControl control;
+            float x, y, reach;
+        };
+        static constexpr Spot kSpots[] = {
+            {PadControl::L2, 99, 18, 26},        {PadControl::R2, 321, 18, 26},      {PadControl::L1, 98, 44, 20},
+            {PadControl::R1, 322, 44, 20},       {PadControl::Touchpad, 210, 77, 34}, {PadControl::Create, 138, 67, 11},
+            {PadControl::Options, 282, 67, 11},  {PadControl::Ps, 210, 136, 12},     {PadControl::DpadUp, 92, 80, 11},
+            {PadControl::DpadDown, 92, 118, 11}, {PadControl::DpadLeft, 73, 99, 11}, {PadControl::DpadRight, 111, 99, 11},
+            {PadControl::Triangle, 328, 76, 13}, {PadControl::Circle, 351, 99, 13},  {PadControl::Cross, 328, 122, 13},
+            {PadControl::Square, 305, 99, 13},
+        };
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        const float mx = (mouse.x - origin.x) / scale;
+        const float my = (mouse.y - origin.y) / scale;
+        for (const Spot& spot : kSpots) {
+            if (std::hypot(mx - spot.x, my - spot.y) <= spot.reach) hovered = static_cast<int>(spot.control);
+        }
+        // A stick: the cap is its press, the ring around it the four directions.
+        const auto stick = [&](float x, float y, PadControl up, PadControl press) {
+            const float dx = mx - x;
+            const float dy = my - y;
+            const float away = std::hypot(dx, dy);
+            if (away > 26.0f) return;
+            if (away <= 13.0f) hovered = static_cast<int>(press);
+            else if (std::abs(dy) >= std::abs(dx)) hovered = static_cast<int>(up) + (dy < 0.0f ? 0 : 1);
+            else hovered = static_cast<int>(up) + (dx < 0.0f ? 2 : 3);
+        };
+        stick(150, 142, PadControl::LeftStickUp, PadControl::L3);
+        stick(270, 142, PadControl::RightStickUp, PadControl::R3);
+        if (padClicked && hovered >= 0) {
+            bindingControl_ = hovered;
+            actions_.captureKey();
+        }
+    }
+
+    const float columnGap = px(24.0f);
+    const float columnWidth = (width - columnGap) * 0.5f;
+    const float rowHeight = px(30.0f);
+    const float chipWidth = std::min(px(128.0f), columnWidth * 0.5f);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const auto column = [&](std::span<const PadControl> controls, float x) {
+        for (std::size_t row = 0; row < controls.size(); ++row) {
+            const PadControl control = controls[row];
+            const int index = static_cast<int>(control);
+            const ImVec2 min(x, rowsStart.y + static_cast<float>(row) * rowHeight);
+            ImGui::SetCursorScreenPos(min);
+            ImGui::PushID(index);
+            const bool clicked = ImGui::InvisibleButton("bind", ImVec2(columnWidth, rowHeight - px(4.0f)));
+            const bool over = ImGui::IsItemHovered() || hovered == index;
+            ImGui::PopID();
+            if (over) hovered = index;
+            const bool waiting = bindingControl_ == index;
+            if (clicked) {
+                if (waiting) {
+                    bindingControl_ = -1;
+                    actions_.endKeyCapture();
+                } else {
+                    bindingControl_ = index;
+                    actions_.captureKey();
+                }
+            }
+            const float textY = min.y + (rowHeight - px(4.0f) - measure(TextStyle::Body, "X").y) * 0.5f;
+            drawText(draw, ImVec2(min.x, textY), TextStyle::Body, over || waiting ? p.text : p.textSecondary,
+                     controlLabel(t, control));
+            // The key, on something that looks like its cap.
+            const ImVec2 chipMin(min.x + columnWidth - chipWidth, min.y);
+            const ImVec2 chipMax(min.x + columnWidth, min.y + rowHeight - px(4.0f));
+            const float lit = animator.to(ImGui::GetID("kbm-chip") + static_cast<ImGuiID>(index), waiting ? 1.0f : over ? 0.35f : 0.0f, 0.18f, 0.0f);
+            draw->AddRectFilled(chipMin, chipMax, toU32(p.control), px(7.0f));
+            if (lit > 0.02f) draw->AddRect(chipMin, chipMax, toU32(p.accent, lit), px(7.0f), 0, px(1.5f));
+            const int code = settings.keys[static_cast<std::size_t>(index)];
+            const std::string text = waiting ? std::string(t.kbmPressKey) : keyLabel(t, code);
+            const ImVec4& ink = waiting ? p.accent : code == input::key::None ? p.textTertiary : p.text;
+            const ImVec2 size = measure(TextStyle::Caption, text);
+            draw->PushClipRect(chipMin, chipMax, true);
+            drawText(draw, ImVec2(chipMin.x + std::max(px(6.0f), (chipWidth - size.x) * 0.5f),
+                                  chipMin.y + (chipMax.y - chipMin.y - size.y) * 0.5f),
+                     TextStyle::Caption, ink, text);
+            draw->PopClipRect();
+        }
+    };
+    column(kLeft, rowsStart.x);
+    column(kRight, rowsStart.x + columnWidth + columnGap);
+    ImGui::SetCursorScreenPos(ImVec2(rowsStart.x, rowsStart.y + static_cast<float>(kLeft.size()) * rowHeight));
+    ImGui::Dummy(ImVec2(width, px(1.0f)));
+
+    std::array<float, input::kPadControlCount> lit{};
+    for (std::size_t i = 0; i < lit.size(); ++i) {
+        const bool on = static_cast<int>(i) == hovered || static_cast<int>(i) == bindingControl_;
+        lit[i] = animator.to(ImGui::GetID("kbm-lit") + static_cast<ImGuiID>(i), on ? 1.0f : 0.0f, 0.2f, 0.0f);
+    }
+    drawGamepad(draw, origin, scale, lit);
+    // The right stick is the mouse; that needs no field, only saying.
+    {
+        const ImVec2 size = measure(TextStyle::Caption, t.kbmMouseLooks);
+        drawText(draw, ImVec2(origin.x + 270.0f * scale - size.x * 0.5f, origin.y + 174.0f * scale), TextStyle::Caption,
+                 p.textSecondary, t.kbmMouseLooks);
+    }
+
+    space(10.0f);
+    if (button(t.kbmReset, ButtonKind::Quiet)) {
+        settings.keys = input::defaultKeyBindings();
+        if (bindingControl_ >= 0) {
+            bindingControl_ = -1;
+            actions_.endKeyCapture();
+        }
+    }
 }
 
 void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {

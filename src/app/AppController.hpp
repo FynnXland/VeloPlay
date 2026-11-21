@@ -16,6 +16,7 @@
 #include "app/UiModel.hpp"
 #include "input/ControllerManager.hpp"
 #include "input/RemoteControl.hpp"
+#include "input/KeyboardMouse.hpp"
 #include "input/VirtualController.hpp"
 #include "protocol/ConnectionProbe.hpp"
 #include "protocol/DiscoveryService.hpp"
@@ -98,6 +99,18 @@ public:
     void disconnect() override;
     void sleepAndDisconnect() override;
     void applyStreamSettings() override;
+    void captureKey() override;
+    void endKeyCapture() override;
+
+    /// Keys and mouse for playing without a controller. The window passes
+    /// on what it gets while the picture has the keyboard; the mapper turns
+    /// it into controller input and takes care of the threads itself.
+    [[nodiscard]] input::KeyboardMouseMapper& keyboardMouse() { return keyboardMouse_; }
+    /// True while the settings wait for a key to give to a control. The
+    /// window then hands the next key or mouse button to keyCaptured()
+    /// instead of treating it as input; zero stands for "cancelled".
+    [[nodiscard]] bool capturingKey() const { return capturingKey_; }
+    void keyCaptured(int code);
 
     /// Pictures the decoder threw away since the stream began, as the media
     /// pipeline counts them. The controller cannot see that itself.
@@ -195,6 +208,9 @@ private:
 
     input::ControllerManager controllers_;
     input::VirtualController virtualController_;
+    input::KeyboardMouseMapper keyboardMouse_; // keys and mouse as a controller, fed by the window
+    bool capturingKey_ = false;                // the settings wait for the key that is pressed next
+    int capturedKey_ = 0;
     input::RemoteCommandProcessor remoteProcessor_;
     input::RemoteControlServer remoteServer_;
     RemoteApiSettings appliedRemoteApi_{};

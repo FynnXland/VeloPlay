@@ -287,6 +287,45 @@ struct Strings {
     const char* alertDecoder;
     const char* alertFewer;
     const char* waitingForRelease; // the console has not let go of the session before
+    // Playing with keyboard and mouse.
+    const char* kbmTitle;
+    const char* kbmEnable;
+    const char* kbmHint;
+    const char* kbmSensitivity;
+    const char* kbmSensitivityHint;
+    const char* kbmInvertY;
+    const char* kbmLayout;
+    const char* kbmLayoutHint;
+    const char* kbmPressKey;     // shown on a control that waits for its key
+    const char* kbmUnassigned;
+    const char* kbmReset;
+    const char* kbmMouseLooks;   // the right stick follows the mouse
+    const char* padCross;
+    const char* padCircle;
+    const char* padSquare;
+    const char* padTriangle;
+    const char* padDpad;         // {0} = direction
+    const char* padLeftStick;    // {0} = direction
+    const char* padRightStick;   // {0} = direction
+    const char* padUp;
+    const char* padDown;
+    const char* padLeft;
+    const char* padRight;
+    const char* padTouchpad;
+    const char* padPs;
+    const char* keySpace;
+    const char* keyShift;
+    const char* keyCtrl;
+    const char* keyEnter;
+    const char* keyBackspace;
+    const char* keyArrow;        // {0} = direction
+    const char* keyMouseLeft;
+    const char* keyMouseRight;
+    const char* keyMouseMiddle;
+    const char* keyMouseSide;    // {0} = 4 or 5
+    const char* keyWheelUp;
+    const char* keyWheelDown;
+    const char* keyOther;        // {0} = number of the key
 };
 
 const Strings& strings(Language language);

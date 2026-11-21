@@ -86,6 +86,7 @@ void sanitize(AppConfig& config) {
     config.graphics.superResolutionLevel = std::clamp(config.graphics.superResolutionLevel, 0, 2);
     config.graphics.sharpness = std::clamp(config.graphics.sharpness, 0.0f, 1.0f);
     config.controller.deadzone = std::clamp(config.controller.deadzone, 0.0f, 0.5f);
+    input::sanitize(config.controller.keyboardMouse);
     if (config.remoteApi.port < 1024) config.remoteApi.port = 9876;
 
     std::erase_if(config.manualHosts, [](const std::string& host) { return !net::parseIpv4(host).has_value(); });
@@ -165,6 +166,19 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"adaptive_triggers", config.controller.adaptiveTriggers},
         {"preferred_name", config.controller.preferredName},
     };
+    {
+        json keys = json::object();
+        const input::KeyboardMouseSettings& kbm = config.controller.keyboardMouse;
+        for (std::size_t i = 0; i < kbm.keys.size(); ++i) {
+            keys[std::string(input::padControlName(static_cast<input::PadControl>(i)))] = kbm.keys[i];
+        }
+        root["keyboard_mouse"] = {
+            {"enabled", kbm.enabled},
+            {"mouse_sensitivity", kbm.mouseSensitivity},
+            {"invert_y", kbm.invertY},
+            {"keys", std::move(keys)},
+        };
+    }
     root["remote_api"] = {
         {"enabled", config.remoteApi.enabled},
         {"port", config.remoteApi.port},
@@ -233,6 +247,20 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(controller, "rumble", config.controller.rumble);
     read(controller, "adaptive_triggers", config.controller.adaptiveTriggers);
     read(controller, "preferred_name", config.controller.preferredName);
+
+    // Controls a file does not name keep their default key, so a newer version can add controls.
+    const json& keyboardMouse = section(root, "keyboard_mouse");
+    input::KeyboardMouseSettings& kbm = config.controller.keyboardMouse;
+    read(keyboardMouse, "enabled", kbm.enabled);
+    read(keyboardMouse, "mouse_sensitivity", kbm.mouseSensitivity);
+    read(keyboardMouse, "invert_y", kbm.invertY);
+    const auto keys = keyboardMouse.find("keys");
+    if (keys != keyboardMouse.end() && keys->is_object()) {
+        for (const auto& [name, code] : keys->items()) {
+            const auto control = input::parsePadControl(name);
+            if (control && code.is_number_integer()) kbm.keys[static_cast<std::size_t>(*control)] = code.get<int>();
+        }
+    }
 
     const json& remoteApi = section(root, "remote_api");
     read(remoteApi, "enabled", config.remoteApi.enabled);

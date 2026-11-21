@@ -244,6 +244,8 @@ void AppController::fillModel(UiModel& model) {
     if (updater_) model.update = updater_->status();
 
     model.remoteApiRunning = remoteServer_.running();
+    model.capturingKey = capturingKey_;
+    model.capturedKey = capturedKey_;
     model.config = &config_;
     // What a session asks for: with the console of the running session, or
     // else the first paired one. The settings screen shows it.
@@ -265,12 +267,18 @@ void AppController::pumpInput(std::stop_token stop) {
         if (!pumpSession_) continue;
         const auto now = Clock::now();
         // Straight from the device, not what update() saw at the last picture.
-        pumpSession_->setControllerState(input::mergeInputs(controllers_.readNow(), virtualController_.state(now)), now);
+        // Controller first, then keys and mouse, then scripts: each adds to what is before it.
+        pumpSession_->setControllerState(
+            input::mergeInputs(input::mergeInputs(controllers_.readNow(), keyboardMouse_.state(now)),
+                               virtualController_.state(now)),
+            now);
     }
 }
 
 input::ControllerState AppController::sessionInput() {
-    return input::mergeInputs(controllers_.state(), virtualController_.state(Clock::now()));
+    const auto now = Clock::now();
+    return input::mergeInputs(input::mergeInputs(controllers_.state(), keyboardMouse_.state(now)),
+                              virtualController_.state(now));
 }
 
 // ---- actions -----------------------------------------------------------
@@ -408,6 +416,22 @@ StreamSettings AppController::streamSettingsForAttempt() const {
     stream.hdr = false;
     if (session_ && session_->bitrateKbps > 0) stream.bitrateKbps = session_->bitrateKbps;
     return stream;
+}
+
+void AppController::captureKey() {
+    capturingKey_ = true;
+    capturedKey_ = 0;
+}
+
+void AppController::endKeyCapture() {
+    capturingKey_ = false;
+    capturedKey_ = 0;
+}
+
+void AppController::keyCaptured(int code) {
+    if (!capturingKey_) return;
+    capturingKey_ = false;
+    capturedKey_ = code == 0 ? -1 : code;
 }
 
 void AppController::applyStreamSettings() {
@@ -650,6 +674,8 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
     observation.streamFps = stats.streamFps;
     observation.requestedFps = session_->requested.fps;
     observation.controllerConnected = controllers_.active().has_value();
+    // With keys and mouse set up, no controller is no fault.
+    observation.controllerWanted = !config_.controller.keyboardMouse.enabled;
     session_->alerts.update(observation, now);
     // Into the log as well: afterwards it says what the user saw and when.
     for (const StreamAlert alert : session_->alerts.raised()) {
@@ -851,6 +877,7 @@ void AppController::addNotice(Notice::Kind kind, Notice::Topic topic, std::strin
 void AppController::applySettings() {
     controllers_.setDeadzone(config_.controller.deadzone);
     controllers_.setPreferredName(config_.controller.preferredName);
+    keyboardMouse_.configure(config_.controller.keyboardMouse);
     updateDirectTargets();
     applyRemoteApi();
 }

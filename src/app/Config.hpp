@@ -10,6 +10,7 @@
 
 #include "app/AutoStream.hpp"
 #include "app/StreamProfile.hpp"
+#include "input/KeyboardMouse.hpp"
 #include "protocol/Crypto.hpp"
 #include "protocol/Registration.hpp"
 #include "util/Bytes.hpp"
@@ -47,6 +48,7 @@ struct ControllerSettings {
     bool rumble = true;
     bool adaptiveTriggers = true;
     std::string preferredName; // empty = pick automatically
+    input::KeyboardMouseSettings keyboardMouse; // playing with keys and mouse instead
 
     friend bool operator==(const ControllerSettings&, const ControllerSettings&) = default;
 };

@@ -38,6 +38,12 @@ public:
     void closeSheet();
     /// Opens the menu over a running picture, as Esc does.
     void showPauseMenu() { pauseMenu_ = true; }
+    /// True while the picture of the game is all there is on screen: no
+    /// menu, no settings. Keys and mouse can go to the game then.
+    [[nodiscard]] bool pictureOwnsInput() const { return pictureOwnsInput_; }
+    /// Scrolls the open settings to a place on their page, 0 = top, 1 = end.
+    /// For pictures of what lies below the fold.
+    void scrollSettingsTo(float share) { settingsScrollTo_ = share; }
     /// Opens the settings from that menu, over the running picture.
     void showSettingsInGame(SettingsTab tab) {
         pauseMenu_ = true;
@@ -67,6 +73,7 @@ private:
     void drawStreamTab(const UiModel& model, AppConfig& config);
     void drawPictureTab(const UiModel& model, AppConfig& config);
     void drawControllerTab(const UiModel& model, AppConfig& config);
+    void drawKeyboardMouse(const UiModel& model, AppConfig& config);
     void drawAdvancedTab(const UiModel& model, AppConfig& config);
     bool beginSheet(const char* id, float width);
     void endSheet();
@@ -93,6 +100,9 @@ private:
     std::string forgetCandidate_;
     bool adviceApplied_ = false;
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
+    bool pictureOwnsInput_ = false;
+    float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to
+    int bindingControl_ = -1; // the control that waits for its key in the settings, or -1
     bool settingsFromGame_ = false; // the settings sheet was opened from that menu
     std::string loginPin_; // typed login passcode; never leaves this field except to the session
 };

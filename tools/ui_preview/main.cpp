@@ -40,6 +40,8 @@ public:
     void dismissPairing() override {}
     void dismissNotice(std::size_t) override {}
     void selectProfile(std::string_view) override {}
+    void captureKey() override {}
+    void endKeyCapture() override {}
     void configChanged() override {}
     void openHelp(std::string_view) override {}
     void startConnectionTest(std::string_view) override {}
@@ -204,6 +206,20 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              ui.openSettings(UiManager::SettingsTab::Controller);
+         }},
+        {"30-settings-mouse-keyboard",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.config->controller.keyboardMouse.enabled = true;
+             ui.openSettings(UiManager::SettingsTab::Controller);
+             ui.scrollSettingsTo(0.52f);
+         }},
+        {"31-settings-key-layout",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.config->controller.keyboardMouse.enabled = true;
+             ui.openSettings(UiManager::SettingsTab::Controller);
+             ui.scrollSettingsTo(1.0f);
          }},
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {

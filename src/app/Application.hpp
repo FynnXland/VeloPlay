@@ -48,6 +48,10 @@ private:
     void applyScale(float scale);
     void frame();
     void toggleFullscreen();
+    /// Gives keys and mouse to the game, or takes them back for the program.
+    void setGameInput(bool on);
+    /// True if the message was a key or mouse event that went to the game or to the settings.
+    bool routeInput(UINT message, WPARAM wParam, LPARAM lParam);
     void logStreamSummary(std::chrono::steady_clock::time_point now);
     void watchForHang(HWND window, std::stop_token stop);
     void openHelp(std::string_view topic);
@@ -88,6 +92,7 @@ private:
     std::size_t arrivalsNext_ = 0;
     double insideMs_ = 0.0;
     bool timerRaised_ = false; // the system timer runs at 1 ms while a stream is shown
+    bool gameInput_ = false;   // keys and mouse belong to the game: pointer hidden and held, raw mouse movement
     std::chrono::steady_clock::time_point lastRefresh_{}; // when the picture for the last refresh was chosen
     double refreshMs_ = 0.0;                              // smoothed time between two refreshes
     std::chrono::steady_clock::time_point nextSummary_{};

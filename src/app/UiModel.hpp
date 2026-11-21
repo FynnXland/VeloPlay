@@ -115,6 +115,10 @@ struct UiModel {
     /// What a session asks the console for right now: the stored settings,
     /// or the program's own choice with "automatic".
     StreamSettings requestedStream;
+    /// Waiting for a key to give to a control, and the key that came (0 = none
+    /// yet; -1 = the user pressed Esc). Codes as in input/KeyboardMouse.hpp.
+    bool capturingKey = false;
+    int capturedKey = 0;
     /// Refreshes per second of the screen the window is on; 0 = unknown.
     double displayHz = 0.0;
     bool controllerConnected = false;
@@ -163,6 +167,11 @@ public:
     /// Answers the console's request for the login passcode.
     /// Ends the running session and connects again with the stream settings as they are now.
     virtual void applyStreamSettings() = 0;
+    /// The settings want to know which key or mouse button is pressed next.
+    /// It arrives in UiModel::capturedKey; endKeyCapture() ends the waiting
+    /// and clears it.
+    virtual void captureKey() = 0;
+    virtual void endKeyCapture() = 0;
     virtual void submitLoginPin(std::string_view digits) = 0;
     virtual void forgetConsole(std::string_view hostId) = 0;
 

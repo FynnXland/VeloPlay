@@ -153,7 +153,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 0.11.0</span>
+    <span class="pill">Version 0.12.0</span>
     <span class="pill">Stand 21.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill soon">Zwischenbilder und Hochskalierung: neu, noch nicht an echter Grafikkarte erprobt</span>
@@ -184,7 +184,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>PS5 aus dem Ruhemodus aufwecken</li>
         <li>Mit der PS5 verbinden und ihr Bild im Fenster oder im Vollbild sehen, mit Ton</li>
         <li>Das Bild auf der Grafikkarte entpacken, ersatzweise auf dem Prozessor</li>
-        <li>Die PS5 mit dem Controller am PC steuern</li>
+        <li>Die PS5 mit dem Controller am PC steuern, oder mit Maus und Tastatur</li>
         <li>Vibration, adaptive Trigger (Widerstand von L2 und R2) und Haptik des DualSense</li>
         <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
         <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
@@ -202,7 +202,6 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
         <li>Bild sichtbar aufwerten (Klötzchen glätten, Kanten nachziehen)</li>
-        <li>Steuern mit Maus und Tastatur</li>
         <li>HDR</li>
       </ul>
       <p class="small muted">Neu in 0.6.0 und bisher nur auf einem Software-Renderer geprüft: Zwischenbilder (aus 30 Bildern pro Sekunde werden 60), Hochskalieren mit Lanczos und Schärfen. Auf einer echten Grafikkarte ist diese Version der erste Versuch.</p>
@@ -433,7 +432,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>Eingang:</strong> was die PS5 schickt. Ein Schalter „Automatisch“; ist er aus, erscheinen Bildrate (30 oder 60), Auflösung, Codec, HDR und Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
-        <li><strong>Controller:</strong> welcher Controller, Totzone der Sticks, Vibration, adaptive Trigger.</li>
+        <li><strong>Controller:</strong> welcher Controller, Totzone der Sticks, Vibration, adaptive Trigger, dazu Maus und Tastatur.</li>
         <li><strong>Erweitert:</strong> Sprache, Updates, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
       </ul>
       <p class="small muted">Änderungen werden von selbst gespeichert. Die Werte unter „Eingang“ gelten ab der nächsten Verbindung, alles andere sofort.</p>
@@ -483,6 +482,20 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Bildabstände:</strong> gleichmäßige Balken bedeuten ruhiges Bild, orange Balken sind verspätete Bilder.</li>
         <li><strong>Unten:</strong> ein Hinweis auf <kbd>Esc</kbd>, <kbd>F11</kbd> und <kbd>F9</kbd>, der nach einigen Sekunden verschwindet.</li>
         <li><strong>Esc:</strong> Menü über dem Bild mit „Weiter“, „Trennen“ und „PS5 in den Ruhemodus“. Der Controller gehört weiter der PS5, das Menü bedienst du mit der Maus.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/maus-tastatur.png" alt="Einstellungen, Reiter Controller: Mausempfindlichkeit, darunter ein gezeichneter Controller und die Liste der Tasten für jeden Knopf" width="1100" height="720">
+    <div>
+      <h3>Maus und Tastatur</h3>
+      <ul>
+        <li><strong>Einschalten:</strong> Einstellungen &gt; Controller &gt; „Mit Maus und Tastatur spielen“. Zunächst aus.</li>
+        <li><strong>Was passiert:</strong> Die PS5 kennt nur Controller. Tasten werden zu Knöpfen und zum linken Stick, die Maus zum rechten Stick: Je schneller du die Maus bewegst, desto weiter ist der Stick gedrückt.</li>
+        <li><strong>Belegung:</strong> Klick auf einen Teil des gezeichneten Controllers oder auf sein Feld, dann die Taste drücken. <kbd>Entf</kbd> leert ein Feld, <kbd>Esc</kbd> bricht ab. Voreingestellt: W A S D laufen, Maus umsehen, linke Maustaste R2, rechte L2.</li>
+        <li><strong>Im Spiel:</strong> Der Mauszeiger verschwindet, Maus und Tastatur gehören der PS5. <kbd>Esc</kbd> öffnet das Menü und gibt sie wieder frei. <kbd>Esc</kbd>, <kbd>F9</kbd> und <kbd>F11</kbd> bleiben bei VeloPlay.</li>
+        <li><strong>Grenzen:</strong> Die PS5 zeigt weiter Controller-Symbole. Eine Maus über einen Stick fühlt sich nie ganz an wie in einem PC-Spiel; stell im Spiel die Kamera-Empfindlichkeit hoch.</li>
       </ul>
     </div>
   </div>
@@ -633,7 +646,7 @@ flowchart LR
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.11.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/0.12.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -696,7 +709,7 @@ flowchart LR
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>259 automatische Tests unter Linux und 274 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>271 automatische Tests unter Linux und 286 unter Windows, davon drei nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -711,6 +724,7 @@ flowchart LR
       <tr><td>Zwischenbilder mit NVIDIA Optical Flow</td><td>Die Grafikprogramme dafür werden auf jedem Rechner übersetzt. Die Suche selbst läuft nur auf einer NVIDIA-Karte: Dort vergleicht ein Test sie mit der eigenen Suche an vier Bildfolgen, darunter eine Leiter bei bewegter Kamera, und misst die Rechenzeit. Am 21.11.2026 auf der RTX 4070 des Autors: NVIDIAs Suche traf alle vier Folgen genau. Die eigene Suche lag bei der Leiter mit Kamerafahrt nach unten um rund 30 Helligkeitsstufen daneben, bei den anderen drei richtig. NVIDIAs Weg brauchte im Testbild knapp 0,9 statt 0,5 Millisekunden. An einem echten Spiel noch nicht zurückgemeldet.</td><td class="state ok">im Test bestanden, im Spiel offen</td></tr>
       <tr><td>Schnitte und stehende Anzeige in berechneten Bildern</td><td>Unter Windows auf dem Software-Renderer: Zwischen zwei völlig verschiedenen Bildern muss eines der beiden echten herauskommen, kein Gemisch. Ein Block feiner Striche, der über eineinhalb Sekunden stillsteht, während sich das Bild dahinter bewegt, muss im berechneten Bild an seinem Platz bleiben. An einem echten Spiel noch nicht zurückgemeldet.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
       <tr><td>Stärke von Triggern und Haptik</td><td>Der Block für den Controller ist Byte für Byte geprüft, mit den Werten des Programms chiaki-ng. Am 21.11.2026 am echten Controller: Der Widerstandspunkt der Trigger ist spürbar, aber schwächer als an der PS5. Ob 0.11.0 das ändert, ist noch nicht zurückgemeldet.</td><td class="state soon">Widerstand spürbar, Stärke offen</td></tr>
+      <tr><td>Maus und Tastatur</td><td>Die Umrechnung mit eingespeister Zeit: Tasten zu Knöpfen und Stick, Mausgeschwindigkeit zu Stick-Ausschlag, auch mit einer Maus, die nur 125-mal pro Sekunde meldet. Dazu eine nachgestellte Sitzung ohne Controller. Das Abfangen von Maus und Tastatur im Fenster läuft nur unter Windows und ist an einer echten Konsole noch nicht gespielt.</td><td class="state soon">Logik bestanden, echtes Spiel offen</td></tr>
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Ob Trigger und Haptik spürbar sind, ist noch nicht zurückgemeldet.</td><td class="state soon">Ton bestätigt, Rest offen</td></tr>
       <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>
