@@ -46,7 +46,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Lässt sich selbst mit dem Controller bedienen und hat eine Seite, um den Controller zu testen
 - Sendet dein Mikrofon für den Sprachchat an die Konsole
 - Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild, in der Ecke
-  deiner Wahl, und sagt, wenn die Verbindung hakt
+  deiner Wahl, und sagt, wenn die Verbindung hakt oder das WLAN der PS5 unruhig ist
 - Speichert mit F12 Fotos vom Spiel und nimmt mit F10 Videos mit Ton auf
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Baut das Bild selbst wieder auf, wenn der Grafiktreiber neu startet, statt sich zu beenden
@@ -204,6 +204,12 @@ verzögert an. Dass der PC am Kabel hängt, hilft dabei nicht: Die schwächste S
 VeloPlay schickt der Konsole kleine Pakete und zeigt, wie schnell und wie gleichmäßig sie
 antwortet. Gleich hohe Balken bedeuten eine ruhige Verbindung. Rote Striche sind verlorene
 Pakete. Zum Urteil gibt es einen Vorschlag für die Datenrate, den du mit einem Klick übernimmst.
+
+**Während des Spiels** achtet VeloPlay selbst darauf. Kommen die Bilder eine Weile verspätet an,
+sagt ein Hinweis über dem Bild das einmal, und im Menü im Spiel steht bei „Verbindung“ dann
+„Unruhig“. Nach jedem Stream steht im Log eine Zusammenfassung, auch mit dem, was die Eingaben
+verzögert hat. Welches WLAN-Band die PS5 benutzt, sieht VeloPlay nicht. Die PS5 zeigt es unter
+**Einstellungen > Netzwerk > Verbindungsstatus**, die meisten Router auch.
 
 **Was am meisten bringt, in dieser Reihenfolge:**
 

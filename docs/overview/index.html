@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.10.2</span>
+    <span class="pill">Version 1.11.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -193,19 +193,21 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 
 <section id="naechstes">
   <h2>Dein nächster Test</h2>
-  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 22.11.2026, Version 1.10.2.</p>
+  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 22.11.2026, Version 1.11.0.</p>
   <div class="panel">
     <h3><span class="dot soon"></span>Zuerst</h3>
     <ol>
-      <li><strong>Update holen:</strong> VeloPlay bietet 1.10.2 an. Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Update holen:</strong> VeloPlay bietet 1.11.0 an (kommt ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>WLAN-Band nachsehen:</strong> an der PS5 unter Einstellungen &gt; Netzwerk &gt; Verbindungsstatus, ob dort 2,4 oder 5 GHz steht. VeloPlay selbst kann das nicht sehen.</li>
     </ol>
   </div>
   <div class="panel">
     <h3><span class="dot soon"></span>Neu, bitte ausprobieren</h3>
     <ol>
+      <li><strong>Hinweis bei unruhigem WLAN (1.11.0):</strong> Einfach spielen. Erscheint oben „WLAN der PS5 unruhig: Kabel oder 5 GHz hilft“? Wie oft, und passt das zu dem, was du merkst? Im Menü im Spiel (<kbd>Esc</kbd>) steht bei „Verbindung“ dann „Unruhig“. Stört der Hinweis, sag Bescheid.</li>
       <li><strong>Vollbild (1.10.2):</strong> Fenster vergrößern, dann Vollbild. Ist unten kein schwarzer Streifen mehr? Kommt die Taskleiste, wenn die Maus unten einen Moment ruht, und geht sie wieder?</li>
       <li><strong>Bilder unter 60 (1.10.1):</strong> Spiel wie sonst, einmal ein Spiel mit 30 und einmal eins mit 60 Bildern pro Sekunde. Bleibt „Bildschirm“ jetzt bei 60? Fühlt sich die Steuerung spürbar träger an? Fällt es trotzdem unter 60, merk dir ungefähr die Uhrzeit: Das Protokoll zählt mit, wie viele Bildwechsel ohne neues Bild waren.</li>
-      <li><strong>Discord (1.10.1):</strong> Steht jetzt der Name des Spiels auf der Karte statt zweimal VeloPlay?</li>
+      <li><strong>Spielname:</strong> Zeigt die Konsolenliste von VeloPlay außerhalb eines Streams den Namen des Spiels, das gerade auf der PS5 läuft? Davon hängt ab, ob Discord ihn je zeigen kann.</li>
       <li><strong>Nach dem Koppeln verbinden (1.10.2):</strong> Beim nächsten Koppeln gleich auf „Verbinden“ drücken.</li>
       <li><strong>Anmeldung im eigenen Browser (1.10.2):</strong> Nur wenn du magst: „Lieber im eigenen Browser anmelden“, danach die Adresse der leeren Seite kopieren und ins Feld der Account-ID einfügen.</li>
     </ol>
@@ -243,7 +245,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Weiterlaufen, wenn der Grafiktreiber neu startet: das Bild wird im selben Fenster neu aufgebaut (seit 1.8.0, ein echter Neustart des Treibers noch nicht ausprobiert)</li>
         <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
         <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
-        <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen, kein Controller da ist oder sein Akku zur Neige geht</li>
+        <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen, das WLAN der PS5 unruhig ist, kein Controller da ist oder sein Akku zur Neige geht</li>
         <li>Ein Menü im Spiel, das zeigt, wie es Bild, Verbindung und Steuerung geht, und das Wichtigste sofort umschaltet</li>
         <li>Das Mikrofon an die PS5 senden, für den Sprachchat</li>
         <li>VeloPlay selbst mit dem Controller bedienen, und den Controller samt Vibration und adaptiven Triggern testen</li>
@@ -870,6 +872,14 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <section id="netzwerk">
   <h2>Netzwerk und WLAN</h2>
   <p>Remote Play läuft über das Heimnetz. Die schwächste Strecke entscheidet: Hängt die PS5 an schwachem WLAN, hilft ein PC am Kabel nicht. Typisch sind dann Eingaben, die sich eine Weile verzögert anfühlen, während die Verbindung sonst stabil wirkt.</p>
+  <h3>Während des Spiels</h3>
+  <p>VeloPlay achtet im Stream selbst darauf, ob die Bilder der PS5 gleichmäßig ankommen. Kommen sie eine Weile verspätet und gleich danach gehäuft, hat die Strecke sie aufgehalten, meist das WLAN der Konsole. Dann sagt ein Hinweis über dem Bild das einmal, mit dem Tipp „Kabel oder 5 GHz hilft“, und im Menü im Spiel steht bei „Verbindung“ „Unruhig“. Ein Bild, das die PS5 gar nicht geschickt hat, weil das Spiel selbst ruckelt, zählt nicht. Welches Band die PS5 benutzt, sieht VeloPlay nicht; die PS5 zeigt es unter Einstellungen &gt; Netzwerk &gt; Verbindungsstatus.</p>
+  <details><summary>Technik</summary>
+    <ul>
+      <li>Gezählt wird nur Verspätung, die das nächste Bild durch frühes Ankommen aufholt (98. von 100 Bildern, die letzten 256). Ab 6 ms für 20 Sekunden am Stück kommt der Hinweis, danach eine halbe Stunde nicht; unter 4 ms gilt die Strecke wieder als ruhig.</li>
+      <li>Am Ende jedes Streams schreibt VeloPlay eine Zeile „Link summary“ ins Protokoll: wie ruhig die Verbindung war, die Antwortzeit beim Aufbau, die Zeit im PC und wie viel Verzögerung Zwischenbilder und das Warten auf verspätete Bilder dazugeben.</li>
+    </ul>
+  </details>
   <h3>Wie die Messung bewertet</h3>
   <p>Gemessen wird mit denselben Suchpaketen, auf die die PS5 ohnehin antwortet. Eine PS5 lässt sich dafür rund 100 ms Zeit, auch auf einer schnellen Strecke. Deshalb zählt nicht, wie lange die schnellste Antwort braucht, sondern wie viel später die langsamen kommen, wie stark die Zeiten schwanken und wie viele Antworten fehlen. Wie viel Datenrate die Strecke trägt, kann diese Messung nicht sehen; die Vorschläge sind deshalb vorsichtig.</p>
   <div class="scroll"><table>
@@ -917,7 +927,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>323 automatische Tests unter Linux und 357 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>325 automatische Tests unter Linux und 359 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -929,6 +939,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Erkennen eines Spiels mit 30 Bildern in einem Stream mit 60</td><td>Die Entscheidung mit erfundenen Bildfolgen: gleichmäßiger Wechsel, Stillstand, Stolpern eines 60er-Spiels, ein verlorenes Bild. Der Vergleich der Bilder unter Windows auf dem Software-Renderer mit einem Muster, das jedes zweite Mal fast unverändert wiederkommt. Am 21.11.2026 an einem echten Spiel: erkannt, fiel bei Kamerabewegung aber immer wieder aus. Seit 0.10.1 zählt der Rhythmus statt einer festen Grenze; ob das am Spiel hält, ist noch zu bestätigen. Rückmeldung vom 22.11.2026 nach längerem Spielen: wird sehr zuverlässig erkannt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Automatische Datenrate</td><td>Die Regeln mit erfundenen Sitzungen: sauber, mit Verlust, zu kurz, mit stehendem Stream. Ob 15 bis 30 Mbit/s das Bild einer PS5 im WLAN sichtbar verbessern, ist nicht gemessen. Rückmeldung vom 22.11.2026 nach längerem Spielen: lief durchgehend gut, die Rate hat sich von selbst angepasst.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Hinweise über dem Bild</td><td>Die Regeln mit eingespeister Zeit: wann ein Hinweis kommt, wie lange er bleibt, was in den ersten Sekunden eines Streams ignoriert wird. Dazu eine nachgestellte Sitzung ohne Controller und mit stehendem Bild.</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Unruhiges WLAN erkennen</td><td>Nachgestellte Bildfolgen: aufgehaltene Bilder, Stöße nach einer Pause, dagegen ein Spiel, das Bilder auslässt oder ruckelt (darf nicht zählen). Im Spiel noch nicht gesehen, die Schwellen sind geschätzt.</td><td class="state ok">bestanden</td></tr>
       <tr><td>Zwischenbilder mit NVIDIA Optical Flow</td><td>Die Grafikprogramme dafür werden auf jedem Rechner übersetzt. Die Suche selbst läuft nur auf einer NVIDIA-Karte: Dort vergleicht ein Test sie mit der eigenen Suche an vier Bildfolgen, darunter eine Leiter bei bewegter Kamera, und misst die Rechenzeit. Am 21.11.2026 auf der RTX 4070 des Autors: NVIDIAs Suche traf alle vier Folgen genau. Die eigene Suche lag bei der Leiter mit Kamerafahrt nach unten um rund 30 Helligkeitsstufen daneben, bei den anderen drei richtig. NVIDIAs Weg brauchte im Testbild knapp 0,9 statt 0,5 Millisekunden. Seit 0.17.1 gehört eine blaue Form vor gleich hellem Grau dazu, nachgebaut nach einer Meldung aus einem Spiel: Die Farbe lag im berechneten Bild vorher um 2,68 Stufen daneben, jetzt um 0,19 (schlichtes Überblenden: 1,21). Ein Bild in 1920 x 1080 dauert samt Hochladen und Zurücklesen rund 4 Millisekunden. Seit 0.18.0 kommt ein Seitenwechsel in einem Menü dazu: Das berechnete Bild lag im ersetzten Teil vorher 19,7 Stufen von der neuen Seite entfernt (die beiden Seiten selbst: 35,8), jetzt 0,97. Im Spiel laufen die Zwischenbilder; ob das Flackern an farbigen Dingen weg ist, ist noch nicht zurückgemeldet.</td><td class="state ok">im Test bestanden, im Spiel teils offen</td></tr>
       <tr><td>Schnitte und stehende Anzeige in berechneten Bildern</td><td>Unter Windows auf dem Software-Renderer: Zwischen zwei völlig verschiedenen Bildern muss eines der beiden echten herauskommen, kein Gemisch. Ein Block feiner Striche, der über eineinhalb Sekunden stillsteht, während sich das Bild dahinter bewegt, muss im berechneten Bild an seinem Platz bleiben. An einem echten Spiel noch nicht zurückgemeldet. Seit 0.18.0 zusätzlich: Wechselt in einem stehenden Menü eine Seite, muss im ersetzten Teil die neue Seite herauskommen. Und läuft etwas an einer stehenden Wand vorbei, darf diese Sorgfalt nichts am Ergebnis ändern.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
       <tr><td>Capture-Card (Beta)</td><td>Unter Linux geprüft: Eine nachgestellte Karte läuft wie ein Stream, ohne Eingaben, ohne Neuverbinden, ohne Mikrofon; der Ton der Karte wird an ihrem Namen erkannt. Unter Windows auf dem PC des Autors geprüft: Das Einlesen von Bild und Ton aus einer Videodatei (Media Foundation behandelt Datei und Gerät gleich), mit richtiger Größe, Helligkeit oben, Rot bleibt Rot. Dabei gefunden und behoben: Leerzeilen unter dem Bild (1088 statt 1080) wurden mitgezeigt. Nicht geprüft: eine echte Karte, eine Kamera, das Auflisten der Geräte.</td><td class="state soon">im Test bestanden, mit Karte offen</td></tr>

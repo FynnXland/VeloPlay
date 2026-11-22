@@ -19,6 +19,7 @@ struct StreamStats {
     int inputHeight = 0;
     int outputWidth = 0;            // size of the picture on screen; 0 until the first one is drawn
     int outputHeight = 0;
+    float unevenMs = 0.0f;          // how much the console's pictures are held up on the way (FramePacer::unevenness)
     float insidePcMs = 0.0f;        // from a picture's data arriving to it being drawn; 0 until measured
     std::string scaler;             // how the picture is enlarged: "RTX Video", "Lanczos" or empty
     bool frameGenerationAvailable = true; // false if the graphics card could not set it up

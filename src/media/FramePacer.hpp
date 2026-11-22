@@ -166,6 +166,12 @@ public:
     /// that come within one, would leave a refresh without a new picture.
     [[nodiscard]] Clock::duration reserve() const { return reserve_; }
 
+    /// How unevenly pictures have come lately, in milliseconds (nearly all of them, as for the reserve):
+    /// only lateness that a following picture made up by coming early. That is what a held-up link
+    /// does; a picture the console never sent (a game that drops one) leaves a gap nobody makes up
+    /// and does not count. On a cable about 0; uneven Wi-Fi shows as several.
+    [[nodiscard]] float unevenness() const { return unevennessMs_; }
+
     [[nodiscard]] int factor() const { return factor_; }
 
 private:
@@ -188,6 +194,12 @@ private:
     std::size_t latenessNext_ = 0;
     Clock::time_point lastArrival_{};
     Clock::duration reserve_{};
+    // Lateness made up by the next pictures, in milliseconds, the newest few seconds (0 where none was).
+    std::array<float, 256> madeUp_{};
+    std::size_t madeUpCount_ = 0;
+    std::size_t madeUpNext_ = 0;
+    float owed_ = 0.0f; // lateness not made up yet
+    float unevennessMs_ = 0.0f;
 };
 
 } // namespace veloplay::media

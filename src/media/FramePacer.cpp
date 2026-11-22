@@ -102,6 +102,9 @@ void FramePacer::configure(int factor, Clock::duration period, Clock::duration r
     if (period != period_) {
         latenessCount_ = 0;
         latenessNext_ = 0;
+        madeUpCount_ = 0;
+        madeUpNext_ = 0;
+        owed_ = 0.0f;
         lastArrival_ = {};
     }
     factor_ = factor;
@@ -115,6 +118,10 @@ void FramePacer::reset() {
     latenessNext_ = 0;
     lastArrival_ = {};
     reserve_ = {};
+    madeUpCount_ = 0;
+    madeUpNext_ = 0;
+    owed_ = 0.0f;
+    unevennessMs_ = 0.0f;
 }
 
 FramePacer::Clock::duration FramePacer::addedDelay() const {
@@ -134,6 +141,31 @@ void FramePacer::measureLateness(Clock::time_point arrival) {
             lateness_[latenessNext_] = std::max(late, 0.0f);
             latenessNext_ = (latenessNext_ + 1) % lateness_.size();
             latenessCount_ = std::min(latenessCount_ + 1, lateness_.size());
+        }
+        // Held up on the way, the late picture is followed by one that comes early; a picture that was
+        // never sent is followed by one on time. Only the first is the link's doing.
+        constexpr float kMargin = 0.5f; // the loop's and the clock's own wobble
+        float madeUp = 0.0f;
+        if (late > 2 * Ms(period_).count()) {
+            owed_ = 0.0f; // a stall: something else says so
+        } else if (late > kMargin) {
+            owed_ = std::max(owed_, late);
+        } else if (late < -kMargin && owed_ > 0.0f) {
+            madeUp = std::min(owed_, -late);
+            owed_ -= madeUp;
+        } else {
+            owed_ = 0.0f; // on time again without catching up: whatever was late was not held up
+        }
+        madeUp_[madeUpNext_] = madeUp;
+        madeUpNext_ = (madeUpNext_ + 1) % madeUp_.size();
+        madeUpCount_ = std::min(madeUpCount_ + 1, madeUp_.size());
+        if (madeUpCount_ >= 16) {
+            std::array<float, 256> sorted{};
+            std::copy_n(madeUp_.begin(), madeUpCount_, sorted.begin());
+            const std::size_t rank = madeUpCount_ - 1 - madeUpCount_ / 50;
+            std::nth_element(sorted.begin(), sorted.begin() + static_cast<std::ptrdiff_t>(rank),
+                             sorted.begin() + static_cast<std::ptrdiff_t>(madeUpCount_));
+            unevennessMs_ = sorted[rank];
         }
     }
     lastArrival_ = arrival;

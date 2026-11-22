@@ -33,6 +33,14 @@ constexpr int kBatteryVeryLow = 5;
 constexpr seconds kBatteryShown{8};
 // Long enough to read after the picture came back; the picture is back within a second.
 constexpr seconds kRestoredShown{6};
+// Pictures more than 6 ms late for nearly all of them, for 20 seconds on end: the link is uneven, not
+// a passing moment. Below 4 ms it counts as steady again. Said for 10 seconds, then not for half an hour:
+// it is advice, and the log has the details.
+constexpr double kUnsteadyFromMs = 6.0;
+constexpr double kSteadyBelowMs = 4.0;
+constexpr seconds kUnsteadyAfter{20};
+constexpr seconds kUnsteadyShown{10};
+constexpr seconds kUnsteadyQuiet{1800};
 
 } // namespace
 
@@ -91,6 +99,17 @@ void StreamAlerts::update(const StreamObservation& o, Clock::time_point now) {
     framesLost_ = o.framesLost;
     framesDropped_ = o.framesDropped;
     if (now - started_ < kGrace) return;
+
+    // Uneven pictures for a while: the console's Wi-Fi, most likely (VeloPlay cannot see its band).
+    if (o.pictureLatenessMs < kSteadyBelowMs) {
+        unsteadySince_ = {};
+    } else if (o.pictureLatenessMs >= kUnsteadyFromMs) {
+        if (unsteadySince_ == Clock::time_point{}) unsteadySince_ = now;
+        if (now - unsteadySince_ >= kUnsteadyAfter && now >= unsteadyQuietUntil_) {
+            raise(StreamAlert::UnsteadyLink, now + kUnsteadyShown);
+            unsteadyQuietUntil_ = now + kUnsteadyQuiet;
+        }
+    }
 
     const bool stalled = o.sincePicture >= kStall;
     if (stalled) raise(StreamAlert::ConnectionStalls, now + kHold);

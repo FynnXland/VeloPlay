@@ -1025,6 +1025,35 @@ JitterRun runWithJitter(int lateEvery, std::chrono::microseconds late, bool queu
 
 // The user saw "Bildschirm" fall below 60 now and then. One picture of the console a few
 // milliseconds late was enough: the computed picture before it could not be made in time.
+TEST(FramePacer, TellsAHeldUpLinkFromPicturesThatWereNeverSent) {
+    using Clock = media::FramePacer::Clock;
+    const auto period = 16'667us;
+    auto unevenness = [&](auto arrivalOf) {
+        media::FramePacer pacer;
+        pacer.configure(1, period, period);
+        for (int index = 0; index < 400; ++index) pacer.onFrame(static_cast<std::uint64_t>(index + 1), arrivalOf(index));
+        return pacer.unevenness();
+    };
+    const Clock::time_point start{};
+    // Even, on a cable.
+    EXPECT_LT(unevenness([&](int i) { return start + i * period; }), 0.5f);
+    // The console leaves out every tenth picture (a game that drops one): no unevenness of the link.
+    EXPECT_LT(unevenness([&](int i) { return start + (i + i / 9) * period; }), 0.5f);
+    // A 30-fps game that judders down to 25 at times: the same.
+    EXPECT_LT(unevenness([&](int i) { return start + i * period + (i / 5) * 8ms; }), 0.5f);
+    // Every fifth picture held up 9 ms on the way, the next one on time: the link.
+    EXPECT_NEAR(unevenness([&](int i) { return start + i * period + (i % 5 == 2 ? 9ms : 0ms); }), 9.0f, 0.5f);
+    // A pause of 30 ms, then three pictures at once, every second or so.
+    const float burst = unevenness([&](int i) {
+        const int inCycle = i % 60;
+        const Clock::time_point onTime = start + i * period;
+        if (inCycle == 30) return onTime + 30ms;
+        if (inCycle == 31) return onTime + 14ms;
+        return onTime;
+    });
+    EXPECT_GT(burst, 6.0f);
+}
+
 TEST(FramePacer, KeepsSixtyWhenPicturesFromWiFiComeALittleLate) {
     using namespace std::chrono_literals;
     // Every tenth picture 7 ms late: a reserve absorbs it, at most a few refreshes repeat

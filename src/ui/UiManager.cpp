@@ -1352,7 +1352,7 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
 
     // Every note has its place in the row and fades in and out there, so
     // one that leaves does not make the others jump at once.
-    const std::array<std::pair<StreamAlert, const char*>, 7> notes = {{
+    const std::array<std::pair<StreamAlert, const char*>, 8> notes = {{
         {StreamAlert::NoController, t.alertNoController},
         {StreamAlert::ConnectionStalls, t.alertConnection},
         {StreamAlert::PicturesLost, t.alertLost},
@@ -1360,6 +1360,7 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
         {StreamAlert::FewerPictures, t.alertFewer},
         {StreamAlert::BatteryLow, t.alertBattery},
         {StreamAlert::GraphicsRestored, t.alertGraphicsRestored},
+        {StreamAlert::UnsteadyLink, t.alertUnsteadyLink},
     }};
     const float padX = px(14.0f);
     const float padY = px(8.0f);
@@ -1765,9 +1766,9 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
         // The small one: what everybody wants to know, on one line. A dot
         // says whether the link is steady. The ground is solid: with a
         // see-through one the picture behind it showed as a flicker.
-        const bool rough = stats.packetLossPercent > 0.5f ||
+        const bool rough = stats.packetLossPercent > 0.5f || stats.unevenMs >= 6.0f ||
                            std::any_of(model.alerts.begin(), model.alerts.end(), [](StreamAlert alert) {
-                               return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost;
+                               return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost || alert == StreamAlert::UnsteadyLink;
                            });
         std::string line = format(t.fpsValue, {number(stats.presenting ? stats.outputFps : stats.streamFps, 0)});
         line += "  ·  " + format(t.msValue, {number(stats.roundTripMs, 0)});
@@ -1922,9 +1923,10 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         ImVec4 dot;
         SettingsTab tab;
     };
-    const bool rough = stats.packetLossPercent > 0.5f ||
+    // Held up on the way for long (the same mark as the note over the picture) is rough too, also after the note.
+    const bool rough = stats.packetLossPercent > 0.5f || stats.unevenMs >= 6.0f ||
                        std::any_of(model.alerts.begin(), model.alerts.end(), [](StreamAlert alert) {
-                           return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost;
+                           return alert == StreamAlert::ConnectionStalls || alert == StreamAlert::PicturesLost || alert == StreamAlert::UnsteadyLink;
                        });
     std::string pictureDetail;
     if (stats.inputWidth > 0) pictureDetail = std::to_string(stats.inputWidth) + " x " + std::to_string(stats.inputHeight);

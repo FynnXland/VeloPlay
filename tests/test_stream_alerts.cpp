@@ -248,3 +248,33 @@ TEST(StreamAlerts, SayOnceForAWhileThatThePictureWasSetUpAgain) {
     for (int i = 0; i < 400; ++i, now += 16ms) alerts.update(fine(), now);
     EXPECT_FALSE(shows(alerts, StreamAlert::GraphicsRestored, now));
 }
+
+TEST(StreamAlerts, AdviseOnceAboutPicturesThatComeUnevenlyForAWhile) {
+    StreamAlerts alerts;
+    Clock::time_point now{};
+    alerts.reset(now);
+    auto with = [](double lateMs) {
+        StreamObservation o = fine();
+        o.pictureLatenessMs = lateMs;
+        return o;
+    };
+    // A steady link and a short uneven moment say nothing.
+    for (int i = 0; i < 300; ++i, now += 100ms) alerts.update(with(1.5), now);
+    for (int i = 0; i < 150; ++i, now += 100ms) alerts.update(with(9.0), now);
+    for (int i = 0; i < 10; ++i, now += 100ms) alerts.update(with(2.0), now);
+    EXPECT_FALSE(shows(alerts, StreamAlert::UnsteadyLink, now));
+    // Uneven for 20 seconds on end: said once.
+    int raised = 0;
+    for (int i = 0; i < 400; ++i, now += 100ms) {
+        alerts.update(with(9.0), now);
+        raised += static_cast<int>(std::count(alerts.raised().begin(), alerts.raised().end(), StreamAlert::UnsteadyLink));
+        if (i == 205) EXPECT_TRUE(shows(alerts, StreamAlert::UnsteadyLink, now));
+    }
+    EXPECT_EQ(raised, 1);
+    EXPECT_FALSE(shows(alerts, StreamAlert::UnsteadyLink, now));
+    // Between 4 and 6 ms keeps the count going but does not start it; no new note for a long while.
+    for (int i = 0; i < 3000; ++i, now += 100ms) {
+        alerts.update(with(i % 2 ? 5.0 : 9.0), now);
+        EXPECT_TRUE(std::count(alerts.raised().begin(), alerts.raised().end(), StreamAlert::UnsteadyLink) == 0);
+    }
+}

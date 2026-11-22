@@ -155,6 +155,16 @@ public:
     /// Pictures the decoder threw away since the stream began, as the media
     /// pipeline counts them. The controller cannot see that itself.
     void noteDroppedFrames(std::uint64_t total) { droppedFrames_ = total; }
+    /// How unevenly the console's pictures come (FramePacer::unevenness), how long the picture waits
+    /// for that, how long a picture takes inside the PC and how much later the picture is shown on
+    /// purpose (frame generation and that waiting), all in milliseconds; for the note on an uneven
+    /// link and the summary in the log.
+    void notePictureTiming(double unevenMs, double waitedMs, double insideMs, double addedMs) {
+        pictureLatenessMs_ = unevenMs;
+        pictureWaitedMs_ = waitedMs;
+        pictureInsideMs_ = insideMs;
+        pictureAddedMs_ = addedMs;
+    }
     void submitLoginPin(std::string_view digits) override;
     void forgetConsole(std::string_view hostId) override;
     void startPairing(std::string_view address, std::string_view accountId, std::string_view pin) override;
@@ -221,6 +231,15 @@ private:
         int stalls = 0;                // since the last two minutes without one
         Clock::time_point lastStall{};
         bool markLowered = false;      // automatic lowered its mark for this console once already
+        // For the summary in the log at the end: how the link went.
+        double worstLatenessMs = 0.0;
+        double latenessSum = 0.0;
+        int latenessSamples = 0;
+        double worstInsideMs = 0.0;
+        double insideSum = 0.0;
+        int insideSamples = 0;
+        double roundTripMs = 0.0;
+        int unsteadyNotes = 0;
         bool restart = false;          // we stopped it to connect again with new settings
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
@@ -239,6 +258,7 @@ private:
     /// Before a session object goes: what it showed about the link, for "automatic".
     void rememberLink(Clock::time_point now);
     void updateAlerts(const session::SessionStats& stats, Clock::time_point now);
+    void logLinkSummary(Clock::time_point now);
     void handleQuickAction(input::QuickAction action);
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();
@@ -327,6 +347,10 @@ private:
     std::mutex pumpMutex_;
     session::ISession* pumpSession_ = nullptr;
     std::uint64_t droppedFrames_ = 0; // see noteDroppedFrames()
+    double pictureLatenessMs_ = 0.0;  // see notePictureTiming()
+    double pictureWaitedMs_ = 0.0;
+    double pictureInsideMs_ = 0.0;
+    double pictureAddedMs_ = 0.0;
     std::string lastEndedHostId_;     // the console our last session ran with, and when it ended
     Clock::time_point lastEndedAt_{};
     std::jthread pump_; // last member: stops first

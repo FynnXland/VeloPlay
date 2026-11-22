@@ -498,7 +498,7 @@ std::vector<Scene> scenes() {
              model.session.consoleName = "Wohnzimmer";
              model.session.connectedSeconds = 240;
              model.stream = playingStats();
-             model.alerts = {StreamAlert::PicturesLost, StreamAlert::GraphicsRestored};
+             model.alerts = {StreamAlert::PicturesLost, StreamAlert::GraphicsRestored, StreamAlert::UnsteadyLink};
          }},
         {"42-stream-screenshot",
          [](UiModel& model, UiManager&) {

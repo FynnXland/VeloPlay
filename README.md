@@ -46,7 +46,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Can be steered with the controller itself, and has a page to try the controller
 - Sends your microphone to the console for voice chat
 - Shows frame rate, bitrate, response time and packet loss on top of the picture if you like, in
-  the corner you choose, and says so when the connection stumbles
+  the corner you choose, and says so when the connection stumbles or the PS5's Wi-Fi is unsteady
 - Saves screenshots of the game with F12 and records videos with sound with F10
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Sets the picture up again by itself when the graphics driver restarts, instead of closing
@@ -212,6 +212,12 @@ The PC being on a cable does not help with that: the weakest stretch decides.
 VeloPlay sends the console small packets and shows how fast and how evenly it answers. Bars of
 equal height mean a steady link. Red marks are lost packets. The verdict comes with a suggested
 bitrate that you can take over with one click.
+
+**While you play** VeloPlay keeps an eye on it. If the pictures come late for a while, a note over
+the picture says so once, and the Connection tile in the pause menu then says "Uneven". After each
+stream the log has a summary, including what delayed your inputs. VeloPlay cannot see which Wi-Fi
+band the PS5 uses. The PS5 shows it under **Settings > Network > Connection Status**, most routers
+do too.
 
 **What helps most, in this order:**
 

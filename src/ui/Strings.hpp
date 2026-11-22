@@ -394,6 +394,7 @@ struct Strings {
     const char* alertFewer;
     const char* alertBattery;
     const char* alertGraphicsRestored;
+    const char* alertUnsteadyLink;
     const char* waitingForRelease; // the console has not let go of the session before
     // Playing with keyboard and mouse.
     const char* kbmTitle;

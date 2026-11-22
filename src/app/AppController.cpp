@@ -113,6 +113,7 @@ AppController::~AppController() {
     }
     if (session_ && session_->session) {
         attachPump(nullptr);
+        logLinkSummary(Clock::now());
         session_->session.reset(); // waits for the session thread
         if (options_.mediaSink) options_.mediaSink->end();
         controllers_.rumble(0, 0, milliseconds{0});
@@ -719,6 +720,7 @@ void AppController::updateSession(Clock::time_point now) {
 void AppController::handleQuit(session::QuitReason reason, const std::string& detail, Clock::time_point now) {
     spdlog::info("Session ended: {} ({})", session::toString(reason), detail);
     attachPump(nullptr);
+    logLinkSummary(now);
     rememberLink(now);
     if (session_->connected) {
         lastEndedHostId_ = session_->hostId;
@@ -823,6 +825,18 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
     observation.charging = pad && pad->charging;
     // With keys and mouse set up, no controller is no fault; with a capture card the controller is at the console.
     observation.controllerWanted = !config_.controller.keyboardMouse.enabled && !session_->capture;
+    observation.pictureLatenessMs = session_->capture ? 0.0 : pictureLatenessMs_;
+    if (!session_->capture && now - session_->connectedAt > std::chrono::seconds(3)) {
+        session_->worstLatenessMs = std::max(session_->worstLatenessMs, pictureLatenessMs_);
+        session_->latenessSum += pictureLatenessMs_;
+        ++session_->latenessSamples;
+        if (pictureInsideMs_ > 0.0) {
+            session_->worstInsideMs = std::max(session_->worstInsideMs, pictureInsideMs_);
+            session_->insideSum += pictureInsideMs_;
+            ++session_->insideSamples;
+        }
+        if (stats.roundTripMs > 0.0) session_->roundTripMs = stats.roundTripMs;
+    }
     session_->alerts.update(observation, now);
     // Into the log as well: afterwards it says what the user saw and when.
     for (const StreamAlert alert : session_->alerts.raised()) {
@@ -835,10 +849,37 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
             case StreamAlert::FewerPictures: what = "the console sends fewer pictures than asked for"; break;
             case StreamAlert::BatteryLow: what = "the controller's battery is low"; break;
             case StreamAlert::GraphicsRestored: what = "the graphics device was made anew"; break;
+            case StreamAlert::UnsteadyLink:
+                ++session_->unsteadyNotes;
+                what = "the console's pictures come unevenly (its Wi-Fi, most likely)";
+                break;
         }
         spdlog::info("Note over the picture: {} ({} ms since the last picture, {:.0f} fps, {} lost, {} dropped)", what,
                      observation.sincePicture.count(), stats.streamFps, stats.framesLost, droppedFrames_);
     }
+}
+
+namespace {
+// Pictures uneven by less than this on average make a steady link (a cable shows about 0).
+constexpr double kSteadyLatenessMs = 2.0;
+} // namespace
+
+void AppController::logLinkSummary(Clock::time_point now) {
+    if (!session_ || !session_->connected || session_->capture || session_->latenessSamples == 0) return;
+    const double average = session_->latenessSum / session_->latenessSamples;
+    const auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - session_->connectedAt).count();
+    // What most likely held the picture back, in plain terms: this line is what is read afterwards.
+    const char* verdict = average < kSteadyLatenessMs ? "steady"
+                          : average < 6.0             ? "a little uneven"
+                                                      : "uneven (the console's Wi-Fi, most likely: a cable or 5 GHz helps)";
+    const double inside = session_->insideSamples > 0 ? session_->insideSum / session_->insideSamples : 0.0;
+    // Everything that makes an input come back later, so the log answers "why did it feel slow".
+    spdlog::info("Link summary after {} min: {}; pictures held up {:.1f} ms on average, {:.1f} ms at worst ({} notes "
+                 "about it over the picture). Delay: response {:.0f} ms at setup, {:.1f} ms inside the PC on average "
+                 "({:.1f} at worst), of that {:.1f} ms on purpose at the end (frame generation and {:.1f} ms waiting "
+                 "for late pictures)",
+                 minutes, verdict, average, session_->worstLatenessMs, session_->unsteadyNotes, session_->roundTripMs,
+                 inside, session_->worstInsideMs, pictureAddedMs_, pictureWaitedMs_);
 }
 
 void AppController::rememberLink(Clock::time_point now) {

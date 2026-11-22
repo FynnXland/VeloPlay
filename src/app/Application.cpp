@@ -573,6 +573,8 @@ void Application::frame() {
 
     // The controller decides which notes show over the picture; what the decoder threw away it learns here.
     if (pipeline_) controller_->noteDroppedFrames(pipeline_->stats().droppedFrames);
+    controller_->notePictureTiming(pacer_.unevenness(), std::chrono::duration<double, std::milli>(pacer_.reserve()).count(),
+                                   insideMs_, std::chrono::duration<double, std::milli>(pacer_.addedDelay()).count());
     controller_->update();
     diag::setStep("collecting what to show");
     controller_->fillModel(model_);
@@ -662,6 +664,7 @@ void Application::frame() {
             stats.frameGenerationActive = available && pacer_.factor() > 1;
             stats.frameGenerationEngine = videoRenderer_.frameGeneratorName();
             stats.addedLatencyMs = std::chrono::duration<float, std::milli>(pacer_.addedDelay()).count();
+            stats.unevenMs = pacer_.unevenness();
             stats.decodeMs = static_cast<float>(media.decodeMs);
             stats.decodeMaxMs = static_cast<float>(media.decodeMaxMs);
             stats.decoder = media.decoder;

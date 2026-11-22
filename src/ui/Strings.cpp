@@ -413,6 +413,7 @@ constexpr Strings kGerman = {
     .alertFewer = "Die PS5 schickt gerade weniger Bilder",
     .alertBattery = "Der Akku des Controllers ist fast leer",
     .alertGraphicsRestored = "Aussetzer der Grafikkarte, Bild neu aufgebaut",
+    .alertUnsteadyLink = "WLAN der PS5 unruhig: Kabel oder 5 GHz hilft",
     .waitingForRelease = "Die PS5 hat die letzte Verbindung noch nicht freigegeben. Das dauert bis zu einer Minute, "
                          "VeloPlay versucht es so lange weiter.",
     .kbmTitle = "Maus und Tastatur",
@@ -895,6 +896,7 @@ constexpr Strings kEnglish = {
     .alertFewer = "The PS5 is sending fewer pictures right now",
     .alertBattery = "The controller's battery is nearly empty",
     .alertGraphicsRestored = "Graphics card hiccup, picture set up again",
+    .alertUnsteadyLink = "PS5 Wi-Fi unsteady: a cable or 5 GHz helps",
     .waitingForRelease = "The PS5 has not let go of the last connection yet. That takes up to a minute; VeloPlay "
                          "keeps trying until then.",
     .kbmTitle = "Mouse and keyboard",

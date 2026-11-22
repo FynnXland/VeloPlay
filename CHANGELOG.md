@@ -3,6 +3,33 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.11.0
+
+- **VeloPlay notices an unsteady link and says what helps.** If the console's pictures are held
+  up on the way for a while, a note over the picture says so once, with the tip that a cable or
+  5 GHz Wi-Fi helps. VeloPlay cannot see which band the PS5 uses; the PS5 shows it under
+  Settings > Network > Connection Status, the router too. A picture the console never sent (a game
+  that drops one) does not count, only pictures that come late and are made up right after.
+- **The pause menu stays honest about it.** The Connection tile says "Uneven" for as long as the
+  pictures come unevenly, not just while the note is shown.
+- **A summary in the log after each stream:** how steady the link was, and everything that makes an
+  input come back later (response time, time inside the PC, what frame generation and waiting for
+  late pictures add).
+
+**Deutsch**
+
+- **VeloPlay merkt eine unruhige Verbindung und sagt, was hilft.** Kommen die Bilder der Konsole
+  eine Weile verspätet an, sagt ein Hinweis über dem Bild das einmal, mit dem Tipp, dass ein Kabel
+  oder 5-GHz-WLAN hilft. Welches Band die PS5 benutzt, sieht VeloPlay nicht; die PS5 zeigt es unter
+  Einstellungen > Netzwerk > Verbindungsstatus, der Router auch. Ein Bild, das die Konsole gar
+  nicht geschickt hat (ein Spiel, das eins auslässt), zählt nicht, nur Bilder, die zu spät kommen
+  und gleich danach aufgeholt werden.
+- **Das Menü im Spiel bleibt dabei ehrlich.** Die Kachel „Verbindung“ sagt „Unruhig“, solange die
+  Bilder ungleichmäßig kommen, nicht nur, solange der Hinweis zu sehen ist.
+- **Eine Zusammenfassung im Log nach jedem Stream:** wie ruhig die Verbindung war und alles, was
+  eine Eingabe später zurückkommen lässt (Antwortzeit, Zeit im PC, was Zwischenbilder und das
+  Warten auf verspätete Bilder dazugeben).
+
 ## 1.10.2
 
 - **Fixed: a black strip at the bottom in full screen.** If the window was enlarged before you

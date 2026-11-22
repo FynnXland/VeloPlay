@@ -20,6 +20,7 @@ enum class StreamAlert {
     FewerPictures,    // the console sends clearly fewer pictures than asked for, without losses
     BatteryLow,       // the controller's battery is nearly empty and it is not charging
     GraphicsRestored, // the graphics card had a hiccup and the picture was set up again
+    UnsteadyLink,     // the console's pictures come unevenly for a while: its Wi-Fi, most likely
 };
 
 /// What is known about the stream at one moment.
@@ -34,6 +35,8 @@ struct StreamObservation {
     bool controllerWanted = true;
     int batteryPercent = -1; // of the controller in use; -1 = unknown or none
     bool charging = false;
+    /// How late the console's pictures come lately, in milliseconds (FramePacer::lateness); 0 = unknown.
+    double pictureLatenessMs = 0.0;
 };
 
 /// Turns observations into notes that do not flicker: a note appears when
@@ -58,7 +61,7 @@ public:
     [[nodiscard]] const std::vector<StreamAlert>& raised() const { return raised_; }
 
 private:
-    static constexpr int kKinds = 7;
+    static constexpr int kKinds = 8;
     struct Slot {
         bool on = false;
         Clock::time_point until{}; // shown up to here
@@ -78,6 +81,8 @@ private:
     Clock::time_point fewerQuietUntil_{};   // said once; not again before this
     int batteryToldAt_ = 101;               // the charge the last note was about; 101 = none yet
     Clock::time_point restoredAt_{};        // when the graphics device was made anew; zero = not since the last update
+    Clock::time_point unsteadySince_{};     // since when pictures come unevenly; zero = they do not
+    Clock::time_point unsteadyQuietUntil_{}; // said once; not again before this
 };
 
 } // namespace veloplay
