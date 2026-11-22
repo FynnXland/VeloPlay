@@ -19,6 +19,7 @@
 #include "audio/WasapiOutput.hpp"
 #include "media/FramePacer.hpp"
 #include "media/MediaPipeline.hpp"
+#include "record/VideoRecorder.hpp"
 #include "render/FrameGrabber.hpp"
 #include "render/VideoRenderer.hpp"
 #include "session/StreamMeter.hpp"
@@ -99,6 +100,23 @@ private:
     std::future<Saved> saving_;
     std::filesystem::path picturesFolder_;
     void collectScreenshot();
+    // Videos: copies of every picture go to the recorder, which writes them on its own thread.
+    // Declared before the sound output, so it outlives the device thread that hands it the sound.
+    std::unique_ptr<record::VideoRecorder> recorder_;
+    render::FrameStream recordStream_;
+    std::future<Result<bool>> recordStarting_;
+    std::future<Result<record::RecordingSummary>> recordStopping_;
+    bool recordToggle_ = false; // F10 was pressed; handled after the next picture is drawn
+    bool recordAvailable_ = false;
+    std::string recordMissing_;
+    std::filesystem::path videosFolder_;
+    std::filesystem::path frameLogFolder_;
+    std::filesystem::path recordFile_;
+    int recordFps_ = 60;
+    std::chrono::steady_clock::time_point lastRecorded_{};
+    void handleRecording(bool showVideo, media::ShownKind kind, std::chrono::steady_clock::time_point now);
+    void stopRecording(const char* why);
+    void recordingStopped(Result<record::RecordingSummary> outcome);
     bool videoReady_ = false;
     std::unique_ptr<audio::WasapiOutput> audioOutput_;
     std::unique_ptr<audio::WasapiOutput> hapticsOutput_;

@@ -24,10 +24,11 @@ add_executable(veloplay_tests
     test_psn_account.cpp
     test_install.cpp
     test_snapshot.cpp
+    test_recording.cpp
 )
 target_link_libraries(veloplay_tests PRIVATE veloplay_core miniz::miniz veloplay_opus GTest::gtest GTest::gtest_main)
 if(WIN32)
-    target_sources(veloplay_tests PRIVATE test_platform_win.cpp)
+    target_sources(veloplay_tests PRIVATE test_platform_win.cpp test_record_win.cpp)
     target_link_libraries(veloplay_tests PRIVATE veloplay_platform)
 endif()
 target_compile_definitions(veloplay_tests PRIVATE VELOPLAY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")

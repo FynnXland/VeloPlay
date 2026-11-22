@@ -449,6 +449,7 @@ void UiManager::draw(const UiModel& model) {
             drawCaptureNote(model);
             drawKeyOverlay(model);
             drawMicrophoneBadge(model);
+            drawRecordingBadge(model);
         } else {
             upscalingNoteFor_ = 0.0;
             keyOverlay_ = false; // a menu is open; the layout does not come back by itself
@@ -1315,6 +1316,7 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
 void UiManager::drawCaptureNote(const UiModel& model) {
     const Strings& t = *text_;
     if (ImGui::IsKeyPressed(ImGuiKey_F12, false)) actions_.takeScreenshot();
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) actions_.toggleRecording();
     // A note that arrived while a menu was open is old news by the time it closes.
     if (model.captureNote.serial != captureNoteSeen_) {
         if (captureNoteSeen_ != 0 || model.captureNote.serial == 1) captureNoteFor_ = 3.0;
@@ -1324,7 +1326,9 @@ void UiManager::drawCaptureNote(const UiModel& model) {
     captureNoteFor_ -= static_cast<double>(ImGui::GetIO().DeltaTime);
 
     const bool saved = model.captureNote.saved;
-    const std::string title = saved ? format(t.captureSaved, {model.captureNote.where}) : std::string(t.captureFailed);
+    const bool video = model.captureNote.video;
+    const std::string title = saved ? format(video ? t.captureVideoSaved : t.captureSaved, {model.captureNote.where})
+                                    : std::string(video ? t.captureVideoFailed : t.captureFailed);
     const std::string remark = saved ? std::string() : model.captureNote.detail;
     const Palette& p = palette();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -1499,6 +1503,40 @@ void UiManager::drawMicrophoneBadge(const UiModel& model) {
     fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
     draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                           toU32(model.microphoneMissing ? p.standby : p.danger, shown));
+    drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, text, shown);
+}
+
+/// While a recording runs, the corner says so, with its length. Below the
+/// microphone's badge when that one shows, so both can be seen.
+void UiManager::drawRecordingBadge(const UiModel& model) {
+    const bool on = model.recording.running || model.recording.starting;
+    const float shown = context().animator.to(static_cast<ImGuiID>(0x5A1E7301), on ? 1.0f : 0.0f, 0.18f, 0.0f);
+    if (shown < 0.02f) return;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    char clock[32] = {};
+    const int seconds = std::max(0, static_cast<int>(model.recording.seconds));
+    if (seconds >= 3600) std::snprintf(clock, sizeof(clock), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+    else std::snprintf(clock, sizeof(clock), "%d:%02d", seconds / 60, seconds % 60);
+    const std::string text = model.recording.running ? format(t.recordingBadge, {clock}) : std::string(t.recordingStarting);
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 size = measure(TextStyle::Caption, text);
+    const float padX = px(12.0f);
+    const float padY = px(6.0f);
+    const float dot = px(8.0f);
+    const float width = padX * 2.0f + dot + px(8.0f) + size.x;
+    const float height = padY * 2.0f + size.y;
+    const bool displayThere = model.config && model.config->network.statsOverlay && model.config->network.statsCorner == 1;
+    const bool micShown = model.microphoneLive || model.microphoneMissing;
+    const ImVec2 min(displayThere ? viewport->Pos.x + px(16.0f) : viewport->Pos.x + viewport->Size.x - width - px(16.0f),
+                     viewport->Pos.y + px(16.0f) + (micShown ? height + px(8.0f) : 0.0f));
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
+    // The dot breathes while it records, as a recorder's light does.
+    const double now = ImGui::GetTime();
+    const float pulse = model.recording.running ? 0.65f + 0.35f * static_cast<float>(0.5 + 0.5 * std::cos(now * 3.0)) : 0.5f;
+    draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
+                          toU32(p.danger, shown * pulse));
     drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, text, shown);
 }
 
@@ -2859,10 +2897,27 @@ void UiManager::drawCaptureTab(const UiModel& model) {
         if (edgeButton(t.captureOpenFolder, ButtonKind::Link)) actions_.openPicturesFolder();
     }
 
+    sectionTitle(t.captureVideos);
+    if (model.recording.available) {
+        paragraph(TextStyle::Caption, t.captureVideosHint, p.textSecondary);
+        space(8.0f);
+        if (!model.videosFolder.empty()) {
+            label(TextStyle::Body, model.videosFolder, p.textSecondary);
+            space(8.0f);
+            ImGui::PushID("videos");
+            if (edgeButton(t.captureOpenFolder, ButtonKind::Link)) actions_.openVideosFolder();
+            ImGui::PopID();
+        }
+    } else {
+        paragraph(TextStyle::Caption, t.captureVideosMissing, p.textSecondary);
+        if (!model.recording.missing.empty()) {
+            space(4.0f);
+            paragraph(TextStyle::Caption, model.recording.missing, p.textTertiary);
+        }
+    }
+
     // Not built yet: said so, and nothing to switch (rule: no switch that does nothing).
     sectionTitle(t.captureClips);
-    paragraph(TextStyle::Caption, t.captureLater, p.textTertiary);
-    sectionTitle(t.captureVideos);
     paragraph(TextStyle::Caption, t.captureLater, p.textTertiary);
 }
 

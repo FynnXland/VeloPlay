@@ -223,8 +223,10 @@ bool WasapiOutput::start(int sampleRate, int channels, std::chrono::milliseconds
                     }
                     {
                         std::lock_guard lock(mutex_);
-                        buffer_->pop({reinterpret_cast<std::int16_t*>(data), static_cast<std::size_t>(frames) *
-                                                                                static_cast<std::size_t>(channels)});
+                        const std::span<std::int16_t> block{reinterpret_cast<std::int16_t*>(data),
+                                                            static_cast<std::size_t>(frames) * static_cast<std::size_t>(channels)};
+                        buffer_->pop(block);
+                        if (tap_) tap_(block, sampleRate, channels);
                     }
                     render->ReleaseBuffer(frames, 0);
                 }
@@ -249,6 +251,11 @@ bool WasapiOutput::waitUntilOpened(std::chrono::milliseconds timeout) {
     if (!opened_.valid()) return false;
     if (opened_.wait_for(timeout) != std::future_status::ready) return false;
     return running_.load();
+}
+
+void WasapiOutput::setTap(Tap tap) {
+    std::lock_guard lock(mutex_);
+    tap_ = std::move(tap);
 }
 
 void WasapiOutput::write(std::span<const std::int16_t> interleaved) {

@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.2.0</span>
+    <span class="pill">Version 1.3.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -217,7 +217,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
         <li>Sich auf dem PC installieren, mit Eintrag im Startmenü und bei den Apps von Windows</li>
-        <li>Fotos vom Spiel mit <kbd>F12</kbd>, ohne VeloPlays Anzeigen darauf</li>
+        <li>Fotos vom Spiel mit <kbd>F12</kbd> und Videos mit Ton mit <kbd>F10</kbd>, ohne VeloPlays Anzeigen darauf</li>
         <li>Skripte auf dem PC Tasten senden lassen</li>
         <li>Deutsch und Englisch</li>
       </ul>
@@ -464,7 +464,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Eingang:</strong> was die PS5 schickt. Ein Schalter „Automatisch“; ist er aus, erscheinen Bildrate (30 oder 60), Auflösung, Codec, HDR und Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
         <li><strong>Controller:</strong> welcher Controller, der Test dafür, Totzone der Sticks, Vibration, adaptive Trigger.</li>
-        <li><strong>Aufnahme (seit 1.2.0):</strong> der Ordner für Fotos und ein Knopf, der ihn öffnet. Clips und Videoaufnahme stehen dort als „kommt mit einer der nächsten Versionen“, ohne Schalter, die noch nichts tun.</li>
+        <li><strong>Aufnahme (seit 1.2.0, Videos seit 1.3.0):</strong> die Ordner für Fotos und Videos, je mit einem Knopf, der den Ordner öffnet. Clips stehen dort als „kommt mit einer der nächsten Versionen“, ohne Schalter, der noch nichts tut.</li>
         <li><strong>Maus &amp; Tastatur (eigene Seite seit 0.18.0):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
         <li><strong>Erweitert:</strong> Sprache, Updates, Installation, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
         <li><strong>Installation (seit 1.1.0):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben.</li>
@@ -474,11 +474,12 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/aufnahme.png" alt="Einstellungen, Seite Aufnahme: Fotos mit dem Ordner und dem Knopf Ordner öffnen, darunter Clips und Videoaufnahme mit dem Hinweis, dass sie mit einer der nächsten Versionen kommen" width="1100" height="720">
+    <img class="shot" src="img/aufnahme.png" alt="Einstellungen, Seite Aufnahme: Fotos und Videoaufnahme, je mit dem Ordner und dem Knopf Ordner öffnen, darunter Clips mit dem Hinweis, dass sie mit einer der nächsten Versionen kommen" width="1100" height="720">
     <div>
       <h3>Aufnahme</h3>
       <ul>
         <li><strong>Fotos:</strong> <kbd>F12</kbd> im Spiel. Hier steht der Ordner, ein Klick öffnet ihn.</li>
+        <li><strong>Videoaufnahme:</strong> <kbd>F10</kbd> im Spiel startet und beendet sie. Die Videos landen als MP4 unter Videos\VeloPlay. Fehlt Windows das Nötige dafür (Windows N ohne Media Feature Pack), steht das hier statt des Ordners.</li>
         <li><strong>Clips und Videoaufnahme:</strong> kommen mit einer der nächsten Versionen. Bis dahin gibt es dafür keine Schalter.</li>
       </ul>
     </div>
@@ -533,6 +534,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>Ecke (seit 1.2.0):</strong> Die Anzeige sitzt oben links, oben rechts, unten links oder unten rechts, eingestellt unter Einstellungen &gt; Erweitert. So verdeckt sie nichts vom Spiel, etwa eine Lebensanzeige. Der Hinweis „Mikrofon an“ und der Hinweis nach einem Foto weichen in die andere Ecke aus.</li>
         <li><strong>Foto mit <kbd>F12</kbd> (seit 1.2.0):</strong> speichert das Bild des Spiels als PNG unter Bilder\VeloPlay. Aufgenommen wird das Bild, wie es auf dem Bildschirm ist, mit Zwischenbildern und Hochskalierung, aber ohne VeloPlays Anzeige und Hinweise. Unten rechts steht kurz, wohin es ging.</li>
+        <li><strong>Video mit <kbd>F10</kbd> (seit 1.3.0):</strong> nimmt das Bild auf, wie es auf dem Bildschirm ist, mit Zwischenbildern und mit dem Ton, der aus den Lautsprechern kommt, als MP4 unter Videos\VeloPlay. Oben rechts steht „Aufnahme“ mit der Dauer. <kbd>F10</kbd> beendet sie; sie endet auch von selbst, wenn der Stream endet oder sich die Fenstergröße ändert (eine Videodatei hat eine feste Größe).</li>
         <li><strong>Kleine Anzeige (seit 0.15.0):</strong> Wer nur das Wichtigste sehen will, schaltet mit <kbd>F9</kbd> auf die kleine Anzeige: ein Punkt für die Verbindung, dazu Bilder pro Sekunde, Antwortzeit und Datenrate in einer Zeile. Alles Weitere unten gehört zur Anzeige mit allen Werten.</li>
         <li><strong>PS5 / Bildschirm:</strong> Bilder pro Sekunde, die ankommen, und Bilder, die gezeigt werden.</li>
         <li><strong>PS5 und Bildschirm:</strong> davor jeweils die Größe des Bildes, wie es ankommt und wie es auf dem Bildschirm liegt.</li>
@@ -803,7 +805,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.2.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.3.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -866,7 +868,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>293 automatische Tests unter Linux und 318 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>296 automatische Tests unter Linux und 325 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -880,6 +882,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Hinweise über dem Bild</td><td>Die Regeln mit eingespeister Zeit: wann ein Hinweis kommt, wie lange er bleibt, was in den ersten Sekunden eines Streams ignoriert wird. Dazu eine nachgestellte Sitzung ohne Controller und mit stehendem Bild.</td><td class="state ok">bestanden</td></tr>
       <tr><td>Zwischenbilder mit NVIDIA Optical Flow</td><td>Die Grafikprogramme dafür werden auf jedem Rechner übersetzt. Die Suche selbst läuft nur auf einer NVIDIA-Karte: Dort vergleicht ein Test sie mit der eigenen Suche an vier Bildfolgen, darunter eine Leiter bei bewegter Kamera, und misst die Rechenzeit. Am 21.11.2026 auf der RTX 4070 des Autors: NVIDIAs Suche traf alle vier Folgen genau. Die eigene Suche lag bei der Leiter mit Kamerafahrt nach unten um rund 30 Helligkeitsstufen daneben, bei den anderen drei richtig. NVIDIAs Weg brauchte im Testbild knapp 0,9 statt 0,5 Millisekunden. Seit 0.17.1 gehört eine blaue Form vor gleich hellem Grau dazu, nachgebaut nach einer Meldung aus einem Spiel: Die Farbe lag im berechneten Bild vorher um 2,68 Stufen daneben, jetzt um 0,19 (schlichtes Überblenden: 1,21). Ein Bild in 1920 x 1080 dauert samt Hochladen und Zurücklesen rund 4 Millisekunden. Seit 0.18.0 kommt ein Seitenwechsel in einem Menü dazu: Das berechnete Bild lag im ersetzten Teil vorher 19,7 Stufen von der neuen Seite entfernt (die beiden Seiten selbst: 35,8), jetzt 0,97. Im Spiel laufen die Zwischenbilder; ob das Flackern an farbigen Dingen weg ist, ist noch nicht zurückgemeldet.</td><td class="state ok">im Test bestanden, im Spiel teils offen</td></tr>
       <tr><td>Schnitte und stehende Anzeige in berechneten Bildern</td><td>Unter Windows auf dem Software-Renderer: Zwischen zwei völlig verschiedenen Bildern muss eines der beiden echten herauskommen, kein Gemisch. Ein Block feiner Striche, der über eineinhalb Sekunden stillsteht, während sich das Bild dahinter bewegt, muss im berechneten Bild an seinem Platz bleiben. An einem echten Spiel noch nicht zurückgemeldet. Seit 0.18.0 zusätzlich: Wechselt in einem stehenden Menü eine Seite, muss im ersetzten Teil die neue Seite herauskommen. Und läuft etwas an einer stehenden Wand vorbei, darf diese Sorgfalt nichts am Ergebnis ändern.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
+      <tr><td>Videoaufnahme</td><td>Auf dem PC des Autors (RTX 4070) schreibt ein Test ein Video in 1080p mit 90 Bildern und Ton: alle 90 Bilder kommen in die Datei, keins geht verloren. Danach liest der Test die Datei mit Windows wieder ein, zählt die Bilder und schaut ins erste: ein rotes Feld oben links muss rot und oben bleiben. Ein zweiter Test nimmt ohne Ton auf; die Datei bekommt Stille und ist trotzdem so lang wie die Aufnahme. Das Weiterreichen der Bilder vom Bildschirm an die Aufnahme ist auf dem Software-Renderer getestet. Im Spiel noch nicht ausprobiert, ebenso Bildschirme über 60 Hz und Windows N.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
       <tr><td>Stärke von Triggern und Haptik</td><td>Der Block für den Controller ist Byte für Byte geprüft, mit den Werten des Programms chiaki-ng. Am 21.11.2026 am echten Controller: Der Widerstandspunkt der Trigger ist spürbar, aber schwächer als an der PS5. Ob 0.11.0 das ändert, ist noch nicht zurückgemeldet. Rückmeldung vom 22.11.2026: Alle adaptiven Trigger funktionieren, im Test und im Spiel. Auch die Haptik ist zu spüren.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Maus und Tastatur</td><td>Die Umrechnung mit eingespeister Zeit: Tasten zu Knöpfen und Stick, Mausgeschwindigkeit zu Stick-Ausschlag, auch mit einer Maus, die nur 125-mal pro Sekunde meldet. Dazu eine nachgestellte Sitzung ohne Controller. Das Abfangen von Maus und Tastatur im Fenster läuft nur unter Windows. Rückmeldung vom 22.11.2026 an der echten Konsole: Umsehen mit der Maus und Laufen mit W A S D funktionieren. Die Standardtasten gefielen nicht; seit 0.18.0 gibt es dafür zwei Vorlagen, die noch niemand gespielt hat.</td><td class="state ok">funktioniert, Vorlagen neu</td></tr>
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>

@@ -86,4 +86,85 @@ std::optional<media::Image> FrameGrabber::take(ID3D11DeviceContext* context) {
     return image;
 }
 
+bool FrameStream::capture(ID3D11Device* device, ID3D11DeviceContext* context, ID3D11Texture2D* source, UINT left,
+                          UINT top, int width, int height, media::ShownKind kind,
+                          std::chrono::steady_clock::time_point at) {
+    if (!device || !context || !source || width <= 0 || height <= 0) return false;
+    D3D11_TEXTURE2D_DESC from{};
+    source->GetDesc(&from);
+    if (from.Format != DXGI_FORMAT_B8G8R8A8_UNORM && from.Format != DXGI_FORMAT_R8G8B8A8_UNORM) {
+        failure_ = "the screen's picture is in a format that cannot be recorded";
+        return false;
+    }
+    if (left + static_cast<UINT>(width) > from.Width || top + static_cast<UINT>(height) > from.Height) return false;
+    if (width != width_ || height != height_ || from.Format != format_) {
+        reset();
+        width_ = width;
+        height_ = height;
+        format_ = from.Format;
+    }
+    Slot& slot = slots_[next_];
+    if (slot.pending) return false;
+    if (!slot.staging) {
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = static_cast<UINT>(width);
+        desc.Height = static_cast<UINT>(height);
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = from.Format;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (FAILED(device->CreateTexture2D(&desc, nullptr, slot.staging.GetAddressOf()))) {
+            failure_ = "no memory for copies of the picture";
+            return false;
+        }
+    }
+    D3D11_BOX box{left, top, 0, left + static_cast<UINT>(width), top + static_cast<UINT>(height), 1};
+    context->CopySubresourceRegion(slot.staging.Get(), 0, 0, 0, 0, source, 0, &box);
+    slot.pending = true;
+    slot.kind = kind;
+    slot.at = at;
+    next_ = (next_ + 1) % slots_.size();
+    return true;
+}
+
+std::optional<FrameStream::Picture> FrameStream::take(ID3D11DeviceContext* context, std::vector<std::uint8_t>&& reuse) {
+    Slot& slot = slots_[oldest_];
+    if (!slot.pending || !context) return std::nullopt;
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    const HRESULT result = context->Map(slot.staging.Get(), 0, D3D11_MAP_READ, D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
+    if (result == DXGI_ERROR_WAS_STILL_DRAWING) return std::nullopt;
+    slot.pending = false;
+    oldest_ = (oldest_ + 1) % slots_.size();
+    if (FAILED(result)) {
+        failure_ = "a copy of the picture could not be read";
+        return std::nullopt;
+    }
+    Picture picture;
+    picture.kind = slot.kind;
+    picture.at = slot.at;
+    picture.bgra = std::move(reuse);
+    const std::size_t row = static_cast<std::size_t>(width_) * 4;
+    picture.bgra.resize(row * static_cast<std::size_t>(height_));
+    for (int y = 0; y < height_; ++y) {
+        std::memcpy(picture.bgra.data() + static_cast<std::size_t>(y) * row,
+                    static_cast<const std::uint8_t*>(mapped.pData) + static_cast<std::size_t>(y) * mapped.RowPitch, row);
+    }
+    context->Unmap(slot.staging.Get(), 0);
+    if (format_ == DXGI_FORMAT_R8G8B8A8_UNORM) {
+        for (std::size_t at = 0; at < picture.bgra.size(); at += 4) std::swap(picture.bgra[at], picture.bgra[at + 2]);
+    }
+    return picture;
+}
+
+void FrameStream::reset() {
+    for (Slot& slot : slots_) slot = Slot{};
+    next_ = 0;
+    oldest_ = 0;
+    width_ = 0;
+    height_ = 0;
+    format_ = DXGI_FORMAT_UNKNOWN;
+}
+
 } // namespace veloplay::render

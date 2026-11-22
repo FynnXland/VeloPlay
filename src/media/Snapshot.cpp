@@ -36,17 +36,25 @@ std::string captureFileName(const std::tm& local, std::string_view extension) {
     return std::string(name) + "." + std::string(extension);
 }
 
-Result<std::filesystem::path> saveCapture(const std::filesystem::path& folder, const std::tm& local,
-                                          std::string_view extension, const std::vector<std::uint8_t>& bytes) {
+Result<std::filesystem::path> freeCapturePath(const std::filesystem::path& folder, const std::tm& local,
+                                              std::string_view extension) {
     std::error_code error;
     std::filesystem::create_directories(folder, error);
-    if (error) return Error{ErrorCode::Io, "could not create the folder for pictures: " + error.message()};
+    if (error) return Error{ErrorCode::Io, "could not create the folder: " + error.message()};
     const std::string name = captureFileName(local, extension);
     const std::string stem = name.substr(0, name.size() - extension.size() - 1);
     std::filesystem::path file = folder / name;
     for (int number = 2; std::filesystem::exists(file, error) && number < 1000; ++number) {
         file = folder / (stem + " (" + std::to_string(number) + ")." + std::string(extension));
     }
+    return file;
+}
+
+Result<std::filesystem::path> saveCapture(const std::filesystem::path& folder, const std::tm& local,
+                                          std::string_view extension, const std::vector<std::uint8_t>& bytes) {
+    const Result<std::filesystem::path> free = freeCapturePath(folder, local, extension);
+    if (!free) return free.error();
+    const std::filesystem::path file = free.value();
     std::ofstream out(file, std::ios::binary | std::ios::trunc);
     out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     out.close();

@@ -163,6 +163,7 @@ struct UiModel {
     /// The outcome of the last screenshot. `serial` grows with each one, so the note shows once per picture.
     struct CaptureNote {
         int serial = 0;
+        bool video = false; // a recording, not a screenshot
         bool saved = false;
         std::string where;  // the folder, as the user knows it
         std::string detail; // technical message when it failed
@@ -170,6 +171,18 @@ struct UiModel {
     CaptureNote captureNote;
     /// Where screenshots go, as text for the settings; empty where there are none.
     std::string picturesFolder;
+
+    /// Recording the game as a video.
+    struct RecordingView {
+        bool available = false; // this PC can record (Windows with Media Foundation)
+        std::string missing;    // why not, technical
+        bool starting = false;  // the file is being opened
+        bool running = false;
+        double seconds = 0.0;
+    };
+    RecordingView recording;
+    /// Where videos go, as text for the settings.
+    std::string videosFolder;
 
     /// False on builds that cannot update themselves (anything but Windows).
     bool updaterAvailable = false;
@@ -257,6 +270,10 @@ public:
     virtual void takeScreenshot() = 0;
     /// Shows the folder with the screenshots in Explorer.
     virtual void openPicturesFolder() = 0;
+    /// Starts recording the game as a video, or ends the recording. Only while a game is shown.
+    virtual void toggleRecording() = 0;
+    /// Shows the folder with the videos in Explorer.
+    virtual void openVideosFolder() = 0;
 
     /// Opens Sony's sign-in page; progress shows up in UiModel::accountLookup.
     virtual void startAccountLogin() = 0;

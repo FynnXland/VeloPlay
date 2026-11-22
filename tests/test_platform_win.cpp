@@ -1095,6 +1095,56 @@ TEST(FrameGrabber, CopiesThePartOfTheScreenThatShowsThePicture) {
     }
 }
 
+TEST(FrameStream, HandsEveryPictureOverInOrderWithItsKind) {
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    constexpr UINT kWidth = 32;
+    constexpr UINT kHeight = 24;
+    D3D11_TEXTURE2D_DESC desc{};
+    desc.Width = kWidth;
+    desc.Height = kHeight;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // the stream turns it into blue, green, red
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    ComPtr<ID3D11Texture2D> screen;
+    ASSERT_TRUE(SUCCEEDED(canvas.device->CreateTexture2D(&desc, nullptr, screen.GetAddressOf())));
+    ComPtr<ID3D11RenderTargetView> target;
+    ASSERT_TRUE(SUCCEEDED(canvas.device->CreateRenderTargetView(screen.Get(), nullptr, target.GetAddressOf())));
+
+    render::FrameStream stream;
+    const auto start = std::chrono::steady_clock::now();
+    constexpr media::ShownKind kinds[] = {media::ShownKind::Real, media::ShownKind::Computed, media::ShownKind::Repeated};
+    std::vector<render::FrameStream::Picture> taken;
+    constexpr int kPictures = 9;
+    int sent = 0;
+    // Like the window: one picture per frame, and whatever has arrived is taken right after.
+    for (int frame = 0; frame < 2000 && static_cast<int>(taken.size()) < kPictures; ++frame) {
+        if (sent < kPictures) {
+            // Each picture has its own shade of red, so the order can be read back.
+            const float red[4] = {static_cast<float>(20 * (sent + 1)) / 255.0f, 0.0f, 0.5f, 1.0f};
+            canvas.context->ClearRenderTargetView(target.Get(), red);
+            if (stream.capture(canvas.device.Get(), canvas.context.Get(), screen.Get(), 4, 2, 16, 12, kinds[sent % 3],
+                               start + std::chrono::milliseconds(16 * sent))) {
+                ++sent;
+            }
+        }
+        canvas.context->Flush();
+        while (auto picture = stream.take(canvas.context.Get(), {})) taken.push_back(std::move(*picture));
+        Sleep(2);
+    }
+    ASSERT_EQ(static_cast<int>(taken.size()), kPictures) << stream.failure();
+    for (int i = 0; i < kPictures; ++i) {
+        ASSERT_EQ(taken[i].bgra.size(), 16u * 12u * 4u);
+        EXPECT_EQ(taken[i].kind, kinds[i % 3]) << i;
+        EXPECT_EQ(taken[i].at, start + std::chrono::milliseconds(16 * i)) << i;
+        EXPECT_NEAR(taken[i].bgra[2], 20 * (i + 1), 1) << "red of picture " << i;
+        EXPECT_NEAR(taken[i].bgra[0], 128, 1) << "blue of picture " << i;
+    }
+}
+
 TEST(FrameGeneration, TheShadersForTheCardsMotionSearchCompile) {
     // No NVIDIA card here, so the card's search is not used. The reason has
     // to be the card and not a shader that did not compile: the shaders are

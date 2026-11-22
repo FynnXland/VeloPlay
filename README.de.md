@@ -45,7 +45,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Sendet dein Mikrofon für den Sprachchat an die Konsole
 - Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild, in der Ecke
   deiner Wahl, und sagt, wenn die Verbindung hakt
-- Speichert mit F12 Fotos vom Spiel
+- Speichert mit F12 Fotos vom Spiel und nimmt mit F10 Videos mit Ton auf
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint, und installiert sich auf
@@ -171,6 +171,7 @@ beim Verbinden danach.
 | Esc | Menü mit **Weiter**, **Trennen** und **PS5 in den Ruhemodus** |
 | F11 | Vollbild ein und aus |
 | F9 | Anzeige mit den Werten der Verbindung ein und aus |
+| F10 | Startet eine Videoaufnahme mit Ton und beendet sie. Das Video landet als MP4 unter Videos\VeloPlay, ohne VeloPlays Anzeige |
 | F12 | Speichert ein Foto vom Spiel, ohne VeloPlays Anzeige, als PNG unter Bilder\VeloPlay |
 
 Die Anzeige oben links nennt, wie viele Bilder pro Sekunde ankommen und gezeigt werden, die

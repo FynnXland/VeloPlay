@@ -266,6 +266,8 @@ void AppController::fillModel(UiModel& model) {
     model.install.busy = installing_.valid();
     model.captureNote = captureNote_;
     if (options_.takeScreenshot) model.picturesFolder = install::utf8(options_.picturesFolder);
+    if (options_.recording) model.recording = options_.recording();
+    if (options_.toggleRecording) model.videosFolder = install::utf8(options_.videosFolder);
     model.install.error = installError_;
     if (updater_) model.update = updater_->status();
 
@@ -967,10 +969,24 @@ void AppController::openPicturesFolder() {
     if (options_.openFolder && !options_.picturesFolder.empty()) options_.openFolder(options_.picturesFolder);
 }
 
-void AppController::captureFinished(bool saved, std::string where, std::string detail) {
-    if (saved) spdlog::info("Screenshot saved in {}", where);
-    else spdlog::warn("Screenshot not saved: {}", detail);
+void AppController::toggleRecording() {
+    if (!options_.toggleRecording) return;
+    // Ending one is always allowed; starting one only with a game on screen.
+    const bool running = options_.recording && (options_.recording().running || options_.recording().starting);
+    if (!running && stateMachine_.state() != AppState::Streaming) return;
+    options_.toggleRecording();
+}
+
+void AppController::openVideosFolder() {
+    if (options_.openFolder && !options_.videosFolder.empty()) options_.openFolder(options_.videosFolder);
+}
+
+void AppController::captureFinished(bool saved, std::string where, std::string detail, bool video) {
+    const char* what = video ? "Video" : "Screenshot";
+    if (saved) spdlog::info("{} saved in {}", what, where);
+    else spdlog::warn("{} not saved: {}", what, detail);
     ++captureNote_.serial;
+    captureNote_.video = video;
     captureNote_.saved = saved;
     captureNote_.where = std::move(where);
     captureNote_.detail = std::move(detail);

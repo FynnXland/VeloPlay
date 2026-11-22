@@ -16,6 +16,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <optional>
 #include <utility>
@@ -279,7 +280,13 @@ int Application::run() {
     std::string renderError;
     videoReady_ = videoRenderer_.create(device_.device(), device_.context(), renderError);
     if (!videoReady_) spdlog::error("Video output is not available: {}", renderError);
+    // Made before the sound output, which hands it every block of sound from its first one on.
+    recorder_ = std::make_unique<record::VideoRecorder>();
     audioOutput_ = std::make_unique<audio::WasapiOutput>();
+    // What a recording hears is what goes to the speakers, after the delay that matches the picture.
+    audioOutput_->setTap([recorder = recorder_.get()](std::span<const std::int16_t> sound, int rate, int channels) {
+        recorder->addSound(sound, rate, channels);
+    });
     microphone_ = std::make_unique<audio::WasapiInput>();
     options.microphone = microphone_.get();
     // The DualSense shows up as a sound device of its own when it is on a cable.
@@ -312,6 +319,31 @@ int Application::run() {
         if (raw) CoTaskMemFree(raw);
     }
     options.picturesFolder = picturesFolder_;
+    {
+        PWSTR raw = nullptr;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Videos, KF_FLAG_DEFAULT, nullptr, &raw)) && raw) {
+            videosFolder_ = std::filesystem::path(raw) / L"VeloPlay";
+        }
+        if (raw) CoTaskMemFree(raw);
+    }
+    // Which pictures of a video were computed: beside the settings, so the folder of videos stays tidy.
+    frameLogFolder_ = dataDirectory / "recordings";
+    recordAvailable_ = !videosFolder_.empty() && record::VideoRecorder::available(&recordMissing_);
+    if (!recordAvailable_) {
+        if (recordMissing_.empty()) recordMissing_ = "Windows did not name a folder for videos";
+        spdlog::info("Recording is not available: {}", recordMissing_);
+    }
+    options.videosFolder = videosFolder_;
+    options.toggleRecording = [this] { recordToggle_ = true; };
+    options.recording = [this] {
+        UiModel::RecordingView view;
+        view.available = recordAvailable_;
+        view.missing = recordMissing_;
+        view.starting = recordStarting_.valid();
+        view.running = !view.starting && !recordStopping_.valid() && recorder_->running();
+        if (view.running) view.seconds = recorder_->seconds();
+        return view;
+    };
     options.openFolder = [](const std::filesystem::path& folder) {
         std::error_code ignored;
         std::filesystem::create_directories(folder, ignored);
@@ -395,6 +427,10 @@ int Application::run() {
     }
 
     if (std::exchange(timerRaised_, false)) timeEndPeriod(1);
+    // Every way out closes a recording so the file plays: quitting, an update, a lost graphics device.
+    if (recordStarting_.valid()) (void)recordStarting_.get();
+    if (recordStopping_.valid()) recordingStopped(recordStopping_.get());
+    if (recorder_ && recorder_->running()) recordingStopped(recorder_->stop());
     // From here on the window stops answering on purpose.
     hangProbe_.request_stop();
     if (hangProbe_.joinable()) hangProbe_.join();
@@ -603,6 +639,7 @@ void Application::frame() {
     // The picture is fetched after the wait, not before it: whatever arrived
     // while waiting goes out with this refresh instead of the next one.
     render::VideoRenderer::Output output;
+    bool freshPicture = false; // the picture differs from the one the refresh before showed
     if (pipeline_ && streaming) {
         diag::setStep("taking over a picture");
         const auto now = std::chrono::steady_clock::now();
@@ -656,6 +693,7 @@ void Application::frame() {
         output.sharpness = config.graphics.sharpness;
         // A picture counts as shown when it differs from the one before, real or computed.
         if (output.choice.valid && !(output.choice == lastChoice_)) {
+            freshPicture = true;
             lastChoice_ = output.choice;
             shownMeter_.addVideo(0, 0);
             // How long a real picture spent in this PC, from its data arriving to being drawn.
@@ -693,6 +731,10 @@ void Application::frame() {
         region.bottom = region.top + std::min(shownHeight, device_.height());
         grabber_.capture(device_.device(), device_.context(), device_.backBuffer().Get(), region);
     }
+    handleRecording(showVideo,
+                    !freshPicture ? media::ShownKind::Repeated
+                                  : (output.choice.step == 0 ? media::ShownKind::Real : media::ShownKind::Computed),
+                    std::chrono::steady_clock::now());
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     diag::setStep("presenting");
     if (!device_.present(streaming ? config.graphics.vsync : true)) deviceLost_ = true;
@@ -702,6 +744,108 @@ void Application::frame() {
     // The dashboard does not need 60 redraws per second while another window
     // has focus. A running stream does.
     if (!streaming && GetForegroundWindow() != window_) Sleep(40);
+}
+
+void Application::handleRecording(bool showVideo, media::ShownKind kind, std::chrono::steady_clock::time_point now) {
+    using namespace std::chrono_literals;
+    if (recordStopping_.valid() && recordStopping_.wait_for(0s) == std::future_status::ready) {
+        recordingStopped(recordStopping_.get());
+    }
+    if (recordStarting_.valid() && recordStarting_.wait_for(0s) == std::future_status::ready) {
+        const Result<bool> started = recordStarting_.get();
+        if (!started) {
+            spdlog::warn("Recording did not start: {}", started.error().message);
+            controller_->captureFinished(false, {}, started.error().message, true);
+        }
+    }
+    const bool busy = recordStarting_.valid() || recordStopping_.valid();
+    const bool running = !busy && recorder_->running();
+
+    // The part of the screen with the picture, without the black bars; H.264 wants even sizes.
+    const UINT shownWidth = std::min(static_cast<UINT>(std::max(0, videoRenderer_.shownWidth())), device_.width());
+    const UINT shownHeight = std::min(static_cast<UINT>(std::max(0, videoRenderer_.shownHeight())), device_.height());
+    const UINT left = (device_.width() - shownWidth) / 2;
+    const UINT top = (device_.height() - shownHeight) / 2;
+    const int width = static_cast<int>(shownWidth & ~1u);
+    const int height = static_cast<int>(shownHeight & ~1u);
+
+    if (std::exchange(recordToggle_, false) && !busy) {
+        if (running) {
+            stopRecording("asked to");
+            return;
+        }
+        if (!recordAvailable_ || !showVideo) return;
+        std::time_t clock = std::time(nullptr);
+        std::tm local{};
+        localtime_s(&local, &clock);
+        const Result<std::filesystem::path> file = media::freeCapturePath(videosFolder_, local, "mp4");
+        if (!file) {
+            controller_->captureFinished(false, {}, file.error().message, true);
+            return;
+        }
+        recordFile_ = file.value();
+        recordStream_.reset();
+        // At most 60 pictures per second: screens beyond that would only make bigger files and cost
+        // the window more copying, and not every encoder takes higher rates.
+        const int fps = std::min(60, static_cast<int>(std::lround(displayHz_ > 1.0 ? displayHz_ : 60.0)));
+        recordFps_ = fps;
+        lastRecorded_ = {};
+        // Opening the encoder takes a moment; the window goes on drawing meanwhile.
+        recordStarting_ = std::async(std::launch::async, [recorder = recorder_.get(), path = recordFile_, width, height, fps] {
+            return recorder->start(path, width, height, fps);
+        });
+        return;
+    }
+    if (!running) return;
+    if (!showVideo) {
+        stopRecording("the stream ended");
+        return;
+    }
+    // A file keeps one size. A window that changes it (F11, resizing) ends the recording.
+    if (width != recorder_->width() || height != recorder_->height()) {
+        stopRecording("the window changed its size");
+        return;
+    }
+    // On a screen faster than the recording, refreshes in between are left out. Allowed to come a
+    // quarter of a picture early, so a 60 Hz screen's slightly uneven refreshes all go in.
+    const auto interval = std::chrono::duration<double>(0.75 / recordFps_);
+    if (lastRecorded_ == std::chrono::steady_clock::time_point{} || now - lastRecorded_ >= interval) {
+        if (recordStream_.capture(device_.device(), device_.context(), device_.backBuffer().Get(), left, top, width,
+                                  height, kind, now)) {
+            lastRecorded_ = now;
+        }
+    }
+    while (auto picture = recordStream_.take(device_.context(), recorder_->buffer())) {
+        recorder_->addPicture(std::move(picture->bgra), picture->kind, picture->at);
+    }
+}
+
+void Application::stopRecording(const char* why) {
+    spdlog::info("Recording ends: {}", why);
+    recordStream_.reset();
+    // Writing what is left and closing the file can take a moment; the window goes on.
+    recordStopping_ = std::async(std::launch::async, [recorder = recorder_.get()] { return recorder->stop(); });
+}
+
+void Application::recordingStopped(Result<record::RecordingSummary> outcome) {
+    if (!outcome) {
+        spdlog::warn("Recording failed: {}", outcome.error().message);
+        if (controller_) controller_->captureFinished(false, {}, outcome.error().message, true);
+        return;
+    }
+    const record::RecordingSummary& summary = outcome.value();
+    // One letter per picture in the file: real, computed or repeated.
+    std::error_code ignored;
+    std::filesystem::create_directories(frameLogFolder_, ignored);
+    std::filesystem::path log = frameLogFolder_ / summary.file.filename();
+    log.replace_extension(L".frames.txt");
+    if (std::FILE* out = _wfopen(log.c_str(), L"wb")) {
+        const std::string text = summary.log.text();
+        std::fwrite(text.data(), 1, text.size(), out);
+        std::fclose(out);
+    }
+    const std::u8string where = videosFolder_.u8string();
+    if (controller_) controller_->captureFinished(true, std::string(where.begin(), where.end()), {}, true);
 }
 
 void Application::collectScreenshot() {

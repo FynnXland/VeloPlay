@@ -59,6 +59,8 @@ public:
     void installProgram() override {}
     void takeScreenshot() override {}
     void openPicturesFolder() override {}
+    void toggleRecording() override {}
+    void openVideosFolder() override {}
     void startAccountLogin() override {}
     void submitAccountRedirect(std::string_view) override {}
     void dismissAccountLookup() override {}
@@ -322,7 +324,30 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              model.picturesFolder = "C:\\Users\\Jörg\\Pictures\\VeloPlay";
+             model.recording.available = true;
+             model.videosFolder = "C:\\Users\\Jörg\\Videos\\VeloPlay";
              ui.openSettings(UiManager::SettingsTab::Capture);
+         }},
+        {"46-settings-capture-missing",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.picturesFolder = "C:\\Users\\Jörg\\Pictures\\VeloPlay";
+             model.recording.missing = "this PC has no Media Foundation (Windows N editions need the Media Feature Pack)";
+             ui.openSettings(UiManager::SettingsTab::Capture);
+         }},
+        {"45-stream-recording",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.microphoneAvailable = true;
+             model.microphoneLive = true;
+             model.config->audio.microphone = true;
+             model.recording.available = true;
+             model.recording.running = true;
+             model.recording.seconds = 83.0;
          }},
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {

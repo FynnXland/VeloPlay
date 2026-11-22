@@ -87,6 +87,7 @@ inline constexpr int F1 = 0x70;
 inline constexpr int F8 = 0x77;
 inline constexpr int F9 = 0x78;
 inline constexpr int F11 = 0x7A;
+inline constexpr int F10 = 0x79;
 inline constexpr int F12 = 0x7B;
 inline constexpr int WheelUp = 0x1001;
 inline constexpr int WheelDown = 0x1002;

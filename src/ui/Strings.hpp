@@ -184,6 +184,12 @@ struct Strings {
     const char* captureVideos;
     const char* captureLater;
     const char* captureFailed;
+    const char* captureVideosHint;
+    const char* captureVideosMissing;
+    const char* captureVideoSaved;  // {0} = folder
+    const char* captureVideoFailed;
+    const char* recordingBadge;     // {0} = minutes:seconds
+    const char* recordingStarting;
     const char* installTitle;
     const char* installHint; // {0} = folder
     const char* installButton;

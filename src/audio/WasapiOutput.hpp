@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -32,6 +33,11 @@ public:
     /// it could not be opened or the time ran out.
     bool waitUntilOpened(std::chrono::milliseconds timeout);
 
+    /// Gets every block of sound as it goes to the device, on the device's
+    /// thread: what a recording hears. Must return quickly.
+    using Tap = std::function<void(std::span<const std::int16_t> interleaved, int sampleRate, int channels)>;
+    void setTap(Tap tap);
+
 private:
     const std::vector<std::wstring> needles_;
     std::thread thread_;
@@ -41,6 +47,7 @@ private:
 
     std::mutex mutex_; // guards buffer_ against start() and stop()
     std::unique_ptr<media::AudioBuffer> buffer_;
+    Tap tap_; // guarded by mutex_
 };
 
 } // namespace veloplay::audio

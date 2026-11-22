@@ -3,6 +3,27 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.3.0
+
+- **Record videos with F10.** While a game is shown, F10 starts a recording with sound and F10
+  ends it. It records the picture as you see it, with the frames in between and without
+  VeloPlay's display, as MP4 in Videos\VeloPlay. While it runs, the corner says "Recording" with
+  the length. A recording ends by itself when the stream ends or the window changes its size.
+  The page **Capture** in the settings has the folder and a button to open it. Windows N editions
+  need Microsoft's Media Feature Pack for this; without it the page says so.
+- The menu in the game lists all keys, now with F10 and F12.
+
+**Deutsch**
+
+- **Videos aufnehmen mit F10.** Solange ein Spiel läuft, startet F10 eine Aufnahme mit Ton, F10
+  beendet sie. Aufgenommen wird das Bild, wie du es siehst, mit Zwischenbildern und ohne
+  VeloPlays Anzeige, als MP4 unter Videos\VeloPlay. Während sie läuft, steht in der Ecke
+  „Aufnahme“ mit der Dauer. Eine Aufnahme endet von selbst, wenn der Stream endet oder sich die
+  Fenstergröße ändert. Die Seite **Aufnahme** in den Einstellungen zeigt den Ordner und einen
+  Knopf, der ihn öffnet. Windows N braucht dafür das Media Feature Pack von Microsoft; ohne
+  steht das auf der Seite.
+- Das Menü im Spiel nennt alle Tasten, jetzt mit F10 und F12.
+
 ## 1.2.0
 
 - **Screenshots with F12.** While a game is shown, F12 saves a picture of it as PNG in

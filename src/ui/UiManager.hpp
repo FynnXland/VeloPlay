@@ -80,6 +80,7 @@ private:
     void drawPauseMenu(const UiModel& model);
     void drawUpscalingNote(const UiModel& model);
     void drawCaptureNote(const UiModel& model);
+    void drawRecordingBadge(const UiModel& model);
     void drawCaptureTab(const UiModel& model);
     /// Where the display goes for its size, in the corner the settings name.
     [[nodiscard]] ImVec2 statsCornerAt(const UiModel& model, ImVec2 size) const;

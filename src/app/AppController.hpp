@@ -50,6 +50,11 @@ public:
         /// Where screenshots go, and how the folder is shown.
         std::filesystem::path picturesFolder;
         std::function<void(const std::filesystem::path&)> openFolder;
+        /// Starts or ends a recording in the window. Without it there are no videos.
+        std::function<void()> toggleRecording;
+        /// How the recording stands, asked once per frame.
+        std::function<UiModel::RecordingView()> recording;
+        std::filesystem::path videosFolder;
         /// Installing on this PC. Without an installer the settings do not offer it.
         IInstaller* installer = nullptr; // must outlive the controller
         /// Starts the installed program and ends this instance.
@@ -155,8 +160,10 @@ public:
     void installProgram() override;
     void takeScreenshot() override;
     void openPicturesFolder() override;
+    void toggleRecording() override;
+    void openVideosFolder() override;
     /// The window reports how a screenshot went.
-    void captureFinished(bool saved, std::string where, std::string detail);
+    void captureFinished(bool saved, std::string where, std::string detail, bool video = false);
     void startAccountLogin() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
