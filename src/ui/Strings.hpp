@@ -135,6 +135,8 @@ struct Strings {
     const char* upscalingRtxRefused;  // second line of that note
     const char* sharpness;
     const char* sharpnessHint;
+    const char* deband;
+    const char* debandHint;
     const char* vsync;
     const char* vsyncHint;
     const char* activeController;

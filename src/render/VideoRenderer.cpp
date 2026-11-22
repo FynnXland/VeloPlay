@@ -67,7 +67,9 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     "    float2 sourceSize;  // size of the texture that is read, in pixels\n"                                         \
     "    float2 origin;      // top left corner of the picture inside the render target\n"                             \
     "    float sharpness;\n"                                                                                           \
-    "    float3 unused;\n"                                                                                             \
+    "    float seed;         // changes with every picture drawn, for the deband's random offsets\n"                    \
+    "    float threshold;    // deband: largest step between neighbours that counts as banding\n"                        \
+    "    float radius;       // deband: how far away neighbours are looked for, in pixels\n"                             \
     "};\n"
 
 // Stage three, sharp: Lanczos with two lobes, sixteen samples. Enlarging
@@ -136,6 +138,45 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 }
 )";
 
+// Banding: a stream at 6 to 15 Mbit/s turns smooth skies and gradients
+// into visible steps one or two levels apart. Each pixel looks at four
+// neighbours at a random distance and angle (different for every pixel and
+// every picture). Only where all four lie within a step or two of it, which
+// is where the picture is flat apart from the steps, it takes their average;
+// anywhere with detail or an edge it keeps its own value. The average is
+// dithered by up to one level, so writing it back into 8 bits does not cut
+// new steps. Written for VeloPlay after the idea known from flash3kyuu and
+// libplacebo; see THIRD_PARTY.md.
+const char kDebandShader[] = VELOPLAY_OUTPUT_CONSTANTS R"(
+Texture2D source : register(t0);
+SamplerState linearSampler : register(s0);
+float hash(float2 p) {
+    float3 q = frac(float3(p.xyx) * float3(0.1031, 0.1030, 0.0973));
+    q += dot(q, q.yzx + 33.33);
+    return frac((q.x + q.y) * q.z);
+}
+float most(float3 v) { return max(v.r, max(v.g, v.b)); }
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float2 px = position.xy;
+    float3 c = source.Load(int3(int2(px), 0)).rgb;
+    float reach = (0.2 + 0.8 * hash(px + seed)) * radius;
+    float angle = hash(px.yx * 1.37 + seed * 1.73 + 11.0) * 6.2831853;
+    float2 o = float2(cos(angle), sin(angle)) * reach;
+    float2 inv = 1.0 / sourceSize;
+    float3 a = source.SampleLevel(linearSampler, (px + o) * inv, 0).rgb;
+    float3 b = source.SampleLevel(linearSampler, (px - o) * inv, 0).rgb;
+    float3 d = source.SampleLevel(linearSampler, (px + float2(-o.y, o.x)) * inv, 0).rgb;
+    float3 e = source.SampleLevel(linearSampler, (px + float2(o.y, -o.x)) * inv, 0).rgb;
+    float3 average = (a + b + d + e) * 0.25;
+    float worst = max(max(most(abs(a - c)), most(abs(b - c))), max(most(abs(d - c)), most(abs(e - c))));
+    float drift = most(abs(average - c));
+    float w = (1.0 - smoothstep(threshold, threshold * 2.0, worst)) * (1.0 - smoothstep(threshold * 0.5, threshold, drift));
+    // Two random values add up to a triangle between minus and plus one level.
+    float grain = (hash(px * 1.31 + seed * 3.1) + hash(px * 0.77 + seed * 2.3 + 5.0) - 1.0) / 255.0;
+    return float4(saturate(lerp(c, average, w) + grain * w), 1.0);
+}
+)";
+
 bool compile(const char* source, std::size_t length, const char* target, ComPtr<ID3DBlob>& code, std::string& error) {
     ComPtr<ID3DBlob> messages;
     const HRESULT result = D3DCompile(source, length, nullptr, nullptr, nullptr, "main", target, 0, 0,
@@ -157,8 +198,15 @@ struct OutputConstants {
     float sourceSize[2];
     float origin[2];
     float sharpness;
-    float unused[3];
+    float seed;
+    float threshold;
+    float radius;
 };
+
+// Steps up to three levels apart count as banding. Real detail differs by more; a 1080p stream's
+// steps are one or two levels in brightness, slightly more once turned into red, green and blue.
+constexpr float kDebandThreshold = 3.0f / 255.0f;
+constexpr float kDebandRadius = 16.0f;
 
 bool makePixelShader(ID3D11Device* device, const char* source, std::size_t length, ComPtr<ID3D11PixelShader>& shader,
                      std::string& error) {
@@ -188,7 +236,8 @@ bool VideoRenderer::create(ID3D11Device* device, ID3D11DeviceContext* context, s
     if (!makePixelShader(device, kPixelShader, sizeof(kPixelShader) - 1, convertShader_, error) ||
         !makePixelShader(device, kSoftShader, sizeof(kSoftShader) - 1, softShader_, error) ||
         !makePixelShader(device, kLanczosShader, sizeof(kLanczosShader) - 1, lanczosShader_, error) ||
-        !makePixelShader(device, kSharpenShader, sizeof(kSharpenShader) - 1, sharpenShader_, error)) {
+        !makePixelShader(device, kSharpenShader, sizeof(kSharpenShader) - 1, sharpenShader_, error) ||
+        !makePixelShader(device, kDebandShader, sizeof(kDebandShader) - 1, debandShader_, error)) {
         return false;
     }
 
@@ -548,6 +597,26 @@ void VideoRenderer::draw(UINT targetWidth, UINT targetHeight, const Output& outp
     context_->OMGetRenderTargets(1, screen.GetAddressOf(), depth.GetAddressOf());
 
     ID3D11ShaderResourceView* picture = pictureFor(output.choice);
+    debanded_.used = false;
+    if (output.deband && picture && ensureTarget(debanded_.target, width_, height_)) {
+        // Before enlarging, at the stream's own size: the steps are a few pixels wide there, and
+        // whatever enlarges afterwards (Lanczos, RTX Video) gets the smooth picture.
+        OutputConstants smooth{};
+        smooth.sourceSize[0] = static_cast<float>(width_);
+        smooth.sourceSize[1] = static_cast<float>(height_);
+        debanded_.seed = (debanded_.seed + 1) % 4093;
+        smooth.seed = static_cast<float>(debanded_.seed) * 0.6180339f;
+        smooth.threshold = kDebandThreshold;
+        smooth.radius = kDebandRadius;
+        D3D11_VIEWPORT whole{};
+        whole.Width = static_cast<float>(width_);
+        whole.Height = static_cast<float>(height_);
+        whole.MaxDepth = 1.0f;
+        context_->UpdateSubresource(outputConstants_.Get(), 0, nullptr, &smooth, 0, 0);
+        pass(debandShader_.Get(), debanded_.target.target.Get(), whole, &picture, 1, outputConstants_.Get());
+        picture = debanded_.target.view.Get();
+        debanded_.used = true;
+    }
 
     const float scale = std::min(static_cast<float>(targetWidth) / static_cast<float>(width_),
                                  static_cast<float>(targetHeight) / static_cast<float>(height_));

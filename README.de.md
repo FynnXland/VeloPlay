@@ -37,7 +37,8 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Entpackt das Bild auf der Grafikkarte, wenn sie das kann, sonst auf dem Prozessor
 - Erkennt ein Spiel, das mit 30 fps läuft, und berechnet die Bilder dazwischen, auf NVIDIA-Karten
   mit deren eigener Bewegungssuche
-- Skaliert das Bild auf das Fenster hoch und schärft es, auf NVIDIA-Karten auf Wunsch mit RTX Video
+- Skaliert das Bild auf das Fenster hoch und schärft es, auf NVIDIA-Karten auf Wunsch mit RTX Video,
+  und glättet die Farbstufen, die eine niedrige Datenrate in Himmeln hinterlässt
 - Gibt die Eingaben deines Controllers an die Konsole weiter und bringt Vibration, adaptive
   Trigger und Haptik des DualSense zurück
 - Lässt dich mit Maus und Tastatur spielen, mit Vorlagen und eigener Belegung pro Spiel

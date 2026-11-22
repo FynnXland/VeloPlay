@@ -485,6 +485,9 @@ TEST(VideoRenderer, TellsARepeatedPictureFromANewOne) {
         EXPECT_EQ(renderer.submitted(), static_cast<std::uint64_t>(i + 1));
         if (i % 2 == 1) EXPECT_EQ(renderer.newestId(), shownBefore);
         canvas.context->Flush();
+        // In the program a picture comes every 16 ms or so. The renderer reads each comparison three
+        // pictures later without waiting; the software renderer on a busy machine needs that time too.
+        Sleep(16);
         while (const auto change = renderer.takeChange()) {
             shares[change->picture] = change->share;
             means[change->picture] = change->mean;
@@ -610,6 +613,108 @@ TEST(VideoRenderer, EnlargesCleanlyAndSharpensEdges) {
     std::printf("edge step: soft %d, Lanczos %d, sharpened %d\n", steepest(soft), steepest(lanczos), steepest(sharpened));
     EXPECT_GE(steepest(lanczos), steepest(soft));
     EXPECT_GT(steepest(sharpened), steepest(lanczos));
+}
+
+TEST(VideoRenderer, SmoothsBandingAndLeavesDetailAlone) {
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(canvas.device.Get(), canvas.context.Get(), error)) << error;
+
+    // Draws a picture at its own size and gives back the red of every pixel.
+    const auto shown = [&](const SolidFrame& picture, bool deband) {
+        EXPECT_TRUE(renderer.submit(picture.frame));
+        render::VideoRenderer::Output output;
+        output.deband = deband;
+        canvas.begin();
+        renderer.draw(kTarget, kTarget, output);
+        EXPECT_EQ(renderer.debanded(), deband);
+        canvas.context->CopyResource(canvas.staging.Get(), canvas.target.Get());
+        std::vector<int> red(kTarget * kTarget);
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (SUCCEEDED(canvas.context->Map(canvas.staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) {
+            for (UINT y = 0; y < kTarget; ++y) {
+                const auto* row = static_cast<const std::uint8_t*>(mapped.pData) + y * mapped.RowPitch;
+                for (UINT x = 0; x < kTarget; ++x) red[y * kTarget + x] = row[x * 4];
+            }
+            canvas.context->Unmap(canvas.staging.Get(), 0);
+        }
+        return red;
+    };
+    const auto columnMean = [](const std::vector<int>& red, UINT x) {
+        double sum = 0.0;
+        for (UINT y = 8; y < kTarget - 8; ++y) sum += red[y * kTarget + x];
+        return sum / (kTarget - 16);
+    };
+
+    // A gradient in steps of two brightness levels, each 16 pixels wide: what a low bitrate makes of a sky.
+    SolidFrame steps(kTarget, kTarget, 100, 128, 128, false);
+    for (UINT y = 0; y < kTarget; ++y) {
+        for (UINT x = 0; x < kTarget; ++x) steps.luma[y * kTarget + x] = static_cast<std::uint8_t>(100 + 2 * (x / 16));
+    }
+    const auto banded = shown(steps, false);
+    const auto smoothed = shown(steps, true);
+    // How far each column lies from the straight ramp through the middles of the steps.
+    double before = 0.0;
+    double after = 0.0;
+    double largestJumpBefore = 0.0;
+    double largestJumpAfter = 0.0;
+    const double first = columnMean(banded, 8);
+    const double slope = (columnMean(banded, 56) - first) / 48.0;
+    for (UINT x = 16; x < 48; ++x) {
+        const double ramp = first + slope * (static_cast<double>(x) - 8.0);
+        before += std::abs(columnMean(banded, x) - ramp);
+        after += std::abs(columnMean(smoothed, x) - ramp);
+        largestJumpBefore = std::max(largestJumpBefore, std::abs(columnMean(banded, x + 1) - columnMean(banded, x)));
+        largestJumpAfter = std::max(largestJumpAfter, std::abs(columnMean(smoothed, x + 1) - columnMean(smoothed, x)));
+    }
+    std::printf("banding: off the ramp by %.2f levels before, %.2f after; largest step %.2f before, %.2f after\n",
+                before / 32.0, after / 32.0, largestJumpBefore, largestJumpAfter);
+    EXPECT_GT(largestJumpBefore, 1.5);
+    EXPECT_LT(after, before * 0.7);
+    EXPECT_LT(largestJumpAfter, largestJumpBefore * 0.6);
+
+    // Detail: a fine checkerboard 30 levels apart stays as it is.
+    SolidFrame checker(kTarget, kTarget, 100, 128, 128, false);
+    for (UINT y = 0; y < kTarget; ++y) {
+        for (UINT x = 0; x < kTarget; ++x) {
+            checker.luma[y * kTarget + x] = static_cast<std::uint8_t>(((x / 2 + y / 2) % 2) ? 130 : 100);
+        }
+    }
+    const auto plainChecker = shown(checker, false);
+    const auto debandedChecker = shown(checker, true);
+    // A random offset can land on a square of the same colour now and then, so a single pixel may move by
+    // a level or two; on the whole the pattern must stay what it was.
+    int checkerOff = 0;
+    double checkerMean = 0.0;
+    for (std::size_t i = 0; i < plainChecker.size(); ++i) {
+        checkerOff = std::max(checkerOff, std::abs(plainChecker[i] - debandedChecker[i]));
+        checkerMean += std::abs(plainChecker[i] - debandedChecker[i]);
+    }
+    checkerMean /= static_cast<double>(plainChecker.size());
+    std::printf("detail: largest change %d levels, mean %.2f\n", checkerOff, checkerMean);
+    EXPECT_LE(checkerOff, 3) << "fine detail was smoothed";
+    EXPECT_LT(checkerMean, 0.5) << "fine detail was smoothed";
+
+    // An edge: dark on the left, light on the right, stays sharp.
+    SolidFrame edge(kTarget, kTarget, 60, 128, 128, false);
+    for (UINT y = 0; y < kTarget; ++y) {
+        for (UINT x = kTarget / 2; x < kTarget; ++x) edge.luma[y * kTarget + x] = 180;
+    }
+    const auto plainEdge = shown(edge, false);
+    const auto debandedEdge = shown(edge, true);
+    int edgeOff = 0;
+    for (std::size_t i = 0; i < plainEdge.size(); ++i) edgeOff = std::max(edgeOff, std::abs(plainEdge[i] - debandedEdge[i]));
+    EXPECT_LE(edgeOff, 1) << "the edge was softened";
+
+    // A flat area stays flat: at most the one level of dither.
+    SolidFrame flat(kTarget, kTarget, 120, 128, 128, false);
+    const auto plainFlat = shown(flat, false);
+    const auto debandedFlat = shown(flat, true);
+    int flatOff = 0;
+    for (std::size_t i = 0; i < plainFlat.size(); ++i) flatOff = std::max(flatOff, std::abs(plainFlat[i] - debandedFlat[i]));
+    EXPECT_LE(flatOff, 1);
 }
 
 // ---- On the real graphics card ------------------------------------------------

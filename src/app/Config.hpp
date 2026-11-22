@@ -38,6 +38,7 @@ struct GraphicsSettings {
     // (NVIDIA only; Lanczos where the card does not offer it)
     int superResolutionLevel = 1;
     float sharpness = 0.2f;        // 0.0 .. 1.0
+    bool deband = true;            // smooth the steps a low bitrate leaves in skies and gradients
     bool vsync = true;
 
     friend bool operator==(const GraphicsSettings&, const GraphicsSettings&) = default;

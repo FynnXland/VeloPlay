@@ -152,6 +152,14 @@ written from the description of the method, not copied. FidelityFX Super Resolut
 Copyright (c) 2021 Advanced Micro Devices, Inc. and available under the MIT licence:
 https://github.com/GPUOpen-Effects/FidelityFX-FSR
 
+## Debanding
+
+The deband pass in `src/render/VideoRenderer.cpp` follows a widely used idea: compare each pixel
+with a few neighbours at a random distance and replace it with their average only where they all
+lie within a small threshold, then dither. It is known from the flash3kyuu_deband filter for
+AviSynth and from libplacebo's deband shader. No code was taken from either; the shader, its
+thresholds and its noise were written for VeloPlay.
+
 ## DualSense trigger effects
 
 The byte layouts of the three effects VeloPlay uses to try the adaptive triggers (resistance,

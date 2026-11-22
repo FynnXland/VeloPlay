@@ -2346,6 +2346,10 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     hint(t.sharpnessHint);
 
     space(14.0f);
+    toggleRow(t.deband, &config.graphics.deband);
+    paragraph(TextStyle::Caption, t.debandHint, palette().textSecondary);
+
+    space(14.0f);
     toggleRow(t.vsync, &config.graphics.vsync);
     paragraph(TextStyle::Caption, t.vsyncHint, palette().textSecondary);
 }

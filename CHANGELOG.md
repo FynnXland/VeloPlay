@@ -3,6 +3,19 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.4.0
+
+- **Smoother skies.** At a low bitrate, skies and soft gradients show visible steps. A new pass
+  smooths them before the picture is enlarged and leaves edges and fine detail as they are. It
+  is on by default; Settings > Output > **Smooth colour steps** switches it off.
+
+**Deutsch**
+
+- **Ruhigere Himmel.** Bei niedriger Datenrate zeigen Himmel und weiche Verläufe sichtbare
+  Stufen. Ein neuer Schritt glättet sie, bevor das Bild vergrößert wird, und lässt Kanten und
+  feine Details, wie sie sind. Voreingestellt an; abschalten unter Einstellungen > Ausgabe >
+  **Farbstufen glätten**.
+
 ## 1.3.0
 
 - **Record videos with F10.** While a game is shown, F10 starts a recording with sound and F10

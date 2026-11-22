@@ -691,6 +691,7 @@ void Application::frame() {
             spdlog::warn("RTX Video Super Resolution is not used: {}", videoRenderer_.rtxError());
         }
         output.sharpness = config.graphics.sharpness;
+        output.deband = config.graphics.deband;
         // A picture counts as shown when it differs from the one before, real or computed.
         if (output.choice.valid && !(output.choice == lastChoice_)) {
             freshPicture = true;

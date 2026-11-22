@@ -38,7 +38,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Decodes the picture on the graphics card if it can, on the processor otherwise
 - Notices a game that runs at 30 fps and computes the frames in between, on NVIDIA cards with
   the card's own motion search
-- Scales the picture up to the window and sharpens it, on NVIDIA cards with RTX Video if you like
+- Scales the picture up to the window and sharpens it, on NVIDIA cards with RTX Video if you like, and smooths the colour steps a low bitrate leaves in skies
 - Passes your controller's input to the console and brings vibration, adaptive triggers and
   DualSense haptics back
 - Lets you play with mouse and keyboard, with presets and a layout of its own per game

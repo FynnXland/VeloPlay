@@ -36,6 +36,7 @@ public:
         bool rtx = false;          // with `upscale`: RTX Video Super Resolution where the card offers it,
                                    // also for a picture that keeps its size
         float sharpness = 0.0f;    // 0 = leave as it is, 1 = strongest
+        bool deband = false;       // smooth the steps a low bitrate leaves in flat gradients
     };
 
     bool create(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error);
@@ -102,6 +103,8 @@ public:
     /// What the last draw() put the picture through on its way to the window:
     /// "RTX Video", "Lanczos" or, for the card's plain filter, nothing.
     [[nodiscard]] const char* scalerName() const { return scalerName_; }
+    /// Whether the last draw smoothed banding.
+    [[nodiscard]] bool debanded() const { return debanded_.used; }
     /// Size of the picture on screen at the last draw(), in pixels; 0 before the first.
     [[nodiscard]] int shownWidth() const { return shownWidth_; }
     [[nodiscard]] int shownHeight() const { return shownHeight_; }
@@ -139,6 +142,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> softShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> lanczosShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> sharpenShader_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> debandShader_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> pointSampler_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_;
@@ -158,6 +162,11 @@ private:
     Target generated_;     // the picture computed last
     media::FrameChoice generatedFor_{};
     Target scaled_;        // the picture at window size, when sharpening needs one
+    struct {
+        Target target;     // the picture with its banding smoothed, at the stream's size
+        int seed = 0;
+        bool used = false; // the last draw went through it
+    } debanded_;
     std::unique_ptr<IFrameGenerator> generator_;
     std::string generatorError_;
     bool generationWanted_ = true;

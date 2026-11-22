@@ -120,6 +120,7 @@ TEST(Config, RoundTripsEverything) {
     config.stream.hdr = true;
     config.graphics.superResolutionLevel = 3;
     config.graphics.sharpness = 0.5f;
+    config.graphics.deband = false;
     config.graphics.vsync = false;
     config.controller.deadzone = 0.12f;
     config.controller.rumble = false;
