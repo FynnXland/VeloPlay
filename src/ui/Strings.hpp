@@ -136,6 +136,9 @@ struct Strings {
     const char* sharpness;
     const char* sharpnessHint;
     const char* upscalingRtxOnlyNvidia;
+    const char* amdFrcUse;
+    const char* amdFrcHint;
+    const char* amdFrcOnlyAmd;
     const char* upscalingRtxMissing;
     const char* beta;
     const char* captureCards;

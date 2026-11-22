@@ -728,6 +728,29 @@ TEST(VideoRenderer, SmoothsBandingAndLeavesDetailAlone) {
     EXPECT_EQ(shown(flat, false), shown(flat, true));
 }
 
+TEST(VideoRenderer, KeepsItsOwnMethodWhereAmdFrcIsMissing) {
+    // On the software renderer, and on any card without AMD's driver, AMD FRC cannot start. Asking for it must
+    // leave frame generation as it was, say why, and not try again every frame.
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(canvas.device.Get(), canvas.context.Get(), error)) << error;
+    ASSERT_TRUE(renderer.frameGenerationAvailable());
+    const std::string before = renderer.frameGeneratorName();
+    renderer.useAmdFrc(true);
+    std::printf("AMD FRC here: %s\n", renderer.amdFrcActive() ? "runs" : renderer.amdFrcError().c_str());
+    if (renderer.amdFrcActive()) GTEST_SKIP() << "this machine has AMD FRC";
+    EXPECT_FALSE(renderer.amdFrcError().empty());
+    EXPECT_TRUE(renderer.frameGenerationAvailable());
+    EXPECT_EQ(renderer.frameGeneratorName(), before);
+    renderer.useAmdFrc(true); // asked again: nothing new is tried
+    EXPECT_EQ(renderer.frameGeneratorName(), before);
+    renderer.useAmdFrc(false);
+    EXPECT_TRUE(renderer.amdFrcError().empty());
+    EXPECT_EQ(renderer.frameGeneratorName(), before);
+}
+
 // ---- On the real graphics card ------------------------------------------------
 //
 // These run where there is one: on the self-hosted runner. On GitHub's

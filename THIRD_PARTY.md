@@ -152,6 +152,13 @@ written from the description of the method, not copied. FidelityFX Super Resolut
 Copyright (c) 2021 Advanced Micro Devices, Inc. and available under the MIT licence:
 https://github.com/GPUOpen-Effects/FidelityFX-FSR
 
+## AMD Advanced Media Framework (AMF)
+
+The headers in `third_party/amf/include` come unchanged from AMD's AMF SDK
+(https://github.com/GPUOpen-LibrariesAndSDKs/AMF), MIT licence, Copyright (c) Advanced Micro Devices,
+Inc. They describe AMF's frame rate conversion (FRC). The runtime itself, `amfrt64.dll`, is part of
+AMD's graphics driver and is loaded only on PCs with an AMD card; it is not shipped with VeloPlay.
+
 ## Debanding
 
 The deband pass in `src/render/VideoRenderer.cpp` follows a widely used idea: compare each pixel

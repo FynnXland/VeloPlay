@@ -170,6 +170,7 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"super_resolution_level", config.graphics.superResolutionLevel},
         {"sharpness", config.graphics.sharpness},
         {"deband", config.graphics.deband},
+        {"amd_frc", config.graphics.amdFrc},
         {"vsync", config.graphics.vsync},
     };
     root["controller"] = {
@@ -292,6 +293,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(graphics, "super_resolution_level", config.graphics.superResolutionLevel);
     read(graphics, "sharpness", config.graphics.sharpness);
     read(graphics, "deband", config.graphics.deband);
+    read(graphics, "amd_frc", config.graphics.amdFrc);
     read(graphics, "vsync", config.graphics.vsync);
 
     const json& controller = section(root, "controller");

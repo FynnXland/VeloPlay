@@ -40,6 +40,7 @@ struct GraphicsSettings {
     int superResolutionLevel = 1;
     float sharpness = 0.2f;        // 0.0 .. 1.0
     bool deband = true;            // smooth the steps a low bitrate leaves in skies and gradients
+    bool amdFrc = false;           // AMD's frame rate conversion for 2x, on AMD cards; beta
     bool vsync = true;
 
     friend bool operator==(const GraphicsSettings&, const GraphicsSettings&) = default;

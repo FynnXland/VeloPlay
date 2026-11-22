@@ -81,6 +81,12 @@ public:
     [[nodiscard]] bool usesCardMotion() const { return generator_ && generator_->usesHardwareMotion(); }
     /// Why it is not; empty while it is.
     [[nodiscard]] std::string cardMotionError() const { return generator_ ? generator_->hardwareMotionError() : std::string{}; }
+    /// AMD's frame rate conversion for the picture in the middle (beta). Tried once when first wanted; if this
+    /// PC cannot, the reason is kept and VeloPlay's own method stays.
+    void useAmdFrc(bool wanted);
+    [[nodiscard]] bool amdFrcActive() const;
+    /// Why AMD FRC does not run; empty while it does or while it was never wanted.
+    [[nodiscard]] std::string amdFrcError() const;
     /// Whether pictures in between will be asked for. While they are not,
     /// nothing is prepared for them: a 60 fps game shown as it is costs no
     /// motion search, and with frame generation switched off the card's
@@ -167,6 +173,8 @@ private:
         bool used = false; // the last draw went through it
     } debanded_;
     std::unique_ptr<IFrameGenerator> generator_;
+    bool amdFrcTried_ = false;
+    std::string amdFrcError_;
     std::string generatorError_;
     bool generationWanted_ = true;
     bool prepared_[2] = {false, false}; // the generator has seen the picture in this slot

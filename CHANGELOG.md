@@ -3,6 +3,22 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.7.0
+
+- **AMD FRC (beta).** On AMD graphics cards, Settings > Output > **AMD FRC for 2x** lets AMD's own
+  frame rate conversion from the graphics driver compute the picture in the middle. For 3x and 4x,
+  and whenever FRC refuses, VeloPlay's own method takes over. Off by default; on other cards the
+  switch is greyed out, and the menu in the game shows it only on AMD cards. Not tried with an AMD
+  card yet.
+
+**Deutsch**
+
+- **AMD FRC (Beta).** Auf Grafikkarten von AMD lässt Einstellungen > Ausgabe > **AMD FRC für 2x**
+  AMDs eigenes Verfahren aus dem Grafiktreiber das Bild in der Mitte berechnen. Bei 3x und 4x und
+  wenn FRC nicht mag, rechnet VeloPlay selbst. Voreingestellt aus; auf anderen Karten ist der
+  Schalter ausgegraut, und das Menü im Spiel zeigt ihn nur mit AMD-Karte. Mit einer AMD-Karte noch
+  nicht ausprobiert.
+
 ## 1.6.0
 
 - **Steering wheel (beta).** Settings > Controller > Steering wheel. The PS5 only knows a

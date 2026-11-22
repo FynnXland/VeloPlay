@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.6.0
+    VERSION 1.7.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -130,6 +130,7 @@ if(WIN32)
         src/render/FrameGrabber.cpp
         src/render/FrameGenerator.cpp
         src/render/NvofMotion.cpp
+        src/render/AmfFrc.cpp
         src/render/RtxVideoScaler.cpp
         src/audio/WasapiInput.cpp
         src/audio/WasapiOutput.cpp
@@ -140,6 +141,8 @@ if(WIN32)
     target_link_libraries(veloplay_platform PUBLIC veloplay_core d3d11 dxgi d3dcompiler ole32 avrt)
     # The interface of NVIDIA's optical flow engine: headers only, the library is part of the driver.
     target_include_directories(veloplay_platform PRIVATE third_party/nvof)
+    # AMD's AMF headers (MIT) for its frame rate conversion; the runtime comes with AMD's driver.
+    target_include_directories(veloplay_platform PRIVATE third_party/amf/include)
     # Media Foundation is not linked: src/record/MediaFoundation.cpp loads it when a recording starts,
     # so that VeloPlay still starts on Windows N editions, which come without it.
 endif()

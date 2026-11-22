@@ -7,6 +7,10 @@
 
 #include <d3dcompiler.h>
 
+#include <spdlog/spdlog.h>
+
+#include "render/AmfFrc.hpp"
+
 namespace veloplay::render {
 
 using Microsoft::WRL::ComPtr;
@@ -563,6 +567,38 @@ bool VideoRenderer::submit(const media::VideoFrame& frame, bool keep) {
     }
     hasPicture_ = true;
     return true;
+}
+
+void VideoRenderer::useAmdFrc(bool wanted) {
+    auto* amd = dynamic_cast<AmfFrcGenerator*>(generator_.get());
+    if (wanted && !amd && generator_ && !amdFrcTried_) {
+        amdFrcTried_ = true;
+        auto wrapper = std::make_unique<AmfFrcGenerator>(std::move(generator_));
+        std::string why;
+        if (wrapper->create(device_.Get(), context_.Get(), why)) {
+            generator_ = std::move(wrapper);
+            amdFrcError_.clear();
+        } else {
+            generator_ = wrapper->release();
+            amdFrcError_ = why;
+            spdlog::info("Frame generation: AMD FRC is not available: {}", why);
+        }
+    } else if (!wanted) {
+        // Switched off: back to VeloPlay's method, and switched on again later, it is tried afresh.
+        if (amd) generator_ = amd->release();
+        amdFrcTried_ = false;
+        amdFrcError_.clear();
+    }
+}
+
+bool VideoRenderer::amdFrcActive() const {
+    const auto* amd = dynamic_cast<const AmfFrcGenerator*>(generator_.get());
+    return amd && amd->failure().empty();
+}
+
+std::string VideoRenderer::amdFrcError() const {
+    if (const auto* amd = dynamic_cast<const AmfFrcGenerator*>(generator_.get())) return amd->failure();
+    return amdFrcError_;
 }
 
 ID3D11ShaderResourceView* VideoRenderer::pictureFor(const media::FrameChoice& choice) {

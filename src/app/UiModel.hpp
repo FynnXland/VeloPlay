@@ -134,6 +134,9 @@ struct UiModel {
 
     /// The graphics card offers NVIDIA's RTX Video Super Resolution as a way to enlarge the picture.
     bool rtxVideoAvailable = false;
+    /// AMD FRC computes the picture in the middle right now; and why not, when it was wanted and did not start.
+    bool amdFrcActive = false;
+    std::string amdFrcError;
     /// What a session asks the console for right now: the stored settings,
     /// or the program's own choice with "automatic".
     StreamSettings requestedStream;

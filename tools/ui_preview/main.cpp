@@ -290,6 +290,8 @@ std::vector<Scene> scenes() {
              model.gpuName = "AMD Radeon RX 7800 XT";
              model.gpuVendor = UiModel::GpuVendor::Amd;
              model.rtxVideoAvailable = false;
+             model.config->graphics.amdFrc = true;
+             model.amdFrcActive = true;
              ui.openSettings(UiManager::SettingsTab::Picture);
          }},
         {"13-settings-controller",

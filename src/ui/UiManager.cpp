@@ -1995,7 +1995,9 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
         // Keys, mouse and microphone go to a console over the network; a capture card has no way back.
         if (!session.capture) {
-        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(model.microphoneAvailable ? 84.0f : 36.0f)), ImGuiChildFlags_NavFlattened,
+        const bool amdCard = model.gpuVendor == UiModel::GpuVendor::Amd;
+        const float rightHeight = 36.0f + (model.microphoneAvailable ? 48.0f : 0.0f) + (amdCard ? 48.0f : 0.0f);
+        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(rightHeight)), ImGuiChildFlags_NavFlattened,
                           ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
         pushExplicitSpacing();
         toggleRow(t.kbmTitle, &config.controller.keyboardMouse.enabled);
@@ -2008,6 +2010,11 @@ void UiManager::drawPauseMenu(const UiModel& model) {
                                                           : nullptr;
             const std::string name = state ? std::string(t.micTitle) + "  ·  " + state : std::string(t.micTitle);
             toggleRow((name + "###pause-mic").c_str(), &config.audio.microphone);
+        }
+        // Only on an AMD card: anywhere else it could not do anything.
+        if (amdCard) {
+            space(8.0f);
+            toggleRow(t.amdFrcUse, &config.graphics.amdFrc);
         }
         popExplicitSpacing();
         ImGui::EndChild();
@@ -2378,6 +2385,29 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
         hint(format(automatic ? t.frameGenerationAutoOn : t.frameGenerationHint, {fps, shown, delay}));
     } else {
         hint(format(automatic ? t.frameGenerationAutoOff : t.frameGenerationOffHint, {fps}));
+    }
+
+    // AMD's method, beta. Greyed out on other cards, so it is clear it exists and why it cannot be chosen.
+    {
+        space(14.0f);
+        const bool amd = model.gpuVendor == UiModel::GpuVendor::Amd;
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        toggleRow(t.amdFrcUse, &config.graphics.amdFrc, amd);
+        const ImVec2 after = ImGui::GetCursorScreenPos();
+        const ImVec2 labelSize = measure(TextStyle::Body, t.amdFrcUse);
+        const float pillHeight = measure(TextStyle::Caption, t.beta).y + px(4.0f);
+        ImGui::SetCursorScreenPos(ImVec2(start.x + labelSize.x + px(10.0f), start.y + (px(36.0f) - pillHeight) * 0.5f));
+        pill(t.beta, palette().beta);
+        ImGui::SetCursorScreenPos(after);
+        if (!amd) {
+            hint(t.amdFrcOnlyAmd);
+        } else {
+            hint(t.amdFrcHint);
+            if (config.graphics.amdFrc && !model.amdFrcActive && !model.amdFrcError.empty()) {
+                space(4.0f);
+                paragraph(TextStyle::Caption, model.amdFrcError, palette().textTertiary);
+            }
+        }
     }
 
     space(18.0f);

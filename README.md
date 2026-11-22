@@ -51,6 +51,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Measures the connection to a console and suggests stream settings that fit it
 - Shows the picture of a capture card the same way (beta)
 - Lets you steer with a steering wheel and pedals (beta)
+- On AMD cards, can let AMD's frame rate conversion compute the pictures in between (beta)
 - Shows in Discord which game you play through VeloPlay, if you like
 - Updates itself with one click when a new version is published, and installs itself on your PC
   with a start menu entry if you like

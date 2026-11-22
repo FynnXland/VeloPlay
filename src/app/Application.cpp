@@ -555,6 +555,10 @@ void Application::frame() {
                                                            : UiModel::GpuVendor::Other;
     model_.reducedMotion = reducedMotion();
     model_.rtxVideoAvailable = videoRenderer_.rtxAvailable();
+    // AMD FRC only on an AMD card: on any other the runtime is missing, and it would only be searched for.
+    videoRenderer_.useAmdFrc(controller_->config().graphics.amdFrc && device_.adapterVendor() == 0x1002);
+    model_.amdFrcActive = videoRenderer_.amdFrcActive();
+    model_.amdFrcError = videoRenderer_.amdFrcError();
     model_.ownWindowBar = true;
     model_.windowFullscreen = fullscreen_;
     model_.windowMaximized = IsZoomed(window_) != FALSE;
