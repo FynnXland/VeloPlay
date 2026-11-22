@@ -3,6 +3,29 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.17.1
+
+- **Flicker on coloured things in computed pictures.** In a cutscene a blue nozzle flickered
+  badly while frame generation was on. It was exactly as bright as the wall behind it and
+  differed only in colour, and the search for motion compared brightness alone: it did not see
+  the nozzle, followed the grain of the picture instead and mixed blue and grey. The search now
+  compares colour as well. On NVIDIA cards the card's own search still sees brightness only, so
+  VeloPlay's search now runs next to it and takes over where it fits clearly better. In a test
+  scene built after the report, colour in the computed picture was off by 2.68 before and is off
+  by 0.19 now; a plain mix of the two pictures gives 1.21. Not yet confirmed in the game.
+
+**Deutsch**
+
+- **Flackern an farbigen Dingen in berechneten Bildern.** In einer Zwischensequenz flackerte eine
+  blaue Zapfpistole stark, solange die Zwischenbilder an waren. Sie war genau so hell wie die
+  Wand dahinter und unterschied sich nur in der Farbe, und die Bewegungssuche verglich nur die
+  Helligkeit: Sie sah die Zapfpistole nicht, folgte stattdessen dem Bildrauschen und mischte Blau
+  und Grau durcheinander. Die Suche vergleicht jetzt auch die Farbe. Auf NVIDIA-Karten sieht
+  deren eigene Suche weiter nur Helligkeit, deshalb läuft die Suche von VeloPlay jetzt daneben
+  mit und übernimmt, wo sie deutlich besser passt. In einer Testszene, die nach der Meldung
+  gebaut wurde, lag die Farbe im berechneten Bild vorher um 2,68 daneben und jetzt um 0,19; ein
+  schlichtes Überblenden der beiden Bilder liegt bei 1,21. Im Spiel noch nicht bestätigt.
+
 ## 0.17.0
 
 - **A window of its own.** VeloPlay no longer has the title bar of Windows. At the top it draws

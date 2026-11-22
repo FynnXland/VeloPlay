@@ -48,6 +48,22 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 }
 )";
 
+// What the search compares: brightness, and next to it the two colour
+// differences. Brightness alone is not enough. A blue nozzle in front of a
+// grey wall that is exactly as bright does not exist in it; the search then
+// follows the grain of the picture there, and what it fetches along such a
+// shift, blue for grey and grey for blue, looks right to a check that also
+// sees brightness only. On the screen that part flickered badly.
+const char kSearchShader[] = R"(
+Texture2D picture : register(t0);
+SamplerState linearSampler : register(s0);
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float3 colour = picture.SampleLevel(linearSampler, uv, 0).rgb;
+    float y = dot(colour, float3(0.299, 0.587, 0.114));
+    return float4(y, 0.5 + 0.564 * (colour.b - y), 0.5 + 0.713 * (colour.r - y), 1.0);
+}
+)";
+
 // One level of the search. For every block: which shift makes the two
 // pictures agree best? The shift is applied around the moment in between:
 // back by `phase` of it in the earlier picture, forward by the rest in the
@@ -67,9 +83,9 @@ float cost(float2 centre, float2 shift) {
     [loop] for (int j = 0; j < 4; ++j) {
         [loop] for (int i = 0; i < 4; ++i) {
             float2 at = centre + (float2(i, j) - 1.5) * 2.0;
-            float a = lumaA.SampleLevel(linearSampler, (at + back) / lumaSize, mip).r;
-            float b = lumaB.SampleLevel(linearSampler, (at + forward) / lumaSize, mip).r;
-            sum += abs(a - b);
+            float3 a = lumaA.SampleLevel(linearSampler, (at + back) / lumaSize, mip).rgb;
+            float3 b = lumaB.SampleLevel(linearSampler, (at + forward) / lumaSize, mip).rgb;
+            sum += dot(abs(a - b), float3(1.0, 1.0, 1.0)); // brightness and both colour differences
         }
     }
     return sum / 16.0;
@@ -133,6 +149,7 @@ const char kChooseShader[] = VELOPLAY_FLOW_CONSTANTS R"(
 Texture2D lumaA : register(t0);
 Texture2D lumaB : register(t1);
 Texture2D carried : register(t2);
+Texture2D builtIn : register(t3); // what the built-in search found for the same moment
 SamplerState linearSampler : register(s0);
 SamplerState pointSampler : register(s1);
 
@@ -143,9 +160,9 @@ float cost(float2 centre, float2 shift) {
     [loop] for (int j = 0; j < 4; ++j) {
         [loop] for (int i = 0; i < 4; ++i) {
             float2 at = centre + (float2(i, j) - 1.5) * 2.0;
-            float a = lumaA.SampleLevel(linearSampler, (at + back) / lumaSize, mip).r;
-            float b = lumaB.SampleLevel(linearSampler, (at + forward) / lumaSize, mip).r;
-            sum += abs(a - b);
+            float3 a = lumaA.SampleLevel(linearSampler, (at + back) / lumaSize, mip).rgb;
+            float3 b = lumaB.SampleLevel(linearSampler, (at + forward) / lumaSize, mip).rgb;
+            sum += dot(abs(a - b), float3(1.0, 1.0, 1.0)); // brightness and both colour differences
         }
     }
     return sum / 16.0;
@@ -165,6 +182,20 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
                 bestCost = c;
                 best = shift;
             }
+        }
+    }
+    // The card's search sees brightness only. A shape that differs from what
+    // is behind it in colour alone it does not find, and then none of the
+    // vectors above is the right one. The built-in search compares colour
+    // and does find it. Its vector has to be clearly better to win: where a
+    // pattern repeats, as the rungs of a ladder do, it is the one that goes
+    // wrong, with a vector that fits just as well.
+    if (hasPrediction > 0.5) {
+        float2 shift = builtIn.SampleLevel(linearSampler, uv, 0).xy;
+        float c = cost(centre, shift) * 1.10 + 0.002;
+        if (c < bestCost) {
+            bestCost = c;
+            best = shift;
         }
     }
     return float4(best, bestCost, 1.0);
@@ -318,7 +349,13 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float2 shift = flow.SampleLevel(linearSampler, uv, 0).xy / frameSize;
     float3 a = fetch(frameA, uv - phase * shift);
     float3 b = fetch(frameB, uv + (1.0 - phase) * shift);
-    float difference = dot(abs(a - b), float3(0.299, 0.587, 0.114));
+    // Judged like the search judges: by brightness and by colour. Weighing
+    // the channels for brightness alone lets blue fetched for grey of the
+    // same brightness pass as a match.
+    float3 apart = a - b;
+    float brighter = dot(apart, float3(0.299, 0.587, 0.114));
+    float difference = dot(abs(apart), float3(0.299, 0.587, 0.114)) + 0.564 * abs(apart.b - brighter) +
+                       0.713 * abs(apart.r - brighter);
     float doubt = smoothstep(0.10, 0.30, difference);
     // What has stood still stays where it is, and so does the pixel next to it: the soft rim of a letter.
     float2 pixel = 1.0 / frameSize;
@@ -402,6 +439,7 @@ bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* conte
         return false;
     }
     if (!makePixelShader(device, kLumaShader, sizeof(kLumaShader) - 1, lumaShader_, error) ||
+        !makePixelShader(device, kSearchShader, sizeof(kSearchShader) - 1, searchShader_, error) ||
         !makePixelShader(device, kFlowShader, sizeof(kFlowShader) - 1, flowShader_, error) ||
         !makePixelShader(device, kSynthesisShader, sizeof(kSynthesisShader) - 1, synthesisShader_, error)) {
         return false;
@@ -601,7 +639,7 @@ void FlowFrameGenerator::pass(ID3D11PixelShader* shader, ID3D11RenderTargetView*
 bool FlowFrameGenerator::prepare(int slot, ID3D11ShaderResourceView* picture, int width, int height) {
     if (slot < 0 || slot > 1 || !picture || !ensureSize(width, height)) return false;
     ID3D11ShaderResourceView* views[1] = {picture};
-    pass(lumaShader_.Get(), lumaTarget_[slot].Get(), levels_[0].lumaWidth, levels_[0].lumaHeight, views, 1);
+    pass(searchShader_.Get(), lumaTarget_[slot].Get(), levels_[0].lumaWidth, levels_[0].lumaHeight, views, 1);
     context_->GenerateMips(lumaView_[slot].Get());
     pairIsNew_ = true;
 
@@ -618,7 +656,8 @@ bool FlowFrameGenerator::prepare(int slot, ID3D11ShaderResourceView* picture, in
     return true;
 }
 
-bool FlowFrameGenerator::hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView*& flow) {
+bool FlowFrameGenerator::hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView* builtIn,
+                                      ID3D11ShaderResourceView*& flow) {
     if (!nvofInput_[slotFrom] || !nvofInput_[slotTo]) return false;
     // The search runs once per pair of pictures, however many pictures are computed between the two.
     if (!nvofVectors_ || nvofFrom_ != slotFrom || nvofTo_ != slotTo) {
@@ -660,10 +699,12 @@ bool FlowFrameGenerator::hardwareFlow(int slotFrom, int slotTo, float phase, ID3
     constants.lumaSize[1] = static_cast<float>(levels_[0].lumaHeight);
     constants.scale = 2.0f;
     constants.mip = 0.0f;
+    constants.hasPrediction = builtIn ? 1.0f : 0.0f;
     context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
     {
-        ID3D11ShaderResourceView* views[3] = {lumaView_[slotFrom].Get(), lumaView_[slotTo].Get(), carried_.flowView.Get()};
-        pass(chooseShader_.Get(), chosen_.flowTarget.Get(), cellsWide, cellsHigh, views, 3);
+        ID3D11ShaderResourceView* views[4] = {lumaView_[slotFrom].Get(), lumaView_[slotTo].Get(), carried_.flowView.Get(),
+                                              builtIn};
+        pass(chooseShader_.Get(), chosen_.flowTarget.Get(), cellsWide, cellsHigh, views, 4);
     }
     flow = chosen_.flowView.Get();
     return true;
@@ -674,18 +715,26 @@ bool FlowFrameGenerator::generate(int slotFrom, ID3D11ShaderResourceView* from, 
     if (levels_.empty() || slotFrom < 0 || slotFrom > 1 || slotTo < 0 || slotTo > 1 || !from || !to || !target) {
         return false;
     }
-    Constants constants{};
-    constants.phase = std::clamp(phase, 0.0f, 1.0f);
-    constants.frameSize[0] = static_cast<float>(width_);
-    constants.frameSize[1] = static_cast<float>(height_);
+    phase = std::clamp(phase, 0.0f, 1.0f);
 
+    // The built-in search runs in any case: alone where the card has no
+    // search of its own, and next to the card's, for what that one cannot see.
+    ID3D11ShaderResourceView* builtIn = builtInFlow(slotFrom, slotTo, phase);
     if (usesHardwareMotion()) {
         ID3D11ShaderResourceView* flow = nullptr;
-        if (hardwareFlow(slotFrom, slotTo, constants.phase, flow)) {
-            return finish(slotFrom, from, slotTo, to, flow, constants.phase, target);
+        if (hardwareFlow(slotFrom, slotTo, phase, builtIn, flow)) {
+            return finish(slotFrom, from, slotTo, to, flow, phase, target);
         }
-        // Not this time, or never again: the built-in search below does it.
+        // Not this time, or never again: the built-in search alone does it.
     }
+    return finish(slotFrom, from, slotTo, to, builtIn, phase, target);
+}
+
+ID3D11ShaderResourceView* FlowFrameGenerator::builtInFlow(int slotFrom, int slotTo, float phase) {
+    Constants constants{};
+    constants.phase = phase;
+    constants.frameSize[0] = static_cast<float>(width_);
+    constants.frameSize[1] = static_cast<float>(height_);
 
     // From the smallest copies to the largest, each level starting from the one above.
     ID3D11ShaderResourceView* previous = nullptr;
@@ -712,8 +761,7 @@ bool FlowFrameGenerator::generate(int slotFrom, ID3D11ShaderResourceView* from, 
         ID3D11ShaderResourceView* views[3] = {lumaView_[slotFrom].Get(), lumaView_[slotTo].Get(), previous};
         pass(flowShader_.Get(), refined_.flowTarget.Get(), refined_.flowWidth, refined_.flowHeight, views, 3);
     }
-
-    return finish(slotFrom, from, slotTo, to, refined_.flowView.Get(), constants.phase, target);
+    return refined_.flowView.Get();
 }
 
 bool FlowFrameGenerator::finish(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to,

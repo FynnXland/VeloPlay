@@ -298,6 +298,23 @@ struct Surface {
         context->Unmap(staging.Get(), 0);
         return out;
     }
+
+    /// Blue minus red of every pixel. Brightness cancels out of that, and
+    /// with it the grain of a picture: what is left is colour alone.
+    std::vector<int> readTint() {
+        std::vector<int> out(static_cast<std::size_t>(width) * height, 0);
+        context->CopyResource(staging.Get(), target.Get());
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) return out;
+        for (UINT y = 0; y < height; ++y) {
+            const auto* row = static_cast<const std::uint8_t*>(mapped.pData) + y * mapped.RowPitch;
+            for (UINT x = 0; x < width; ++x) {
+                out[static_cast<std::size_t>(y) * width + x] = static_cast<int>(row[x * 4 + 2]) - static_cast<int>(row[x * 4]);
+            }
+        }
+        context->Unmap(staging.Get(), 0);
+        return out;
+    }
 };
 
 double cell(int x, int y, int seed) {
@@ -659,20 +676,76 @@ struct LadderFrame {
     }
 };
 
+/// Something blue in front of grey that is exactly as bright. That is what
+/// the nozzle at the petrol station was: in brightness there is nothing to
+/// see but the grain the encoder leaves, different in every picture; the
+/// shape shows in colour alone. With `hand`, a patch with structure moves
+/// along, as the hand that held the nozzle did.
+struct TintedShapeFrame {
+    PatternFrame picture;
+
+    static bool inside(double x, double y, int width, int height) {
+        const double ex = (x - width * 0.56) / (width * 0.17);
+        const double ey = (y - height * 0.42) / (height * 0.27);
+        if (ex * ex + ey * ey < 1.0) return true;
+        // The grip: a bar that runs down to the left.
+        const double along = (x - width * 0.30) * 0.8 - (y - height * 0.80) * 0.6;
+        const double across = (x - width * 0.30) * 0.6 + (y - height * 0.80) * 0.8;
+        return along > 0.0 && along < width * 0.30 && std::abs(across) < height * 0.07;
+    }
+
+    TintedShapeFrame(int width, int height, double dx, double dy, int grain, bool hand)
+        : picture(width, height, dx, dy) {
+        const double handX = width * 0.36 + dx;
+        const double handY = height * 0.58 + dy;
+        const double handRadius = height * 0.13;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                auto& value = picture.luma[static_cast<std::size_t>(y * width + x)];
+                const double hx = x + 0.5 - handX;
+                const double hy = y + 0.5 - handY;
+                if (hand && hx * hx + hy * hy < handRadius * handRadius) continue; // the moved structure stays
+                value = static_cast<std::uint8_t>(std::lround(78.0 + 5.0 * (noise(x, y, 5.0, grain) - 0.5) +
+                                                               2.0 * (cell(x, y, grain + 50) - 0.5)));
+            }
+        }
+        const int cw = (width + 1) / 2;
+        const int ch = (height + 1) / 2;
+        for (int y = 0; y < ch; ++y) {
+            for (int x = 0; x < cw; ++x) {
+                // How much of the four pixels this colour sample stands for lies in the shape.
+                double covered = 0.0;
+                for (int j = 0; j < 2; ++j) {
+                    for (int i = 0; i < 2; ++i) {
+                        if (inside(x * 2 + i + 0.5 - dx, y * 2 + j + 0.5 - dy, width, height)) covered += 0.25;
+                    }
+                }
+                picture.u[static_cast<std::size_t>(y * cw + x)] = static_cast<std::uint8_t>(std::lround(128.0 + 20.0 * covered));
+                picture.v[static_cast<std::size_t>(y * cw + x)] = static_cast<std::uint8_t>(std::lround(128.0 - 17.0 * covered));
+            }
+        }
+    }
+};
+
 /// How far the picture computed between `first` and `second` is from `expected`, in grey levels,
 /// and how long computing one takes. With `card` false the built-in motion search is used.
+/// `tintError` and `tintMixError` are the same for colour alone (blue minus red), which no grain touches.
 struct Generated {
     double error = 0.0;
     double mixError = 0.0;
+    double tintError = 0.0;
+    double tintMixError = 0.0;
     double milliseconds = 0.0;
 };
 Generated generateBetween(Surface& surface, render::VideoRenderer& renderer, const media::VideoFrame& first,
-                          const media::VideoFrame& second, const media::VideoFrame& expected, int width, int height) {
+                          const media::VideoFrame& second, const media::VideoFrame& expected, int width, int height,
+                          int rounds = 12) {
     renderer.clear();
     EXPECT_TRUE(renderer.submit(expected));
     surface.begin();
     renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height));
     const std::vector<int> wanted = surface.read();
+    const std::vector<int> wantedTint = surface.readTint();
 
     render::VideoRenderer::Output output;
     output.choice.valid = true;
@@ -684,12 +757,14 @@ Generated generateBetween(Surface& surface, render::VideoRenderer& renderer, con
         return surface.read();
     };
     const std::vector<int> a = show(first);
+    const std::vector<int> aTint = surface.readTint();
     const std::vector<int> b = show(second);
+    const std::vector<int> bTint = surface.readTint();
 
     Generated result;
     std::vector<int> between;
     // Several rounds: the first one includes setting things up.
-    constexpr int kRounds = 12;
+    const int kRounds = std::max(1, rounds);
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
     double best = 1e9;
@@ -715,12 +790,44 @@ Generated generateBetween(Surface& surface, render::VideoRenderer& renderer, con
         EXPECT_TRUE(renderer.lastDrawWasGenerated());
         best = std::min(best, static_cast<double>(end.QuadPart - start.QuadPart) * 1000.0 / static_cast<double>(frequency.QuadPart));
     }
+    const std::vector<int> betweenTint = surface.readTint();
     std::vector<int> mixed(a.size());
-    for (std::size_t i = 0; i < a.size(); ++i) mixed[i] = (a[i] + b[i] + 1) / 2;
+    std::vector<int> mixedTint(a.size());
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        mixed[i] = (a[i] + b[i] + 1) / 2;
+        mixedTint[i] = (aTint[i] + bTint[i]) / 2;
+    }
     result.error = meanDifference(between, wanted, width, height, 24);
     result.mixError = meanDifference(mixed, wanted, width, height, 24);
+    result.tintError = meanDifference(betweenTint, wantedTint, width, height, 24);
+    result.tintMixError = meanDifference(mixedTint, wantedTint, width, height, 24);
     result.milliseconds = best;
     return result;
+}
+
+// The nozzle at the petrol station (a user's report): blue in front of grey
+// of the same brightness flickered badly in computed pictures.
+TEST(FrameGeneration, MovesColourThatBrightnessDoesNotShow) {
+    constexpr int kWidth = 320;
+    constexpr int kHeight = 180;
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+    ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+    renderer.holdStillParts(false);
+    for (const bool hand : {false, true}) {
+        TintedShapeFrame first(kWidth, kHeight, 0.0, 0.0, 11, hand);
+        TintedShapeFrame second(kWidth, kHeight, 8.0, 4.0, 12, hand);
+        TintedShapeFrame expected(kWidth, kHeight, 4.0, 2.0, 13, hand);
+        const Generated own = generateBetween(surface, renderer, first.picture.frame, second.picture.frame,
+                                              expected.picture.frame, kWidth, kHeight, 1);
+        std::printf("blue shape as bright as the grey behind it%s: colour off by %.3f, by %.3f in a plain mix\n",
+                    hand ? ", held by a hand" : "", own.tintError, own.tintMixError);
+        // Before the search compared colour, this was no better than the plain mix.
+        EXPECT_LT(own.tintError, own.tintMixError * 0.6) << (hand ? "with hand" : "alone");
+    }
 }
 
 TEST(FrameGeneration, TheShadersForTheCardsMotionSearchCompile) {
@@ -1033,6 +1140,51 @@ TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
         EXPECT_LT(card.error, card.mixError * 0.6) << scene.name;
         EXPECT_LT(card.error, own.error * 1.25 + 0.5) << scene.name;
     }
+
+    // Colour that brightness does not show. On the RTX 4070: 2.68 and 2.17
+    // while everything compared brightness alone, 0.19 and 0.18 since colour
+    // counts and the built-in search may help, against 1.21 for a plain mix.
+    for (const bool hand : {false, true}) {
+        TintedShapeFrame first(kWidth, kHeight, 0.0, 0.0, 11, hand);
+        TintedShapeFrame second(kWidth, kHeight, 10.0, 4.0, 12, hand);
+        TintedShapeFrame expected(kWidth, kHeight, 5.0, 2.0, 13, hand);
+        renderer.allowCardMotion(true);
+        const Generated card = generateBetween(surface, renderer, first.picture.frame, second.picture.frame,
+                                               expected.picture.frame, kWidth, kHeight);
+        ASSERT_TRUE(renderer.usesCardMotion()) << renderer.cardMotionError();
+        renderer.allowCardMotion(false);
+        const Generated own = generateBetween(surface, renderer, first.picture.frame, second.picture.frame,
+                                              expected.picture.frame, kWidth, kHeight);
+        // Short lines: the build prints them into a narrow window.
+        std::printf("motion search, blue on grey%s: NVIDIA %.3f, built-in %.3f, plain mix %.3f\n",
+                    hand ? " with hand" : "", card.tintError, own.tintError, card.tintMixError);
+        EXPECT_LT(card.tintError, card.tintMixError * 0.6) << (hand ? "with hand" : "alone");
+    }
+}
+
+// The other tests compute small pictures. This one says how long a picture
+// takes at the size a game arrives in, with the upload and the reading back.
+TEST(OnTheGraphicsCard, SaysHowLongAPictureTakesAtFullSize) {
+    constexpr int kWidth = 1920;
+    constexpr int kHeight = 1080;
+    Surface surface;
+    if (!surface.create(kWidth, kHeight, true)) GTEST_SKIP() << "no graphics card in this machine";
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+    ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+    renderer.holdStillParts(false);
+    PatternFrame first(kWidth, kHeight, 0, 0);
+    PatternFrame second(kWidth, kHeight, 18, -6);
+    PatternFrame expected(kWidth, kHeight, 9, -3);
+    const bool card = renderer.usesCardMotion();
+    const Generated with = generateBetween(surface, renderer, first.frame, second.frame, expected.frame, kWidth, kHeight, 8);
+    renderer.allowCardMotion(false);
+    const Generated own = generateBetween(surface, renderer, first.frame, second.frame, expected.frame, kWidth, kHeight, 8);
+    std::printf("motion search at 1920 x 1080: %s %.2f ms (off by %.2f), built-in alone %.2f ms (off by %.2f)\n",
+                card ? "with NVIDIA" : "no card search,", with.milliseconds, with.error, own.milliseconds, own.error);
+    EXPECT_LT(own.error, own.mixError * 0.6);
+    EXPECT_LT(with.error, with.mixError * 0.6);
 }
 
 TEST(OnTheGraphicsCard, EnlargesWithNvidiasScalerWhereThereIsOne) {

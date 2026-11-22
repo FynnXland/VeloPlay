@@ -109,7 +109,9 @@ private:
     bool ensureSize(int width, int height);
     bool makeFlow(Level& level);
     bool makeVectors(Level& level, int width, int height);
-    bool hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView*& flow);
+    ID3D11ShaderResourceView* builtInFlow(int slotFrom, int slotTo, float phase);
+    bool hardwareFlow(int slotFrom, int slotTo, float phase, ID3D11ShaderResourceView* builtIn,
+                      ID3D11ShaderResourceView*& flow);
     bool finish(int slotFrom, ID3D11ShaderResourceView* from, int slotTo, ID3D11ShaderResourceView* to,
                 ID3D11ShaderResourceView* flow, float phase, ID3D11RenderTargetView* target);
     void dropHardwareMotion(const std::string& reason);
@@ -120,6 +122,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> context_;
     Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> lumaShader_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> searchShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> flowShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> synthesisShader_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler_;
@@ -129,7 +132,7 @@ private:
 
     int width_ = 0;
     int height_ = 0;
-    // Brightness at half size with all smaller copies, one per picture slot.
+    // Brightness and the two colour differences at half size with all smaller copies, one per picture slot.
     Microsoft::WRL::ComPtr<ID3D11Texture2D> luma_[2];
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> lumaView_[2];
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> lumaTarget_[2];
