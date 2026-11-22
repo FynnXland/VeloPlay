@@ -3,6 +3,20 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.7.1
+
+- **Fixed: VeloPlay closed right after the first picture while Discord was running** (1.7.0).
+  Discord answers the card with an empty field, and VeloPlay could not read it. Game names with
+  unusual characters could do the same. Whatever goes wrong with the Discord card now only switches
+  the card off; the stream goes on.
+
+**Deutsch**
+
+- **Behoben: VeloPlay schloss sich direkt nach dem ersten Bild, wenn Discord lief** (1.7.0).
+  Discord antwortet auf die Anzeige mit einem leeren Feld, und VeloPlay konnte das nicht lesen.
+  Spielnamen mit ungewöhnlichen Zeichen konnten dasselbe auslösen. Geht mit der Discord-Anzeige
+  etwas schief, schaltet sich jetzt nur die Anzeige ab; der Stream läuft weiter.
+
 ## 1.7.0
 
 - **AMD FRC (beta).** On AMD graphics cards, Settings > Output > **AMD FRC for 2x** lets AMD's own

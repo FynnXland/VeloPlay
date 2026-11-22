@@ -22,6 +22,12 @@ struct FakeDiscord {
         const auto bytes = discord::frame(opcode, body);
         toSend.insert(toSend.end(), bytes.begin(), bytes.end());
     }
+    /// Bytes as they come, JSON or not.
+    void sayRaw(discord::Opcode opcode, const std::string& text) {
+        for (int i = 0; i < 4; ++i) toSend.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(opcode) >> (8 * i)) & 0xFF));
+        for (int i = 0; i < 4; ++i) toSend.push_back(static_cast<std::uint8_t>((text.size() >> (8 * i)) & 0xFF));
+        toSend.insert(toSend.end(), text.begin(), text.end());
+    }
     [[nodiscard]] std::vector<nlohmann::json> activities() const {
         std::vector<nlohmann::json> out;
         for (const auto& message : received) {
@@ -181,4 +187,50 @@ TEST(DiscordPresence, WaitsForDiscordAndComesBackAfterItRestarts) {
     discord.say(discord::Opcode::Frame, {{"evt", "READY"}});
     presence.update(sample(), now + 30s);
     EXPECT_EQ(discord.activities().size(), 2u);
+}
+
+// 1.7.0 ended itself right after the first picture whenever Discord ran: Discord answers the
+// activity with "evt": null, and reading that as text threw.
+TEST(DiscordPresence, TakesDiscordsAnswersWithoutEvent) {
+    FakeDiscord discord;
+    discord::Presence presence(std::make_unique<FakePipe>(discord), 4242);
+    const auto now = discord::Presence::Clock::now();
+    presence.update(sample(), now);
+    discord.say(discord::Opcode::Frame, {{"cmd", "DISPATCH"}, {"evt", "READY"}, {"data", {{"v", 1}}}});
+    presence.update(sample(), now);
+    ASSERT_EQ(discord.activities().size(), 1u);
+
+    // The answer to SET_ACTIVITY, as Discord sends it.
+    discord.sayRaw(discord::Opcode::Frame, R"({"cmd":"SET_ACTIVITY","data":{},"evt":null,"nonce":"1"})");
+    EXPECT_NO_THROW(presence.update(sample(), now + 1s));
+    EXPECT_TRUE(presence.connected());
+    // Frames that are no JSON, or JSON but no object, or an event that is no text.
+    discord.sayRaw(discord::Opcode::Frame, "{\"evt\": READY");
+    discord.sayRaw(discord::Opcode::Frame, "[1, 2]");
+    discord.sayRaw(discord::Opcode::Frame, "\"READY\"");
+    discord.sayRaw(discord::Opcode::Frame, R"({"evt": 7})");
+    discord.sayRaw(discord::Opcode::Close, "not json");
+    EXPECT_NO_THROW(presence.update(sample(), now + 2s));
+    EXPECT_FALSE(presence.connected()); // the close was taken as one
+
+    EXPECT_EQ(discord::eventOf(nlohmann::json::parse(R"({"evt":"ERROR"})")), "ERROR");
+    EXPECT_EQ(discord::eventOf(nlohmann::json::parse("{bad", nullptr, false)), "");
+}
+
+TEST(DiscordPresence, SendsGameNamesThatAreNoProperText) {
+    FakeDiscord discord;
+    discord::Presence presence(std::make_unique<FakePipe>(discord), 4242);
+    const auto now = discord::Presence::Clock::now();
+    presence.update(sample(), now);
+    discord.say(discord::Opcode::Frame, {{"evt", "READY"}});
+    // Broken UTF-8, as a console might name a game, and a long name cut right inside an umlaut.
+    discord::Activity broken = sample();
+    broken.game = std::string("Spiel \xC3\x28 kaputt");
+    EXPECT_NO_THROW(presence.update(broken, now));
+    ASSERT_EQ(discord.activities().size(), 1u);
+    discord::Activity longName = sample();
+    longName.game = std::string(127, 'a') + "\xC3\xBC" + "nd mehr";
+    EXPECT_NO_THROW(presence.update(longName, now + 16s));
+    ASSERT_EQ(discord.activities().size(), 2u);
+    EXPECT_EQ(discord.activities()[1]["activity"]["details"], std::string(127, 'a'));
 }

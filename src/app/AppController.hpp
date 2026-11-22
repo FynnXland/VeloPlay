@@ -273,6 +273,7 @@ private:
     std::string sessionGameName_;
     input::WheelCapture wheelCapture_;
     std::unique_ptr<discord::Presence> presence_;
+    bool presenceFailed_ = false;      // the card threw once; no more tries until VeloPlay starts again
     std::string presenceKey_;          // what the card's time belongs to: the source and its game
     std::int64_t presenceSince_ = 0;   // Unix seconds when that began
     bool capturingKey_ = false;                // the settings wait for the key that is pressed next

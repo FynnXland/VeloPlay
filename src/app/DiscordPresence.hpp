@@ -37,6 +37,9 @@ nlohmann::json activityJson(const Activity& activity);
 
 /// One message to or from Discord's local socket: opcode, length, JSON.
 enum class Opcode : std::int32_t { Handshake = 0, Frame = 1, Close = 2, Ping = 3, Pong = 4 };
+/// The "evt" of a frame from Discord; empty when there is none, it is null, or the frame is no JSON object.
+std::string eventOf(const nlohmann::json& body);
+
 std::vector<std::uint8_t> frame(Opcode opcode, const nlohmann::json& body);
 struct Message {
     Opcode opcode = Opcode::Frame;

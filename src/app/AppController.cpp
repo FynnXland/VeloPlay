@@ -170,7 +170,16 @@ void AppController::update() {
     diag::setStep("session");
     updateSession(now);
     updateMicrophone(now);
-    updatePresence(now);
+    // The card in Discord is an extra. Whatever goes wrong with it must never end the game.
+    if (!presenceFailed_) {
+        try {
+            updatePresence(now);
+        } catch (const std::exception& error) {
+            spdlog::error("Discord: the card is switched off until VeloPlay starts again: {}", error.what());
+            presenceFailed_ = true;
+            presence_.reset();
+        }
+    }
     updateWheel();
     diag::setStep("pairing, remote control, settings");
     updatePairing();
