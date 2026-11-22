@@ -3,6 +3,31 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.5.0
+
+- **Capture cards (beta).** If Windows knows a capture card, the start page lists it under
+  "Capture card" with a Show button. VeloPlay shows its picture with frame generation, upscaling,
+  screenshots and recording, and plays the card's sound. The controller stays plugged into the
+  console. Cameras appear in the same list, because Windows lists them alike. Not tried with a
+  real capture card yet.
+- **Discord.** While you stream, your Discord profile shows "Playing VeloPlay" with the game and
+  how long you have been playing. Discord has to run on the same PC. On by default; Settings >
+  Advanced > Discord switches it off or leaves out the game's name.
+- RTX Video is greyed out in the settings on cards without it, with a line saying why.
+
+**Deutsch**
+
+- **Capture-Cards (Beta).** Kennt Windows eine Capture-Card, steht sie auf der Startseite unter
+  „Capture-Card“ mit einem Knopf „Anzeigen“. VeloPlay zeigt ihr Bild mit Zwischenbildern,
+  Hochskalierung, Fotos und Aufnahme und spielt den Ton der Karte. Der Controller bleibt an der
+  Konsole. Kameras erscheinen in derselben Liste, weil Windows sie gleich behandelt. Mit einer
+  echten Capture-Card noch nicht ausprobiert.
+- **Discord.** Solange du streamst, steht in deinem Discord-Profil „Spielt VeloPlay“ mit dem Spiel
+  und der Spielzeit. Discord muss dafür auf demselben PC laufen. Voreingestellt an; unter
+  Einstellungen > Erweitert > Discord abschalten oder den Namen des Spiels weglassen.
+- RTX Video ist in den Einstellungen auf Karten ohne diese Funktion ausgegraut, mit dem Grund
+  dazu.
+
 ## 1.4.1
 
 - Smooth colour steps no longer shimmers in still pictures, and leaves flat areas exactly as they

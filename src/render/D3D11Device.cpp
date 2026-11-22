@@ -63,6 +63,7 @@ bool D3D11Device::create(HWND window, std::string& error) {
         DXGI_ADAPTER_DESC1 desc{};
         adapter->GetDesc1(&desc);
         adapterName_ = toUtf8(desc.Description);
+        adapterVendor_ = desc.VendorId;
     }
 
     // VIDEO_SUPPORT is required later for hardware video decoding (D3D11VA).
@@ -84,6 +85,7 @@ bool D3D11Device::create(HWND window, std::string& error) {
         spdlog::warn("{}; falling back to the software renderer", hresult("D3D11CreateDevice", hr));
         hr = createDevice(nullptr, D3D_DRIVER_TYPE_WARP, D3D11_CREATE_DEVICE_BGRA_SUPPORT);
         adapterName_ = "Microsoft Basic Render Driver";
+        adapterVendor_ = 0;
     }
     if (FAILED(hr)) {
         error = hresult("D3D11CreateDevice", hr);

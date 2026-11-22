@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.4.1
+    VERSION 1.5.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -86,6 +86,8 @@ add_library(veloplay_core STATIC
     src/app/AppController.cpp
     src/app/HelpLinks.cpp
     src/app/Installer.cpp
+    src/app/CaptureMatch.cpp
+    src/app/DiscordPresence.cpp
     # Texts live with the UI but have no toolkit dependency, so the tests can check them.
     src/ui/Strings.cpp
 )
@@ -95,7 +97,7 @@ target_link_libraries(veloplay_core
     PUBLIC veloplay_options OpenSSL::Crypto nlohmann_json::nlohmann_json spdlog::spdlog Threads::Threads
     PRIVATE miniz::miniz veloplay_chiaki veloplay_ffmpeg veloplay_opus)
 if(WIN32)
-    target_sources(veloplay_core PRIVATE src/app/DpapiProtector.cpp src/update/WinHttpClient.cpp
+    target_sources(veloplay_core PRIVATE src/app/DpapiProtector.cpp src/app/DiscordPipeWin.cpp src/update/WinHttpClient.cpp
         src/media/D3D11VaDevice.cpp src/util/ThreadStackWin.cpp)
     target_link_libraries(veloplay_core PUBLIC ws2_32 iphlpapi crypt32 winhttp dbghelp)
 endif()
@@ -132,6 +134,7 @@ if(WIN32)
         src/audio/WasapiOutput.cpp
         src/record/MediaFoundation.cpp
         src/record/VideoRecorder.cpp
+        src/capture/CaptureSession.cpp
     )
     target_link_libraries(veloplay_platform PUBLIC veloplay_core d3d11 dxgi d3dcompiler ole32 avrt)
     # The interface of NVIDIA's optical flow engine: headers only, the library is part of the driver.

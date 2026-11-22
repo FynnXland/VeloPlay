@@ -28,6 +28,7 @@ constexpr Palette kPalette = {
     .standby = rgb(0xff9f0a),
     .offline = rgb(0x6b717a),
     .danger = rgb(0xff5a4f),
+    .beta = rgb(0xffd60a),
     .scrim = rgb(0x000000, 0.55f),
 };
 

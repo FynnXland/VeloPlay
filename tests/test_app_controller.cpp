@@ -514,6 +514,124 @@ TEST(AppControllerSession, NamesTheReasonWhenTheConsoleSaysNo) {
     }
 }
 
+namespace {
+
+/// Records what goes to Discord; READY comes right after the handshake.
+struct DiscordLog {
+    std::vector<nlohmann::json> activities; // the args of every SET_ACTIVITY
+};
+
+struct DiscordPipe final : discord::IPipe {
+    explicit DiscordPipe(std::shared_ptr<DiscordLog> log) : log_(std::move(log)) {}
+    bool open() override { return true; }
+    void close() override {}
+    bool write(std::span<const std::uint8_t> bytes) override {
+        partial_.insert(partial_.end(), bytes.begin(), bytes.end());
+        for (auto& message : discord::takeMessages(partial_)) {
+            if (message.opcode == discord::Opcode::Handshake) {
+                const auto ready = discord::frame(discord::Opcode::Frame, {{"evt", "READY"}});
+                pending_.insert(pending_.end(), ready.begin(), ready.end());
+            } else if (message.body.value("cmd", "") == "SET_ACTIVITY") {
+                log_->activities.push_back(message.body["args"]);
+            }
+        }
+        return true;
+    }
+    std::optional<std::vector<std::uint8_t>> read() override { return std::exchange(pending_, {}); }
+
+private:
+    std::shared_ptr<DiscordLog> log_;
+    std::vector<std::uint8_t> partial_;
+    std::vector<std::uint8_t> pending_;
+};
+
+} // namespace
+
+TEST(AppControllerSession, ShowsTheStreamInDiscordAndClearsItAfterwards) {
+    test::MockConsole console({});
+    auto log = std::make_shared<DiscordLog>();
+    Harness h(console, "session_discord.json", true, 60s, 0us, nullptr, [&](AppController::Options& options) {
+        options.discordPipe = [log] { return std::unique_ptr<discord::IPipe>(std::make_unique<DiscordPipe>(log)); };
+        options.processId = 77;
+        options.systemLanguage = "de";
+    });
+    ASSERT_TRUE(h.pair());
+    EXPECT_TRUE(h.model.discordAvailable);
+    EXPECT_TRUE(h.app->config().discord.enabled); // on unless switched off
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    ASSERT_TRUE(h.runUntil([&] { return !log->activities.empty(); }));
+    const nlohmann::json& shown = log->activities[0];
+    EXPECT_EQ(shown["pid"], 77);
+    EXPECT_EQ(shown["activity"]["state"], "über VeloPlay");
+    EXPECT_EQ(shown["activity"]["assets"]["large_image"], "veloplay");
+    EXPECT_EQ(shown["activity"]["assets"]["small_image"], "ps5");
+    EXPECT_GT(shown["activity"]["timestamps"]["start"].get<std::int64_t>(), 1'700'000'000);
+
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    // The card is cleared at once, not after Discord's 15 seconds.
+    ASSERT_TRUE(h.runUntil([&] { return log->activities.size() >= 2; }));
+    EXPECT_FALSE(log->activities.back().contains("activity"));
+}
+
+TEST(AppControllerSession, ShowsNothingInDiscordWhenSwitchedOff) {
+    test::MockConsole console({});
+    auto log = std::make_shared<DiscordLog>();
+    Harness h(console, "session_discord_off.json", true, 60s, 0us, nullptr, [&](AppController::Options& options) {
+        options.discordPipe = [log] { return std::unique_ptr<discord::IPipe>(std::make_unique<DiscordPipe>(log)); };
+    });
+    ASSERT_TRUE(h.pair());
+    h.app->config().discord.enabled = false;
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    for (int i = 0; i < 10; ++i) h.app->update();
+    EXPECT_TRUE(log->activities.empty());
+}
+
+TEST(AppControllerSession, ShowsACaptureCardWithoutConsoleParts) {
+    test::MockConsole console({});
+    auto cards = std::make_shared<test::FakeSessionHub>();
+    Harness h(console, "session_capture.json", true, 200ms, 0us, nullptr, [&](AppController::Options& options) {
+        options.captureDevices = [] { return std::vector<CaptureDevice>{{"usb#card", "USB3 Capture"}}; };
+        options.captureFactory = cards->factory(cards);
+    });
+    h.app->start();
+    ASSERT_TRUE(h.runUntil([&] { return !h.model.captureDevices.empty(); }));
+    EXPECT_EQ(h.model.captureDevices[0].name, "USB3 Capture");
+
+    // An unknown card does nothing.
+    h.app->showCapture("usb#other");
+    EXPECT_TRUE(cards->configs.empty());
+
+    cards->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->showCapture("usb#card");
+    ASSERT_EQ(cards->configs.size(), 1u);
+    EXPECT_EQ(cards->configs[0].host, "usb#card");
+    EXPECT_TRUE(h.sessions->configs.empty()); // no console session
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_TRUE(h.model.session.capture);
+    EXPECT_EQ(h.model.session.consoleName, "USB3 Capture");
+
+    // No input goes to a card, and a card without pictures is not reconnected at half the rate.
+    for (int i = 0; i < 5; ++i) h.app->update();
+    EXPECT_EQ(cards->inputs(), 0);
+    std::this_thread::sleep_for(300ms);
+    h.app->update();
+    EXPECT_EQ(cards->stops, 0);
+    // Changed stream settings are no reason to open the card again.
+    h.app->applyStreamSettings();
+    EXPECT_EQ(cards->stops, 0);
+
+    // A card that goes away ends it with a notice, without trying again.
+    cards->emit(test::FakeSessionHub::quit(session::QuitReason::ConnectionLost));
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Error; }));
+    EXPECT_EQ(cards->configs.size(), 1u);
+}
+
 TEST(AppControllerSession, ReconnectsWhenTheStreamBreaks) {
     test::MockConsole console({});
     Harness h(console, "session_reconnect.json");

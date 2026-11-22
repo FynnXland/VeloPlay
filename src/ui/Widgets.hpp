@@ -111,7 +111,11 @@ bool edgeButton(const char* label, ButtonKind kind = ButtonKind::Quiet);
 bool moreButton(const char* id);
 
 /// Returns the index chosen this frame, or `selected` if nothing changed.
-int segmented(const char* id, std::span<const char* const> labels, int selected, float width = 0.0f);
+/// `disabled` has one bit per segment: those are greyed out and cannot be chosen.
+int segmented(const char* id, std::span<const char* const> labels, int selected, float width = 0.0f,
+              unsigned disabled = 0);
+/// A small rounded label in a colour, on the line where the cursor is: "Beta", "NVIDIA".
+void pill(std::string_view text, const ImVec4& color);
 
 /// Label on the left, switch on the right, the whole row clickable.
 bool toggleRow(const char* label, bool* value, bool enabled = true);

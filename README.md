@@ -49,6 +49,8 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Saves screenshots of the game with F12 and records videos with sound with F10
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Measures the connection to a console and suggests stream settings that fit it
+- Shows the picture of a capture card the same way (beta)
+- Shows in Discord which game you play through VeloPlay, if you like
 - Updates itself with one click when a new version is published, and installs itself on your PC
   with a start menu entry if you like
 - Stores the console's keys encrypted with your Windows account

@@ -13,6 +13,7 @@
 #include "app/StreamProfile.hpp"
 #include "input/ControllerState.hpp"
 #include "input/DualSenseEffects.hpp"
+#include "media/VideoFrame.hpp"
 #include "protocol/Crypto.hpp"
 #include "util/Result.hpp"
 
@@ -31,6 +32,7 @@ struct SessionConfig {
     /// Ask the console for adaptive trigger and haptics data. Only useful with
     /// a DualSense: the console then stops sending classic rumble.
     bool dualSense = false;
+    std::string name;        // how the user knows the source; a capture card finds its sound input by it
 };
 
 enum class QuitReason {
@@ -109,6 +111,19 @@ public:
         (void)stereo;
         return false;
     }
+
+    // A source that delivers pictures and sound as they are (a capture card) skips the decoders.
+    /// A picture in CPU memory; its `owner` keeps the pixels alive. False if it was not taken.
+    virtual bool onPicture(media::VideoFrame picture) {
+        (void)picture;
+        return false;
+    }
+    /// Sound as 16-bit samples from here on, in this format.
+    virtual void onPcmFormat(int sampleRate, int channels) {
+        (void)sampleRate;
+        (void)channels;
+    }
+    virtual void onPcm(std::span<const std::int16_t> interleaved) { (void)interleaved; }
 };
 
 /// What the session knows about itself right now.

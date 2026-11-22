@@ -8,6 +8,8 @@
 #include <spdlog/spdlog.h>
 
 #include "input/InputMerger.hpp"
+#include "ui/Strings.hpp"
+#include "update/Release.hpp"
 #include "util/StallWatch.hpp"
 #include "net/Socket.hpp"
 #include "protocol/RegistrationClient.hpp"
@@ -168,6 +170,7 @@ void AppController::update() {
     diag::setStep("session");
     updateSession(now);
     updateMicrophone(now);
+    updatePresence(now);
     diag::setStep("pairing, remote control, settings");
     updatePairing();
     updateAccountLookup();
@@ -237,6 +240,7 @@ void AppController::fillModel(UiModel& model) {
         model.session.attempt = session_->attempt;
         model.session.attempts = session_->attempts;
         model.session.waitingForRelease = session_->waitingForRelease;
+        model.session.capture = session_->capture;
         if (session_->session && session_->connected) {
             const session::SessionStats stats = session_->session->stats(now);
             model.session.videoFrames = stats.videoFrames;
@@ -245,7 +249,7 @@ void AppController::fillModel(UiModel& model) {
             model.session.receivedMegabytes = static_cast<double>(stats.videoBytes) / 1'000'000.0;
             model.session.connectedSeconds = static_cast<int>(
                 std::chrono::duration_cast<std::chrono::seconds>(now - session_->connectedAt).count());
-            model.session.settingsChanged = !(session_->requested == streamSettingsForAttempt());
+            model.session.settingsChanged = !session_->capture && !(session_->requested == streamSettingsForAttempt());
 
             StreamStats view;
             view.presenting = false; // decoding and display arrive with the next milestone
@@ -257,6 +261,8 @@ void AppController::fillModel(UiModel& model) {
         }
     }
 
+    if (options_.captureDevices && options_.captureFactory) model.captureDevices = options_.captureDevices();
+    model.discordAvailable = static_cast<bool>(options_.discordPipe);
     model.updaterAvailable = updater_ != nullptr;
     model.install.available = options_.installer != nullptr;
     if (options_.installer) {
@@ -303,7 +309,8 @@ void AppController::updateMicrophone(Clock::time_point now) {
     media::IAudioInput* microphone = options_.microphone;
     if (!microphone) return;
     const bool streaming = session_ && session_->session && session_->connected && stateMachine_.state() == AppState::Streaming;
-    const bool wanted = streaming && config_.audio.microphone;
+    // A capture card has no way back to the console for the microphone.
+    const bool wanted = streaming && config_.audio.microphone && !session_->capture;
     if (!wanted) {
         if (micLive_) {
             session::ISession* session = session_ ? session_->session.get() : nullptr;
@@ -523,7 +530,8 @@ void AppController::keyCaptured(int code) {
 }
 
 void AppController::applyStreamSettings() {
-    if (!session_ || !session_->session || !session_->connected || stateMachine_.state() != AppState::Streaming) {
+    if (!session_ || !session_->session || !session_->connected || session_->capture ||
+        stateMachine_.state() != AppState::Streaming) {
         return;
     }
     spdlog::info("Connecting again to apply the stream settings");
@@ -592,8 +600,13 @@ void AppController::updateSession(Clock::time_point now) {
     if (session_->connected) {
         // With the pump running, input goes out from its thread, every few
         // milliseconds. Without it, once per call, as it always did.
-        if (options_.inputInterval.count() > 0) attachPump(session_->session.get());
-        else session_->session->setControllerState(sessionInput(), now);
+        if (session_->capture) {
+            // The controller belongs to the console on the other end of the card's cable.
+        } else if (options_.inputInterval.count() > 0) {
+            attachPump(session_->session.get());
+        } else {
+            session_->session->setControllerState(sessionInput(), now);
+        }
 
         const session::SessionStats stats = session_->session->stats(now);
         const std::uint64_t frames = stats.videoFrames;
@@ -605,7 +618,7 @@ void AppController::updateSession(Clock::time_point now) {
         // A stream that stands still does not recover by waiting: on a link
         // that cannot carry the bitrate, the requests for repair get lost
         // too. Start over at half the rate instead.
-        if (!session_->stalled && now - session_->lastPicture >= options_.stallTimeout) {
+        if (!session_->capture && !session_->stalled && now - session_->lastPicture >= options_.stallTimeout) {
             const int current = session_->requested.bitrateKbps;
             spdlog::warn("No picture for {} ms at {} kbit/s; reconnecting", options_.stallTimeout.count(), current);
             session_->stalled = true;
@@ -729,6 +742,12 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
     }
     session_->waitingForRelease = false;
 
+    // A capture card that stops delivering is not reconnected like a console: that would only open it again.
+    if (session_->capture && !session_->userStopped && reason != session::QuitReason::Stopped) {
+        failSession(reason, detail);
+        return;
+    }
+
     // Rest mode ends a session from the console's side. That is an orderly
     // end, whether we asked for it or the user did it on the console.
     const bool orderly = session_->userStopped || reason == session::QuitReason::Stopped ||
@@ -767,8 +786,8 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
     observation.controllerConnected = pad.has_value();
     observation.batteryPercent = pad ? pad->batteryPercent : -1;
     observation.charging = pad && pad->charging;
-    // With keys and mouse set up, no controller is no fault.
-    observation.controllerWanted = !config_.controller.keyboardMouse.enabled;
+    // With keys and mouse set up, no controller is no fault; with a capture card the controller is at the console.
+    observation.controllerWanted = !config_.controller.keyboardMouse.enabled && !session_->capture;
     session_->alerts.update(observation, now);
     // Into the log as well: afterwards it says what the user saw and when.
     for (const StreamAlert alert : session_->alerts.raised()) {
@@ -967,6 +986,87 @@ void AppController::takeScreenshot() {
 
 void AppController::openPicturesFolder() {
     if (options_.openFolder && !options_.picturesFolder.empty()) options_.openFolder(options_.picturesFolder);
+}
+
+void AppController::updatePresence(Clock::time_point now) {
+    if (!presence_ && options_.discordPipe) {
+        presence_ = std::make_unique<discord::Presence>(options_.discordPipe(), options_.processId);
+    }
+    if (!presence_) return;
+    const bool streaming = session_ && session_->connected && stateMachine_.state() == AppState::Streaming;
+    if (!config_.discord.enabled || !streaming) {
+        presenceKey_.clear();
+        presence_->update(std::nullopt, now);
+        return;
+    }
+    const ui::Strings& t =
+        ui::strings(ui::resolveLanguage(config_.language, options_.systemLanguage));
+    discord::Activity activity;
+    if (session_->capture) {
+        activity.game = t.captureCards;
+        activity.smallImage = "capture";
+        activity.smallText = t.captureCards;
+    } else {
+        if (config_.discord.showGame) activity.game = sessionGameName_;
+        activity.smallImage = "ps5";
+        activity.smallText = "PS5";
+    }
+    activity.state = t.presenceState;
+    activity.largeText = "VeloPlay";
+    activity.buttonLabel = t.presenceButton;
+    activity.buttonUrl = "https://github.com/" + std::string(update::kReleaseRepository);
+    // The time runs from the start of the stream, and starts again with another game.
+    const std::string key = session_->hostId + "|" + activity.game;
+    if (key != presenceKey_) {
+        presenceKey_ = key;
+        presenceSince_ = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+    }
+    activity.since = presenceSince_;
+    presence_->update(activity, now);
+}
+
+void AppController::showCapture(const std::string& deviceId) {
+    if (!options_.captureFactory || !options_.captureDevices) return;
+    const std::vector<CaptureDevice> devices = options_.captureDevices();
+    const auto device = std::find_if(devices.begin(), devices.end(), [&](const CaptureDevice& d) { return d.id == deviceId; });
+    if (device == devices.end()) return;
+    if (stateMachine_.state() == AppState::Error) stateMachine_.handle(AppEvent::ErrorAcknowledged);
+    if (stateMachine_.state() != AppState::Idle || !stateMachine_.handle(AppEvent::ConnectRequested)) return;
+
+    ActiveSession active;
+    active.hostId = "capture:" + device->id;
+    active.name = device->name;
+    active.capture = true;
+    attachPump(nullptr);
+    session_ = std::move(active);
+
+    session::SessionConfig sessionConfig;
+    sessionConfig.host = device->id;
+    sessionConfig.name = device->name;
+    // What the card is asked for; it delivers what it can, and the renderer takes any size.
+    sessionConfig.stream.width = 1920;
+    sessionConfig.stream.height = 1080;
+    sessionConfig.stream.fps = 60;
+    // Nothing to compare the arriving rate with: a card's rate is the card's.
+    session_->requested = sessionConfig.stream;
+    session_->requested.fps = 0;
+    auto created = options_.captureFactory();
+    if (!created) {
+        failSession(session::QuitReason::SetupFailed, "this build cannot show capture cards");
+        return;
+    }
+    spdlog::info("Showing the capture card {}", device->name);
+    if (options_.mediaSink) options_.mediaSink->begin(sessionConfig.stream);
+    const auto started = created->start(sessionConfig, options_.mediaSink);
+    if (!started) {
+        spdlog::error("Capture card could not be opened: {}", started.error().message);
+        if (options_.mediaSink) options_.mediaSink->end();
+        failSession(session::QuitReason::SetupFailed, started.error().message);
+        return;
+    }
+    session_->session = std::move(created);
 }
 
 void AppController::toggleRecording() {

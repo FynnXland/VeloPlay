@@ -2,6 +2,7 @@
 
 #include <future>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stop_token>
 #include <thread>
@@ -19,6 +20,7 @@
 #include "audio/WasapiOutput.hpp"
 #include "media/FramePacer.hpp"
 #include "media/MediaPipeline.hpp"
+#include "capture/CaptureSession.hpp"
 #include "record/VideoRecorder.hpp"
 #include "render/FrameGrabber.hpp"
 #include "render/VideoRenderer.hpp"
@@ -156,6 +158,11 @@ private:
     diag::StallWatch stallWatch_;
     diag::MessageTrace messageTrace_;
     std::jthread hangProbe_;
+    // Capture cards come and go with their cable; Windows is asked every few seconds, away from the window.
+    // The thread comes after what it uses, so it is stopped and joined before those go.
+    std::mutex captureMutex_;
+    std::vector<CaptureDevice> captureDevices_;
+    std::jthread captureScan_;
     LoginWindow loginWindow_;
     std::filesystem::path loginDataDirectory_;
     bool fullscreen_ = false;

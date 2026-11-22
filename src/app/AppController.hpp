@@ -14,6 +14,7 @@
 
 #include "app/AppState.hpp"
 #include "app/Config.hpp"
+#include "app/DiscordPresence.hpp"
 #include "app/Installer.hpp"
 #include "app/UiModel.hpp"
 #include "input/ControllerManager.hpp"
@@ -50,6 +51,13 @@ public:
         /// Where screenshots go, and how the folder is shown.
         std::filesystem::path picturesFolder;
         std::function<void(const std::filesystem::path&)> openFolder;
+        /// Capture cards: what is there (asked once per update, so it has to be quick) and how to open one.
+        std::function<std::vector<CaptureDevice>()> captureDevices;
+        std::function<std::unique_ptr<session::ISession>()> captureFactory;
+        /// The connection to Discord for the card "Playing VeloPlay". Without it there is no card.
+        std::function<std::unique_ptr<discord::IPipe>()> discordPipe;
+        std::uint32_t processId = 0;    // Discord ties the card to this process and clears it when it ends
+        std::string systemLanguage;     // for the card's texts when the language setting is "auto"
         /// Starts or ends a recording in the window. Without it there are no videos.
         std::function<void()> toggleRecording;
         /// How the recording stands, asked once per frame.
@@ -161,6 +169,7 @@ public:
     void takeScreenshot() override;
     void openPicturesFolder() override;
     void toggleRecording() override;
+    void showCapture(const std::string& deviceId) override;
     void openVideosFolder() override;
     /// The window reports how a screenshot went.
     void captureFinished(bool saved, std::string where, std::string detail, bool video = false);
@@ -205,6 +214,7 @@ private:
         bool restart = false;          // we stopped it to connect again with new settings
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
+        bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn
         bool waitingForRelease = false; // the console still holds the place of our session before
         Clock::time_point releaseDeadline{}; // until when that is waited for; zero = not waiting
     };
@@ -223,6 +233,8 @@ private:
     [[nodiscard]] std::optional<std::string> addressOf(const RegisteredConsole& console) const;
     void applySettings();
     void updateSessionGame();
+    /// Keeps Discord's card in line with the stream and the settings.
+    void updatePresence(Clock::time_point now);
     /// Starts or stops the microphone so that it runs exactly while a stream is shown and the setting is on.
     void updateMicrophone(Clock::time_point now);
     /// Ends recording. After it returns nothing reaches the session from the microphone.
@@ -254,6 +266,9 @@ private:
     Clock::time_point micRetryAt_{};           // not tried again before this
     bool micFailureLogged_ = false;
     std::string sessionGameName_;
+    std::unique_ptr<discord::Presence> presence_;
+    std::string presenceKey_;          // what the card's time belongs to: the source and its game
+    std::int64_t presenceSince_ = 0;   // Unix seconds when that began
     bool capturingKey_ = false;                // the settings wait for the key that is pressed next
     int capturedKey_ = 0;
     input::RemoteCommandProcessor remoteProcessor_;

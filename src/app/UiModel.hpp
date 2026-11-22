@@ -103,6 +103,16 @@ struct SessionView {
     /// The stream settings were changed since this session asked the console
     /// for its stream. They take effect with the next connection.
     bool settingsChanged = false;
+    /// The picture comes from a capture card, not from a console over the network.
+    bool capture = false;
+};
+
+/// A video source on this PC, such as a capture card (or a webcam, which Windows lists the same way).
+struct CaptureDevice {
+    std::string id;   // what Windows calls its symbolic link; opaque
+    std::string name; // as Windows names it
+
+    friend bool operator==(const CaptureDevice&, const CaptureDevice&) = default;
 };
 
 /// What the bar at the top of the window can ask of the window.
@@ -172,6 +182,11 @@ struct UiModel {
     /// Where screenshots go, as text for the settings; empty where there are none.
     std::string picturesFolder;
 
+    /// Capture cards and other video sources on this PC. Empty where there are none or the build has no support.
+    std::vector<CaptureDevice> captureDevices;
+    /// The card in Discord ("Playing VeloPlay") can be shown on this build.
+    bool discordAvailable = false;
+
     /// Recording the game as a video.
     struct RecordingView {
         bool available = false; // this PC can record (Windows with Media Foundation)
@@ -204,6 +219,10 @@ struct UiModel {
 
     bool remoteApiRunning = false;
     std::string gpuName;
+    /// Who made the graphics card. Features of one maker are hidden in the menu in the game on other
+    /// cards and shown greyed out in the settings.
+    enum class GpuVendor { Other, Nvidia, Amd, Intel };
+    GpuVendor gpuVendor = GpuVendor::Other;
     bool reducedMotion = false;
 
     /// Edited in place by the settings screens; they call configChanged() after.
@@ -270,6 +289,8 @@ public:
     virtual void takeScreenshot() = 0;
     /// Shows the folder with the screenshots in Explorer.
     virtual void openPicturesFolder() = 0;
+    /// Shows the picture of a capture card, with frame generation and everything else the stream has. Beta.
+    virtual void showCapture(const std::string& deviceId) = 0;
     /// Starts recording the game as a video, or ends the recording. Only while a game is shown.
     virtual void toggleRecording() = 0;
     /// Shows the folder with the videos in Explorer.

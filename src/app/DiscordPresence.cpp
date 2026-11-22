@@ -1,0 +1,180 @@
+#include "app/DiscordPresence.hpp"
+
+#include <cstring>
+
+#include <spdlog/spdlog.h>
+
+namespace veloplay::discord {
+
+using namespace std::chrono_literals;
+
+namespace {
+
+// Discord drops what comes faster than this; changes wait instead.
+constexpr auto kSendInterval = 15s;
+constexpr auto kRetryInterval = 5s;
+
+void putText(nlohmann::json& into, const char* key, const std::string& text) {
+    if (text.size() >= 2) into[key] = text.size() > 128 ? text.substr(0, 128) : text;
+}
+
+void putInt32(std::vector<std::uint8_t>& out, std::int32_t value) {
+    const auto v = static_cast<std::uint32_t>(value);
+    for (int i = 0; i < 4; ++i) out.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
+}
+
+std::int32_t getInt32(const std::uint8_t* p) {
+    return static_cast<std::int32_t>(static_cast<std::uint32_t>(p[0]) | (static_cast<std::uint32_t>(p[1]) << 8) |
+                                     (static_cast<std::uint32_t>(p[2]) << 16) | (static_cast<std::uint32_t>(p[3]) << 24));
+}
+
+} // namespace
+
+nlohmann::json activityJson(const Activity& activity) {
+    nlohmann::json out = nlohmann::json::object();
+    putText(out, "details", activity.game);
+    putText(out, "state", activity.state);
+    if (activity.since > 0) out["timestamps"] = {{"start", activity.since}};
+    nlohmann::json assets = {{"large_image", "veloplay"}};
+    putText(assets, "large_text", activity.largeText);
+    if (!activity.smallImage.empty()) {
+        assets["small_image"] = activity.smallImage;
+        putText(assets, "small_text", activity.smallText);
+    }
+    out["assets"] = assets;
+    if (activity.buttonLabel.size() >= 2 && activity.buttonUrl.rfind("https://", 0) == 0) {
+        out["buttons"] = nlohmann::json::array(
+            {{{"label", activity.buttonLabel.substr(0, 32)}, {"url", activity.buttonUrl}}});
+    }
+    return out;
+}
+
+std::vector<std::uint8_t> frame(Opcode opcode, const nlohmann::json& body) {
+    const std::string text = body.dump();
+    std::vector<std::uint8_t> out;
+    out.reserve(8 + text.size());
+    putInt32(out, static_cast<std::int32_t>(opcode));
+    putInt32(out, static_cast<std::int32_t>(text.size()));
+    out.insert(out.end(), text.begin(), text.end());
+    return out;
+}
+
+std::vector<Message> takeMessages(std::vector<std::uint8_t>& buffer) {
+    std::vector<Message> out;
+    std::size_t at = 0;
+    while (buffer.size() - at >= 8) {
+        const std::int32_t opcode = getInt32(buffer.data() + at);
+        const std::int32_t length = getInt32(buffer.data() + at + 4);
+        if (length < 0 || length > 1'000'000) {
+            // Nonsense: whatever follows cannot be read either.
+            buffer.clear();
+            return out;
+        }
+        if (buffer.size() - at - 8 < static_cast<std::size_t>(length)) break;
+        const auto* text = reinterpret_cast<const char*>(buffer.data() + at + 8);
+        Message message;
+        message.opcode = static_cast<Opcode>(opcode);
+        message.body = nlohmann::json::parse(text, text + length, nullptr, false);
+        out.push_back(std::move(message));
+        at += 8 + static_cast<std::size_t>(length);
+    }
+    buffer.erase(buffer.begin(), buffer.begin() + static_cast<std::ptrdiff_t>(at));
+    return out;
+}
+
+Presence::Presence(std::unique_ptr<IPipe> pipe, std::uint32_t processId)
+    : pipe_(std::move(pipe)), processId_(processId) {}
+
+Presence::~Presence() {
+    // The card goes with VeloPlay; Discord would also clear it once the process is gone.
+    if (ready_ && shown_) send(std::nullopt);
+    if (pipe_ && open_) pipe_->close();
+}
+
+void Presence::drop(Clock::time_point now) {
+    if (pipe_ && open_) pipe_->close();
+    open_ = false;
+    ready_ = false;
+    incoming_.clear();
+    shown_.reset();
+    retryAt_ = now + kRetryInterval;
+}
+
+bool Presence::send(const std::optional<Activity>& activity) {
+    nlohmann::json args = {{"pid", processId_}};
+    if (activity) args["activity"] = activityJson(*activity);
+    const nlohmann::json command = {{"cmd", "SET_ACTIVITY"}, {"args", args}, {"nonce", std::to_string(++nonce_)}};
+    return pipe_->write(frame(Opcode::Frame, command));
+}
+
+void Presence::update(const std::optional<Activity>& wanted, Clock::time_point now) {
+    if (!pipe_) return;
+    if (!open_) {
+        // Nothing to show: no reason to reach for Discord at all.
+        if (!wanted || now < retryAt_) return;
+        if (!pipe_->open()) {
+            retryAt_ = now + kRetryInterval;
+            return;
+        }
+        open_ = true;
+        const nlohmann::json hello = {{"v", 1}, {"client_id", std::string(kClientId)}};
+        if (!pipe_->write(frame(Opcode::Handshake, hello))) {
+            drop(now);
+            return;
+        }
+    }
+
+    std::optional<std::vector<std::uint8_t>> arrived = pipe_->read();
+    if (!arrived) {
+        spdlog::info("Discord: the connection closed");
+        drop(now);
+        return;
+    }
+    incoming_.insert(incoming_.end(), arrived->begin(), arrived->end());
+    for (Message& message : takeMessages(incoming_)) {
+        switch (message.opcode) {
+            case Opcode::Frame:
+                if (message.body.value("evt", "") == "READY") {
+                    ready_ = true;
+                    spdlog::info("Discord: connected");
+                } else if (message.body.value("evt", "") == "ERROR") {
+                    spdlog::warn("Discord refused the activity: {}", message.body.dump());
+                }
+                break;
+            case Opcode::Ping:
+                pipe_->write(frame(Opcode::Pong, message.body));
+                break;
+            case Opcode::Close:
+                spdlog::info("Discord: closed by Discord ({})", message.body.dump());
+                drop(now);
+                return;
+            default:
+                break;
+        }
+    }
+    // A change waits for Discord's pace; clearing the card does not: a stream that ended should not linger.
+    if (!ready_ || (wanted && now < nextSendAt_)) return;
+    if (wanted == shown_) return;
+    if (!send(wanted)) {
+        drop(now);
+        return;
+    }
+    shown_ = wanted;
+    nextSendAt_ = now + kSendInterval;
+    if (!wanted) {
+        // Nothing more to show: let go of Discord until something is.
+        pipe_->close();
+        open_ = false;
+        ready_ = false;
+        incoming_.clear();
+        retryAt_ = now;
+    }
+}
+
+} // namespace veloplay::discord
+
+#ifndef _WIN32
+namespace veloplay::discord {
+std::unique_ptr<IPipe> createPipe() { return nullptr; }
+} // namespace veloplay::discord
+#endif

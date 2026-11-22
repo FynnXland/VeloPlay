@@ -121,6 +121,8 @@ TEST(Config, RoundTripsEverything) {
     config.graphics.superResolutionLevel = 3;
     config.graphics.sharpness = 0.5f;
     config.graphics.deband = false;
+    config.discord.enabled = false;
+    config.discord.showGame = false;
     config.graphics.vsync = false;
     config.controller.deadzone = 0.12f;
     config.controller.rumble = false;

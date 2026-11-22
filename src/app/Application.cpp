@@ -334,6 +334,32 @@ int Application::run() {
         spdlog::info("Recording is not available: {}", recordMissing_);
     }
     options.videosFolder = videosFolder_;
+    captureScan_ = std::jthread([this](std::stop_token stop) {
+        while (!stop.stop_requested()) {
+            std::vector<CaptureDevice> found = capture::listDevices();
+            {
+                std::lock_guard lock(captureMutex_);
+                if (found != captureDevices_) {
+                    for (const CaptureDevice& device : found) {
+                        if (std::find(captureDevices_.begin(), captureDevices_.end(), device) == captureDevices_.end()) {
+                            spdlog::info("Video source found: {}", device.name);
+                        }
+                    }
+                    captureDevices_ = std::move(found);
+                }
+            }
+            for (int slice = 0; slice < 50 && !stop.stop_requested(); ++slice) Sleep(100);
+        }
+    });
+    options.captureDevices = [this] {
+        std::lock_guard lock(captureMutex_);
+        return captureDevices_;
+    };
+    // Discord's card while a game is streamed; the pipe finds Discord's desktop app if it runs.
+    options.discordPipe = [] { return discord::createPipe(); };
+    options.processId = GetCurrentProcessId();
+    options.systemLanguage = systemLanguage_;
+    options.captureFactory = [] { return std::unique_ptr<session::ISession>(std::make_unique<capture::CaptureSession>()); };
     options.toggleRecording = [this] { recordToggle_ = true; };
     options.recording = [this] {
         UiModel::RecordingView view;
@@ -523,6 +549,10 @@ void Application::frame() {
     diag::setStep("collecting what to show");
     controller_->fillModel(model_);
     model_.gpuName = device_.adapterName();
+    model_.gpuVendor = device_.adapterVendor() == 0x10DE   ? UiModel::GpuVendor::Nvidia
+                       : device_.adapterVendor() == 0x1002 ? UiModel::GpuVendor::Amd
+                       : device_.adapterVendor() == 0x8086 ? UiModel::GpuVendor::Intel
+                                                           : UiModel::GpuVendor::Other;
     model_.reducedMotion = reducedMotion();
     model_.rtxVideoAvailable = videoRenderer_.rtxAvailable();
     model_.ownWindowBar = true;

@@ -60,6 +60,7 @@ public:
     void takeScreenshot() override {}
     void openPicturesFolder() override {}
     void toggleRecording() override {}
+    void showCapture(const std::string&) override {}
     void openVideosFolder() override {}
     void startAccountLogin() override {}
     void submitAccountRedirect(std::string_view) override {}
@@ -242,7 +243,31 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              model.rtxVideoAvailable = true;
+             model.gpuVendor = UiModel::GpuVendor::Nvidia;
              model.config->graphics.superResolutionLevel = 2;
+             ui.openSettings(UiManager::SettingsTab::Picture);
+         }},
+        {"48-dashboard-capture",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.captureDevices = {{"usb#1", "USB3 Capture"}, {"usb#2", "Integrated Camera"}};
+         }},
+        {"49-pause-menu-capture",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "USB3 Capture";
+             model.session.capture = true;
+             model.session.connectedSeconds = 75;
+             model.stream = playingStats();
+             ui.showPauseMenu();
+         }},
+        {"47-settings-picture-amd",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.gpuName = "AMD Radeon RX 7800 XT";
+             model.gpuVendor = UiModel::GpuVendor::Amd;
+             model.rtxVideoAvailable = false;
              ui.openSettings(UiManager::SettingsTab::Picture);
          }},
         {"13-settings-controller",
@@ -355,6 +380,7 @@ std::vector<Scene> scenes() {
              model.config->remoteApi.enabled = true;
              model.config->manualHosts = {"10.0.20.5"};
              model.remoteApiRunning = true;
+             model.discordAvailable = true;
              ui.openSettings(UiManager::SettingsTab::Advanced);
          }},
         {"15-update-available",

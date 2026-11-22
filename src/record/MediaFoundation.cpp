@@ -37,6 +37,17 @@ const MediaFoundation* MediaFoundation::get(std::string* why) {
                          lookUp(readWrite, "MFCreateSinkWriterFromURL", functions.createSinkWriterFromUrl) &&
                          lookUp(readWrite, "MFCreateSourceReaderFromURL", functions.createSourceReaderFromUrl);
         if (!all) failure = "Media Foundation on this PC lacks functions VeloPlay needs";
+        // Capture cards need three more; without them only capture cards are unavailable.
+        const HMODULE devices = LoadLibraryExW(L"mf.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        const bool capture = devices && lookUp(devices, "MFEnumDeviceSources", functions.enumDeviceSources) &&
+                             lookUp(devices, "MFCreateDeviceSource", functions.createDeviceSource) &&
+                             lookUp(readWrite, "MFCreateSourceReaderFromMediaSource",
+                                    functions.createSourceReaderFromMediaSource);
+        if (!capture) {
+            functions.enumDeviceSources = nullptr;
+            functions.createDeviceSource = nullptr;
+            functions.createSourceReaderFromMediaSource = nullptr;
+        }
     });
     if (!failure.empty()) {
         if (why) *why = failure;

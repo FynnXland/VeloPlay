@@ -45,6 +45,7 @@ void MediaPipeline::end() {
     }
     video_.reset();
     audio_.reset();
+    pcm_ = false;
     if (options_.audio) options_.audio->stop();
     if (options_.haptics) options_.haptics->stop();
 }
@@ -193,6 +194,37 @@ bool MediaPipeline::onHaptics(std::span<const std::int16_t> stereo) {
     if (!options_.haptics || !hapticsEnabled_.load() || !options_.haptics->running()) return false;
     options_.haptics->write(upsampler_.convert(stereo));
     return true;
+}
+
+bool MediaPipeline::onPicture(VideoFrame picture) {
+    if (picture.width <= 0 || picture.height <= 0 || picture.layout == PixelLayout::D3D11Nv12 || !picture.planes[0]) {
+        return false;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    std::lock_guard lock(mutex_);
+    if (stats_.decodedFrames == 0) spdlog::info("First picture: {}x{}, as it is", picture.width, picture.height);
+    ++stats_.decodedFrames;
+    picture.sequence = stats_.decodedFrames;
+    if (picture.receivedAt == std::chrono::steady_clock::time_point{}) picture.receivedAt = now;
+    picture.decodedAt = now;
+    stats_.decoder = "none";
+    pending_.push_back(std::move(picture));
+    while (pending_.size() > 4) pending_.pop_front();
+    return true;
+}
+
+void MediaPipeline::onPcmFormat(int sampleRate, int channels) {
+    audio_.reset();
+    pcm_ = false;
+    if (!options_.audio || sampleRate <= 0 || channels <= 0) return;
+    if (options_.audio->start(sampleRate, channels, std::chrono::milliseconds{audioDelayMs_.load()})) {
+        pcm_ = true;
+        spdlog::info("Audio: {} Hz, {} channels, as it is", sampleRate, channels);
+    }
+}
+
+void MediaPipeline::onPcm(std::span<const std::int16_t> interleaved) {
+    if (pcm_) options_.audio->write(interleaved);
 }
 
 std::optional<VideoFrame> MediaPipeline::takeFrame() {

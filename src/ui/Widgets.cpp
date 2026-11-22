@@ -239,7 +239,7 @@ bool moreButton(const char* id) {
 
 // ---- segmented control -----------------------------------------------------
 
-int segmented(const char* id, std::span<const char* const> labels, int selected, float width) {
+int segmented(const char* id, std::span<const char* const> labels, int selected, float width, unsigned disabled) {
     const Palette& p = palette();
     Animator& animator = context().animator;
     const float height = px(36.0f);
@@ -268,10 +268,14 @@ int segmented(const char* id, std::span<const char* const> labels, int selected,
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         ImGui::PushID(i);
         ImGui::SetCursorScreenPos(ImVec2(min.x + pad + static_cast<float>(i) * segment, min.y));
+        const bool off = (disabled >> i) & 1u;
+        ImGui::BeginDisabled(off);
         if (ImGui::InvisibleButton("segment", ImVec2(segment, height), ImGuiButtonFlags_EnableNav)) result = i;
-        const bool hovered = ImGui::IsItemHovered();
+        ImGui::EndDisabled();
+        const bool hovered = !off && ImGui::IsItemHovered();
         const float active = clamp01(1.0f - std::abs(thumbX - static_cast<float>(i)));
-        const ImVec4 ink = mix(hovered ? p.text : p.textSecondary, p.onAccent, active);
+        ImVec4 ink = mix(hovered ? p.text : p.textSecondary, p.onAccent, active);
+        if (off) ink = p.textTertiary;
         const ImVec2 textSize = measure(TextStyle::Strong, labels[i]);
         drawText(draw,
                  ImVec2(min.x + pad + static_cast<float>(i) * segment + (segment - textSize.x) * 0.5f,
@@ -283,6 +287,18 @@ int segmented(const char* id, std::span<const char* const> labels, int selected,
     ImGui::Dummy(ImVec2(total, height));
     ImGui::PopID();
     return result;
+}
+
+void pill(std::string_view text, const ImVec4& color) {
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImVec2 size = measure(TextStyle::Caption, text);
+    const float padX = px(8.0f);
+    const float padY = px(2.0f);
+    const ImVec2 min = ImGui::GetCursorScreenPos();
+    const ImVec2 max(min.x + size.x + 2.0f * padX, min.y + size.y + 2.0f * padY);
+    fill(draw, min, max, toU32(color, 0.16f), (max.y - min.y) * 0.5f);
+    drawText(draw, ImVec2(min.x + padX, min.y + padY), TextStyle::Caption, color, text);
+    ImGui::Dummy(ImVec2(max.x - min.x, max.y - min.y));
 }
 
 // ---- toggle ----------------------------------------------------------------

@@ -90,6 +90,14 @@ struct WindowSettings {
     friend bool operator==(const WindowSettings&, const WindowSettings&) = default;
 };
 
+struct DiscordSettings {
+    /// While a game is streamed, Discord shows "Playing VeloPlay" with the game and the time. Discord has to run on this PC.
+    bool enabled = true;
+    bool showGame = true; // the game's name on the card; off: only that VeloPlay is in use
+
+    friend bool operator==(const DiscordSettings&, const DiscordSettings&) = default;
+};
+
 struct UpdateSettings {
     bool checkAtStartup = true;
 
@@ -125,6 +133,7 @@ struct AppConfig {
     AudioSettings audio{};
     WindowSettings window{};
     UpdateSettings updates{};
+    DiscordSettings discord{};
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast
     std::vector<RegisteredConsole> consoles;

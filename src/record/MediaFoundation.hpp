@@ -21,6 +21,10 @@ struct MediaFoundation {
     decltype(&::MFCreateMemoryBuffer) createMemoryBuffer = nullptr;
     decltype(&::MFCreateSinkWriterFromURL) createSinkWriterFromUrl = nullptr;
     decltype(&::MFCreateSourceReaderFromURL) createSourceReaderFromUrl = nullptr;
+    // For capture cards; they live in mf.dll and may be missing where recording still works.
+    decltype(&::MFEnumDeviceSources) enumDeviceSources = nullptr;
+    decltype(&::MFCreateDeviceSource) createDeviceSource = nullptr;
+    decltype(&::MFCreateSourceReaderFromMediaSource) createSourceReaderFromMediaSource = nullptr;
 
     /// The functions, or null with the reason in `why` if this PC has no Media Foundation.
     static const MediaFoundation* get(std::string* why = nullptr);

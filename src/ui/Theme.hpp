@@ -25,6 +25,7 @@ struct Palette {
     ImVec4 standby;
     ImVec4 offline;
     ImVec4 danger;
+    ImVec4 beta;          // the pill on features nobody could try on real hardware yet
     ImVec4 scrim;
 };
 

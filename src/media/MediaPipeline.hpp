@@ -102,6 +102,9 @@ public:
     void onAudioFormat(const session::AudioFormat& format) override;
     void onAudio(std::span<const std::uint8_t> packet) override;
     bool onHaptics(std::span<const std::int16_t> stereo) override;
+    bool onPicture(VideoFrame picture) override;
+    void onPcmFormat(int sampleRate, int channels) override;
+    void onPcm(std::span<const std::int16_t> interleaved) override;
 
     /// The newest picture that was not handed out yet. Called by the renderer.
     std::optional<VideoFrame> takeFrame();
@@ -126,6 +129,7 @@ private:
 
     // Network thread only, between begin() and end().
     std::unique_ptr<AudioDecoder> audio_;
+    bool pcm_ = false; // sound arrives as samples and goes straight to the output
     HapticsUpsampler upsampler_;
 
     // Decode thread only.

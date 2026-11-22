@@ -135,6 +135,21 @@ struct Strings {
     const char* upscalingRtxRefused;  // second line of that note
     const char* sharpness;
     const char* sharpnessHint;
+    const char* upscalingRtxOnlyNvidia;
+    const char* upscalingRtxMissing;
+    const char* beta;
+    const char* captureCards;
+    const char* captureCardsHint;
+    const char* captureShow;
+    const char* captureStop;
+    const char* pauseCaptureLink;
+    const char* presenceState;  // the second line of the card in Discord
+    const char* presenceButton; // the button others see on it
+    const char* discordTitle;
+    const char* discordShow;
+    const char* discordShowHint;
+    const char* discordGame;
+    const char* pauseCaptureControl;
     const char* deband;
     const char* debandHint;
     const char* vsync;

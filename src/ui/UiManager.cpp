@@ -516,6 +516,7 @@ void UiManager::drawDashboard(const UiModel& model) {
         space(24.0f);
         drawModePicker(model);
     }
+    drawCaptureCards(model);
 
     // Footer: what this build can do, and on which graphics card it runs.
     space(32.0f);
@@ -682,6 +683,50 @@ void UiManager::drawEmptyState(const UiModel& model) {
     }
     space(16.0f);
     if (button(t.enterAddress, ButtonKind::Secondary)) openPairing();
+}
+
+/// Capture cards (and cameras, which Windows lists the same way), only when there are any. Beta: nobody could
+/// try one on real hardware yet.
+void UiManager::drawCaptureCards(const UiModel& model) {
+    if (model.captureDevices.empty()) return;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    space(32.0f);
+    {
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const float titleHeight = measure(TextStyle::Strong, t.captureCards).y;
+        label(TextStyle::Strong, t.captureCards);
+        const float titleWidth = measure(TextStyle::Strong, t.captureCards).x;
+        const float pillHeight = measure(TextStyle::Caption, t.beta).y + px(4.0f);
+        ImGui::SetCursorScreenPos(ImVec2(start.x + titleWidth + px(10.0f), start.y + (titleHeight - pillHeight) * 0.5f));
+        pill(t.beta, p.beta);
+        ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + std::max(titleHeight, pillHeight)));
+    }
+    space(6.0f);
+    paragraph(TextStyle::Caption, t.captureCardsHint, p.textSecondary);
+    space(12.0f);
+    const bool idle = model.state == AppState::Idle || model.state == AppState::Error;
+    for (int i = 0; i < static_cast<int>(model.captureDevices.size()); ++i) {
+        const CaptureDevice& device = model.captureDevices[static_cast<std::size_t>(i)];
+        ImGui::PushID(i);
+        const float width = ImGui::GetContentRegionAvail().x;
+        const float height = px(60.0f);
+        const ImVec2 min = ImGui::GetCursorScreenPos();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.surface), px(14.0f));
+        const ImVec2 nameSize = measure(TextStyle::Strong, device.name);
+        // The name gives way to the button; a long one is cut off at the row's edge, not under the button.
+        const float buttonWidth = buttonSize(t.captureShow).x;
+        draw->PushClipRect(min, ImVec2(min.x + width - buttonWidth - px(28.0f), min.y + height), true);
+        drawText(draw, ImVec2(min.x + px(20.0f), min.y + (height - nameSize.y) * 0.5f), TextStyle::Strong, p.text,
+                 device.name);
+        draw->PopClipRect();
+        ImGui::SetCursorScreenPos(ImVec2(min.x + width - px(12.0f) - buttonWidth, min.y + (height - px(36.0f)) * 0.5f));
+        if (button(t.captureShow, ButtonKind::Secondary, ImVec2(0, 0), idle)) actions_.showCapture(device.id);
+        ImGui::SetCursorScreenPos(ImVec2(min.x, min.y + height));
+        space(10.0f);
+        ImGui::PopID();
+    }
 }
 
 void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console, int index) {
@@ -1857,15 +1902,20 @@ void UiManager::drawPauseMenu(const UiModel& model) {
     }
     const bool lowBattery = model.controllerConnected && model.controller.batteryPercent >= 0 &&
                             model.controller.batteryPercent <= 15 && !model.controller.charging;
+    // A capture card: no network to judge, and the controller is plugged into the console.
+    const bool fromCard = session.capture;
     const std::array<Tile, 3> tiles = {{
         {t.pauseTilePicture, format(t.pausePictureValue, {number(stats.outputFps, 0)}), pictureDetail, p.ready,
          SettingsTab::Picture},
-        {t.pauseTileLink, rough ? t.pauseLinkRough : t.pauseLinkGood,
-         format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0), number(stats.packetLossPercent, 1)}),
-         rough ? p.standby : p.ready, SettingsTab::Stream},
-        {t.pauseTileControl, controlValue, controlDetail,
-         !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready,
-         keys && !model.controllerConnected ? SettingsTab::Keyboard : SettingsTab::Controller},
+        fromCard ? Tile{t.pauseTileLink, t.captureCards, t.pauseCaptureLink, p.ready, SettingsTab::Picture}
+                 : Tile{t.pauseTileLink, rough ? t.pauseLinkRough : t.pauseLinkGood,
+                        format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0),
+                                                   number(stats.packetLossPercent, 1)}),
+                        rough ? p.standby : p.ready, SettingsTab::Stream},
+        fromCard ? Tile{t.pauseTileControl, t.pauseCaptureControl, std::string(), p.ready, SettingsTab::Controller}
+                 : Tile{t.pauseTileControl, controlValue, controlDetail,
+                        !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready,
+                        keys && !model.controllerConnected ? SettingsTab::Keyboard : SettingsTab::Controller},
     }};
     const float gap = px(12.0f);
     const float tileWidth = std::floor((width - 2.0f * gap) / 3.0f);
@@ -1943,6 +1993,8 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         const float rowBottom = ImGui::GetCursorScreenPos().y;
 
         ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
+        // Keys, mouse and microphone go to a console over the network; a capture card has no way back.
+        if (!session.capture) {
         ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(model.microphoneAvailable ? 84.0f : 36.0f)), ImGuiChildFlags_NavFlattened,
                           ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
         pushExplicitSpacing();
@@ -1959,6 +2011,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         }
         popExplicitSpacing();
         ImGui::EndChild();
+        }
         ImGui::SetCursorScreenPos(ImVec2(row.x, std::max(rowBottom, ImGui::GetCursorScreenPos().y)));
         ImGui::Dummy(ImVec2(1.0f, 1.0f));
         if (!(config == before)) actions_.configChanged();
@@ -1977,12 +2030,16 @@ void UiManager::drawPauseMenu(const UiModel& model) {
             scrollSettingsTo(1.0f);
         }
     }
-    const float sleepWidth = buttonSize(t.sleepConsole).x;
-    const float leaveWidth = buttonSize(t.disconnect).x;
-    ImGui::SetCursorScreenPos(ImVec2(buttons.x + width - sleepWidth - px(8.0f) - leaveWidth, buttons.y));
-    if (button(t.disconnect, ButtonKind::Secondary)) actions_.disconnect();
-    ImGui::SameLine(0.0f, px(8.0f));
-    if (button(t.sleepConsole, ButtonKind::Quiet)) actions_.sleepAndDisconnect();
+    // A capture card has no console on the line to send to rest.
+    const bool capture = session.capture;
+    const float sleepWidth = capture ? 0.0f : buttonSize(t.sleepConsole).x + px(8.0f);
+    const float leaveWidth = buttonSize(capture ? t.captureStop : t.disconnect).x;
+    ImGui::SetCursorScreenPos(ImVec2(buttons.x + width - sleepWidth - leaveWidth, buttons.y));
+    if (button(capture ? t.captureStop : t.disconnect, ButtonKind::Secondary)) actions_.disconnect();
+    if (!capture) {
+        ImGui::SameLine(0.0f, px(8.0f));
+        if (button(t.sleepConsole, ButtonKind::Quiet)) actions_.sleepAndDisconnect();
+    }
     space(16.0f);
     label(TextStyle::Caption, t.pauseKeys, p.textTertiary);
 }
@@ -2324,18 +2381,23 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     }
 
     space(18.0f);
+    // RTX Video is NVIDIA's. On other cards it stays in the list, greyed out, so it is clear what the
+    // choice would be; the menu in the game leaves it out there.
+    sectionTitle(t.upscaling, true);
+    const std::array<const char*, 3> methods = {t.off, "Lanczos", "RTX Video"};
     if (model.rtxVideoAvailable) {
-        // An NVIDIA card: its network is a third way to enlarge the picture.
-        sectionTitle(t.upscaling, true);
-        const std::array<const char*, 3> methods = {t.off, "Lanczos", "RTX Video"};
         config.graphics.superResolutionLevel = segmented("upscaling", methods, config.graphics.superResolutionLevel);
         hint(config.graphics.superResolutionLevel >= 2 ? t.upscalingRtxHint : t.upscalingHint);
     } else {
-        bool upscale = config.graphics.superResolutionLevel > 0;
-        toggleRow(t.upscaling, &upscale);
         // A file from a PC with an NVIDIA card keeps its choice; here it means Lanczos.
-        if (upscale != (config.graphics.superResolutionLevel > 0)) config.graphics.superResolutionLevel = upscale ? 1 : 0;
-        paragraph(TextStyle::Caption, t.upscalingHint, palette().textSecondary);
+        const int shown = std::min(config.graphics.superResolutionLevel, 1);
+        const int chosen = segmented("upscaling", methods, shown, 0.0f, 1u << 2);
+        if (chosen != shown) config.graphics.superResolutionLevel = chosen;
+        hint(t.upscalingHint);
+        space(4.0f);
+        paragraph(TextStyle::Caption,
+                  model.gpuVendor == UiModel::GpuVendor::Nvidia ? t.upscalingRtxMissing : t.upscalingRtxOnlyNvidia,
+                  palette().textTertiary);
     }
 
     space(18.0f);
@@ -2988,6 +3050,14 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         sectionTitle(t.micTitle);
         toggleRow(t.micEnable, &config.audio.microphone);
         paragraph(TextStyle::Caption, t.micHint, p.textSecondary);
+    }
+
+    if (model.discordAvailable) {
+        sectionTitle(t.discordTitle);
+        toggleRow(t.discordShow, &config.discord.enabled);
+        paragraph(TextStyle::Caption, t.discordShowHint, p.textSecondary);
+        space(6.0f);
+        toggleRow(t.discordGame, &config.discord.showGame, config.discord.enabled);
     }
 
     sectionTitle(t.jitter);

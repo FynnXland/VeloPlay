@@ -40,6 +40,8 @@ public:
     [[nodiscard]] ID3D11Device* device() const { return device_.Get(); }
     [[nodiscard]] ID3D11DeviceContext* context() const { return context_.Get(); }
     [[nodiscard]] const std::string& adapterName() const { return adapterName_; }
+    /// PCI vendor of the card: 0x10DE NVIDIA, 0x1002 AMD, 0x8086 Intel; 0 for the software renderer.
+    [[nodiscard]] unsigned adapterVendor() const { return adapterVendor_; }
     [[nodiscard]] bool tearingSupported() const { return tearingSupported_; }
     [[nodiscard]] UINT width() const { return width_; }
     [[nodiscard]] UINT height() const { return height_; }
@@ -54,6 +56,7 @@ private:
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain_;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTarget_;
     std::string adapterName_;
+    unsigned adapterVendor_ = 0;
     bool tearingSupported_ = false;
     UINT swapChainFlags_ = 0;
     HANDLE frameLatencyWait_ = nullptr; // owned by the swap chain

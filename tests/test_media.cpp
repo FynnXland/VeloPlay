@@ -501,6 +501,47 @@ TEST(MediaPipeline, HandsOutEveryPictureWithItsTimes) {
     pipeline.end();
 }
 
+TEST(MediaPipeline, TakesPicturesAndSoundThatNeedNoDecoding) {
+    FakeAudioOutput audio;
+    media::MediaPipeline pipeline({nullptr, &audio, nullptr});
+    pipeline.begin(StreamSettings{});
+
+    // An NV12 picture whose pixels belong to the frame itself; the copy in the queue keeps them alive.
+    std::weak_ptr<void> watch;
+    {
+        auto pixels = std::make_shared<std::vector<std::uint8_t>>(64 * 32 * 3 / 2, std::uint8_t{90});
+        media::VideoFrame picture;
+        picture.width = 64;
+        picture.height = 32;
+        picture.layout = media::PixelLayout::Nv12;
+        picture.planes = {pixels->data(), pixels->data() + 64 * 32, nullptr};
+        picture.strides = {64, 64, 0};
+        picture.owner = pixels;
+        watch = pixels;
+        EXPECT_TRUE(pipeline.onPicture(picture));
+        EXPECT_TRUE(pipeline.onPicture(picture));
+    }
+    EXPECT_FALSE(watch.expired());
+    const auto pictures = pipeline.takeFrames();
+    ASSERT_EQ(pictures.size(), 2u);
+    EXPECT_EQ(pictures[0].sequence, 1u);
+    EXPECT_EQ(pictures[1].sequence, 2u);
+    EXPECT_EQ(pictures[1].planes[0][10], 90);
+    EXPECT_NE(pictures[1].decodedAt, std::chrono::steady_clock::time_point{});
+    EXPECT_EQ(pipeline.stats().decodedFrames, 2u);
+    // A picture without pixels is refused.
+    EXPECT_FALSE(pipeline.onPicture(media::VideoFrame{}));
+
+    pipeline.onPcmFormat(48000, 2);
+    EXPECT_TRUE(audio.open);
+    EXPECT_EQ(audio.sampleRate, 48000);
+    const std::vector<std::int16_t> sound(960, 1234);
+    pipeline.onPcm(sound);
+    EXPECT_EQ(audio.samples.size(), 960u);
+    pipeline.end();
+    EXPECT_FALSE(audio.open);
+}
+
 TEST(MediaPipeline, WorksWithoutSoundDevices) {
     FakeAudioOutput audio;
     audio.available = false;
