@@ -152,6 +152,16 @@ private:
     std::chrono::steady_clock::time_point nextDisplayCheck_{};
     std::chrono::steady_clock::time_point nextRateSample_{};
     media::FrameChoice lastChoice_{};     // what the last refresh showed
+    // Decoded pictures in front of the renderer, which holds two: each goes in when the pacer needs
+    // it (FramePacer::wantsNext), so none pushes out a picture still shown and two that arrive within
+    // one refresh go out on two.
+    std::deque<media::VideoFrame> waiting_;
+    // For the 10-second log line: refreshes without a new picture, real pictures never shown,
+    // pictures dropped from a full queue.
+    std::uint64_t repeatedRefreshes_ = 0;
+    std::uint64_t skippedPictures_ = 0;
+    std::uint64_t overflowPictures_ = 0;
+    std::uint64_t lastRealShown_ = 0;
     bool generatorFailureLogged_ = false;
     std::string loggedGenerator_;         // the method for pictures in between that the log names last
     bool rtxFailureLogged_ = false;

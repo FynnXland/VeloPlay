@@ -113,7 +113,7 @@ class FramePacer {
 public:
     using Clock = std::chrono::steady_clock;
 
-    /// `factor` 1 switches generation off: every picture is shown when it arrives. `refresh` is
+    /// `factor` 1 switches generation off: every picture is shown in turn, a reserve after it arrives. `refresh` is
     /// the time between two refreshes of the screen, zero when not known yet.
     void configure(int factor, Clock::duration period, Clock::duration refresh = Clock::duration::zero());
     void reset();
@@ -131,6 +131,14 @@ public:
 
     /// When the newest picture itself goes to the screen. For tests and the log.
     [[nodiscard]] Clock::time_point newestDue() const { return current_.due; }
+
+    /// Whether the next picture waiting is needed for the refresh at `now`: with pictures in
+    /// between, once the first computed step after the newest picture is near; without, once the
+    /// next picture's own turn has come (one period after the newest). The renderer holds two
+    /// pictures; handed over earlier, a picture would push out one that is still being shown or
+    /// bridged, and two arriving within one refresh would show only the second. Pictures wait
+    /// in a short queue in front of it until this says yes.
+    [[nodiscard]] bool wantsNext(Clock::time_point now, Clock::duration slack = Clock::duration::zero()) const;
 
     /// What goes out with the refresh that happens at `now`. A screen shows
     /// pictures only at its refreshes, and a picture that is due a hair
@@ -154,7 +162,9 @@ public:
     /// milliseconds late: the display dropped below 60 now and then. The reserve is half a
     /// refresh plus how late pictures have come lately (nearly all of them, measured), so it is
     /// small on a steady link.
-    [[nodiscard]] Clock::duration reserve() const { return factor_ > 1 ? reserve_ : Clock::duration::zero(); }
+    /// Without pictures in between the same holds: a picture that comes a moment after a refresh, or two
+    /// that come within one, would leave a refresh without a new picture.
+    [[nodiscard]] Clock::duration reserve() const { return reserve_; }
 
     [[nodiscard]] int factor() const { return factor_; }
 

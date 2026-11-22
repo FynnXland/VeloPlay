@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <deque>
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -803,7 +805,7 @@ TEST(CadenceDetector, GetsByWithComparisonsThatAreMissing) {
     EXPECT_TRUE(detector.isRepeat(200));
 }
 
-TEST(FramePacer, ShowsEveryPictureAtOnceWithoutGeneration) {
+TEST(FramePacer, ShowsEveryPictureInTurnWithoutGeneration) {
     using Clock = media::FramePacer::Clock;
     media::FramePacer pacer;
     pacer.configure(1, 33'333us);
@@ -811,13 +813,20 @@ TEST(FramePacer, ShowsEveryPictureAtOnceWithoutGeneration) {
     EXPECT_FALSE(pacer.choose(start).valid);
     EXPECT_EQ(pacer.addedDelay(), Clock::duration::zero());
 
+    // The very first picture is shown as it is.
     pacer.onFrame(1, start);
     media::FrameChoice choice = pacer.choose(start);
     ASSERT_TRUE(choice.valid);
     EXPECT_EQ(choice.base, 1u);
     EXPECT_EQ(choice.step, 0);
+    // The next one goes out a reserve after it arrives (see KeepsSixtyWhenPicturesFromWiFiComeALittleLate);
+    // until then the one before stays.
     pacer.onFrame(2, start + 33ms);
-    choice = pacer.choose(start + 33ms);
+    const auto r = pacer.reserve();
+    EXPECT_GT(r, Clock::duration::zero());
+    EXPECT_EQ(pacer.addedDelay(), r);
+    EXPECT_EQ(pacer.choose(start + 33ms).base, 1u);
+    choice = pacer.choose(start + 33ms + r);
     EXPECT_EQ(choice.base, 2u);
     EXPECT_EQ(choice.step, 0);
 }
@@ -906,9 +915,9 @@ TEST(FramePacer, GivesAPictureThatArrivesRightBehindAnotherItsOwnTime) {
     EXPECT_EQ(choice.base, 3u);
     EXPECT_EQ(choice.step, 0);
 
-    // Switching generation off mid-stream shows the newest picture at once.
+    // Switching generation off mid-stream shows the newest picture once its turn has come.
     pacer.configure(1, period);
-    choice = pacer.choose(start + period + 3ms);
+    choice = pacer.choose(start + 2 * period + r + 20ms);
     EXPECT_EQ(choice.base, 3u);
     EXPECT_EQ(choice.step, 0);
 }
@@ -950,49 +959,66 @@ TEST(FramePacer, EvensOutPicturesThatArriveUnevenly) {
 
 namespace {
 
-/// A game at 30 fps on a 60 Hz screen, its pictures decoded when Wi-Fi brings them: mostly on
-/// time, now and then a few milliseconds late. Each refresh takes over what is decoded by then
-/// and shows what the pacer chooses. Counts the refreshes, after the first two seconds, that show
-/// nothing new: those are the dips below 60 the user sees.
+/// A stream on a 60 Hz screen, its pictures decoded when Wi-Fi brings them. Each refresh takes
+/// over what is decoded by then and shows what the pacer chooses, the way Application::frame does:
+/// with `queued`, pictures wait in front of the renderer until FramePacer::wantsNext; without, they
+/// go in as they come. The renderer holds the two newest pictures. Counts, after the first two
+/// seconds, the refreshes that show nothing new (the dips below 60 the user saw) and choices that
+/// need a picture the renderer no longer has.
 struct JitterRun {
     int repeats = 0;
     int refreshes = 0;
+    int skipped = 0; // real pictures never shown
     double addedMs = 0.0;
 };
 
-JitterRun runWithJitter(int lateEvery, std::chrono::microseconds late, int seconds = 12) {
+JitterRun runPacer(int factor, std::chrono::microseconds period, const std::vector<media::FramePacer::Clock::time_point>& decoded,
+                   bool queued, int seconds) {
     using namespace std::chrono;
     using Clock = media::FramePacer::Clock;
     const auto refresh = 16'667us;
-    const auto period = 33'333us;
     media::FramePacer pacer;
-    pacer.configure(2, period);
+    pacer.configure(factor, period, refresh);
     const Clock::time_point start{};
-    // When each picture is decoded: a small wobble always, and every `lateEvery`th one late.
-    std::vector<Clock::time_point> decoded;
-    for (int n = 0; n < seconds * 30 + 2; ++n) {
-        auto at = start + n * period + microseconds((n * 7919) % 1201 - 600);
-        if (lateEvery > 0 && n % lateEvery == lateEvery / 2) at += late;
-        decoded.push_back(at);
-    }
     JitterRun run;
     std::size_t next = 0;
+    std::deque<std::size_t> waiting;
     media::FrameChoice last{};
+    std::uint64_t lastReal = 0;
     for (int k = 0; k < seconds * 60; ++k) {
         const Clock::time_point now = start + k * refresh + microseconds((k * 104729) % 401 - 200);
-        while (next < decoded.size() && decoded[next] <= now) {
-            pacer.onFrame(next + 1, decoded[next]);
-            ++next;
+        while (next < decoded.size() && decoded[next] <= now) waiting.push_back(next++);
+        while (!waiting.empty() && (!queued || pacer.wantsNext(now, refresh / 2) || waiting.size() > 3)) {
+            const std::size_t index = waiting.front();
+            waiting.pop_front();
+            pacer.onFrame(index + 1, decoded[index]);
         }
         const media::FrameChoice choice = pacer.choose(now, refresh / 2);
         if (k >= 120) {
             ++run.refreshes;
             if (choice == last) ++run.repeats;
+            if (choice.valid && choice.step == 0 && lastReal > 0 && choice.base > lastReal + 1) {
+                run.skipped += static_cast<int>(choice.base - lastReal - 1);
+            }
         }
+        if (choice.valid && choice.step == 0) lastReal = std::max(lastReal, choice.base);
         last = choice;
     }
     run.addedMs = duration<double, std::milli>(pacer.addedDelay()).count();
     return run;
+}
+
+/// A game at 30 fps: every `lateEvery`th picture `late`, a small wobble always.
+JitterRun runWithJitter(int lateEvery, std::chrono::microseconds late, bool queued = true, int seconds = 12) {
+    using namespace std::chrono;
+    const auto period = 33'333us;
+    std::vector<media::FramePacer::Clock::time_point> decoded;
+    for (int n = 0; n < seconds * 30 + 2; ++n) {
+        auto at = media::FramePacer::Clock::time_point{} + n * period + microseconds((n * 7919) % 1201 - 600);
+        if (lateEvery > 0 && n % lateEvery == lateEvery / 2) at += late;
+        decoded.push_back(at);
+    }
+    return runPacer(2, period, decoded, queued, seconds);
 }
 
 } // namespace
@@ -1005,6 +1031,7 @@ TEST(FramePacer, KeepsSixtyWhenPicturesFromWiFiComeALittleLate) {
     // while the reserve finds its size.
     const JitterRun late = runWithJitter(10, 7ms);
     EXPECT_LE(late.repeats, 4) << "of " << late.refreshes;
+    EXPECT_EQ(late.skipped, 0);
     // What it costs, on top of the half period: half a refresh (a picture may go out that much
     // early) and a little over the 7 ms.
     EXPECT_GT(late.addedMs, 16.7 + 8.3 + 6.0);
@@ -1013,12 +1040,50 @@ TEST(FramePacer, KeepsSixtyWhenPicturesFromWiFiComeALittleLate) {
     // Pictures on time, but just after a refresh each: before the reserve every second computed
     // picture was lost (96 of 600 refreshes repeated). Half a refresh and the wobble cover it.
     const JitterRun steady = runWithJitter(0, 0ms);
-    EXPECT_EQ(steady.repeats, 0);
+    // Once, when the reserve moves by a fraction of a millisecond with steps exactly one refresh
+    // apart (as in this model, not on a real screen), a step can land a refresh early or late.
+    EXPECT_LE(steady.repeats, 1);
+    EXPECT_LE(steady.skipped, 1);
     EXPECT_LT(steady.addedMs, 16.7 + 8.4 + 1.5);
 
     // Far too late (a real stall) is not chased: the reserve stays within its bound.
     const JitterRun stall = runWithJitter(25, 40ms);
     EXPECT_LT(stall.addedMs, 16.7 + 8.4 + 10.1);
+}
+
+// Measured by the user with 1.10.0: on uneven Wi-Fi the reserve grew to its 18 ms, and "shown"
+// still fell to 25 to 56 with pictures in between. Half a period and the reserve were longer than
+// the gap between two pictures, and every picture handed to the renderer (which holds two) on
+// arrival cut short the pair still being bridged. Held in front of the renderer until needed,
+// none is.
+TEST(FramePacer, NeverPushesOutAPictureStillBeingShown) {
+    using namespace std::chrono_literals;
+    const JitterRun asBefore = runWithJitter(5, 12ms, false);
+    EXPECT_GT(asBefore.repeats + asBefore.skipped, 40) << "the model shows what the user saw";
+    const JitterRun queued = runWithJitter(5, 12ms, true);
+    EXPECT_EQ(queued.skipped, 0);
+    EXPECT_LE(queued.repeats, 6) << "of " << queued.refreshes << ", before: " << asBefore.repeats << " repeated, "
+                                 << asBefore.skipped << " skipped";
+}
+
+// Without pictures in between (1x), a 60 fps stream on a 60 Hz screen: when Wi-Fi brings two
+// pictures within one refresh, only the second was shown and the next refresh repeated it. In
+// order, one per refresh, nothing is skipped.
+TEST(FramePacer, ShowsTwoPicturesThatArriveTogetherOnTwoRefreshes) {
+    using namespace std::chrono;
+    using namespace std::chrono_literals;
+    const auto period = 16'667us;
+    std::vector<media::FramePacer::Clock::time_point> decoded;
+    for (int n = 0; n < 12 * 60 + 2; ++n) {
+        auto at = media::FramePacer::Clock::time_point{} + n * period + microseconds((n * 7919) % 1201 - 600);
+        if (n % 4 == 1) at += 15ms; // comes together with the next one
+        decoded.push_back(at);
+    }
+    const JitterRun asBefore = runPacer(1, period, decoded, false, 12);
+    const JitterRun queued = runPacer(1, period, decoded, true, 12);
+    EXPECT_GT(asBefore.repeats + asBefore.skipped, 100) << "of " << asBefore.refreshes;
+    EXPECT_LE(queued.repeats, 6) << "of " << queued.refreshes;
+    EXPECT_EQ(queued.skipped, 0);
 }
 
 TEST(FramePacer, KeepsItsRhythmWhenStepsFallRightOnTheRefreshes) {

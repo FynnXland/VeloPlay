@@ -59,6 +59,8 @@ public:
     [[nodiscard]] std::uint16_t registPort() const { return registSocket_.localEndpoint().port; }
     [[nodiscard]] int wakeupsReceived() const { return wakeups_; }
     [[nodiscard]] int searchesReceived() const { return searches_; }
+    /// False: the answers to the search leave out which game runs, as a console might while it is played remotely.
+    void setNamesGame(bool names) { namesGame_ = names; }
     [[nodiscard]] bool standby() const { return standby_; }
 
     static std::string registKeyAscii() { return "1b3d4f5a"; }
@@ -93,7 +95,7 @@ private:
             answer += "host-request-port:997\n";
             answer += "device-discovery-protocol-version:00030010\n";
             answer += "system-version:09400004\n";
-            if (!standby_) answer += "running-app-name:Astro's Playroom\nrunning-app-titleid:PPSA01325\n";
+            if (!standby_ && namesGame_) answer += "running-app-name:Astro's Playroom\nrunning-app-titleid:PPSA01325\n";
             (void)discoverySocket_.sendTo(asBytes(answer), (*datagram)->from);
         } else if (text.starts_with("WAKEUP * HTTP/1.1\n")) {
             const auto headers = protocol::parseHeaderLines(text.substr(text.find('\n') + 1));
@@ -182,6 +184,7 @@ private:
     std::atomic<bool> standby_;
     std::atomic<int> wakeups_{0};
     std::atomic<int> searches_{0};
+    std::atomic<bool> namesGame_{true};
     net::UdpSocket discoverySocket_;
     net::UdpSocket registSocket_;
     net::TcpListener registListener_;

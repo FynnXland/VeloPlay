@@ -1092,6 +1092,18 @@ void AppController::updateWheel() {
     configChanged();
 }
 
+namespace {
+
+/// The card's pictures, from the public repository. Discord takes an https address in place of an
+/// art asset uploaded to the application (Activity Asset Image, "External URL assets"): a picture
+/// that was never uploaded there, or under another name, showed as the application's icon instead.
+std::string discordPicture(std::string_view name) {
+    return "https://raw.githubusercontent.com/" + std::string(update::kReleaseRepository) + "/main/assets/discord/" +
+           std::string(name) + ".png";
+}
+
+} // namespace
+
 void AppController::updatePresence(Clock::time_point now) {
     if (!presence_ && options_.discordPipe) {
         presence_ = std::make_unique<discord::Presence>(options_.discordPipe(), options_.processId);
@@ -1108,15 +1120,16 @@ void AppController::updatePresence(Clock::time_point now) {
     discord::Activity activity;
     if (session_->capture) {
         activity.game = t.captureCards;
-        activity.platformImage = "capture";
+        activity.platformImage = discordPicture("capture");
         activity.platformText = t.captureCards;
     } else {
         if (config_.discord.showGame) activity.game = sessionGameName_;
-        activity.platformImage = "ps5";
+        activity.platformImage = discordPicture("ps5");
         activity.platformText = "PS5";
     }
     activity.state = t.presenceState;
     activity.appText = "VeloPlay";
+    activity.appImage = discordPicture("veloplay");
     activity.buttonLabel = t.presenceButton;
     activity.buttonUrl = "https://github.com/" + std::string(update::kReleaseRepository);
     // The time runs from the start of the stream, and starts again with another game.
@@ -1266,6 +1279,9 @@ void AppController::updateSessionGame() {
     } else {
         for (const protocol::DiscoveredHost& host : discovered_) {
             if (!equalsIgnoreCase(host.info.hostId, session_->hostId) || host.info.state != protocol::HostState::Ready) continue;
+            // An answer without a game keeps the one before for the session: the console may leave the
+            // field out while it is being played remotely (Discord then showed no game at all).
+            if (host.info.runningAppTitleId.empty() && !sessionGameId_.empty()) continue;
             id = host.info.runningAppTitleId;
             name = host.info.runningAppName;
         }
@@ -1273,6 +1289,10 @@ void AppController::updateSessionGame() {
     if (id == sessionGameId_) return;
     sessionGameId_ = std::move(id);
     sessionGameName_ = std::move(name);
+    if (session_) {
+        spdlog::info("Game on the console: {}", sessionGameName_.empty() ? std::string("none named") :
+                                                    sessionGameName_ + " (" + sessionGameId_ + ")");
+    }
     const input::KeyboardMouseSettings& all = config_.controller.keyboardMouse;
     keyboardMouse_.configure(input::settingsFor(all, sessionGameId_));
     if (all.enabled && session_) {

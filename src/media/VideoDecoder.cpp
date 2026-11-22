@@ -95,6 +95,9 @@ Result<std::unique_ptr<VideoDecoder>> VideoDecoder::create(const Options& option
     if (options.d3d11Device) {
         if (AVBufferRef* device = createD3D11VaDevice(options.d3d11Device)) {
             context->hw_device_ctx = device; // the context owns the reference now
+            // Decoded pictures wait a little before they are drawn (a few in the pipeline, a few in the
+            // window's queue in front of the renderer), each holding a surface of the decoder's pool.
+            context->extra_hw_frames = 12;
             impl->hardwareAttached = true;
         }
     }

@@ -24,8 +24,9 @@ struct Activity {
     std::int64_t since = 0; // Unix seconds when the stream began
     // The big picture is where the game comes from ("ps5" or "capture"), the small one VeloPlay:
     // the card is about the game, VeloPlay stays at the side.
-    std::string platformImage;
+    std::string platformImage; // an art asset's name, or an https address of a picture
     std::string platformText; // shown when the big picture is pointed at
+    std::string appImage = "veloplay";
     std::string appText;      // shown when the small VeloPlay picture is pointed at
     std::string buttonLabel;
     std::string buttonUrl;

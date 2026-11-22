@@ -565,8 +565,12 @@ TEST(AppControllerSession, ShowsTheStreamInDiscordAndClearsItAfterwards) {
     const nlohmann::json& shown = log->activities[0];
     EXPECT_EQ(shown["pid"], 77);
     EXPECT_EQ(shown["activity"]["state"], "über VeloPlay");
-    EXPECT_EQ(shown["activity"]["assets"]["large_image"], "ps5");
-    EXPECT_EQ(shown["activity"]["assets"]["small_image"], "veloplay");
+    // The pictures by address from the public repository: an art asset that was never uploaded to
+    // Discord's application showed as its icon instead.
+    EXPECT_EQ(shown["activity"]["assets"]["large_image"],
+              "https://raw.githubusercontent.com/FynnXland/VeloPlay/main/assets/discord/ps5.png");
+    EXPECT_EQ(shown["activity"]["assets"]["small_image"],
+              "https://raw.githubusercontent.com/FynnXland/VeloPlay/main/assets/discord/veloplay.png");
     EXPECT_GT(shown["activity"]["timestamps"]["start"].get<std::int64_t>(), 1'700'000'000);
 
     h.app->disconnect();
@@ -1234,6 +1238,13 @@ TEST(AppControllerSession, UsesTheLayoutOfTheGameThatRuns) {
     ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
     // The console names its game in the answers to the search; the layout follows.
     ASSERT_TRUE(h.runUntil([&] { return h.model.currentGameId == "PPSA01325"; }));
+    EXPECT_EQ(h.model.currentGameName, "Astro's Playroom");
+    // Answers that leave the game out keep it for the session (Discord showed no game otherwise).
+    console.setNamesGame(false);
+    const int before = console.searchesReceived();
+    ASSERT_TRUE(h.runUntil([&] { return console.searchesReceived() >= before + 2; }));
+    h.app->update();
+    EXPECT_EQ(h.model.currentGameId, "PPSA01325");
     EXPECT_EQ(h.model.currentGameName, "Astro's Playroom");
 
     h.app->keyboardMouse().key('W', true);

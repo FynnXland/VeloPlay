@@ -53,12 +53,12 @@ nlohmann::json activityJson(const Activity& activity) {
     if (activity.since > 0) out["timestamps"] = {{"start", activity.since}};
     nlohmann::json assets = nlohmann::json::object();
     if (activity.platformImage.empty()) {
-        assets["large_image"] = "veloplay";
+        assets["large_image"] = activity.appImage;
         putText(assets, "large_text", activity.appText);
     } else {
         assets["large_image"] = activity.platformImage;
         putText(assets, "large_text", activity.platformText);
-        assets["small_image"] = "veloplay";
+        assets["small_image"] = activity.appImage;
         putText(assets, "small_text", activity.appText);
     }
     out["assets"] = assets;

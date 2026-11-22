@@ -3,6 +3,34 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.10.1
+
+- **Fewer dips below 60, second step.** Decoded pictures now wait in a short queue and go to the
+  screen one per refresh, in order. Before, two pictures that Wi-Fi brought within one refresh
+  showed only the second, and with pictures in between, a large reserve could cut short the
+  picture still being computed. Without pictures in between, VeloPlay now also waits a small
+  reserve (about 9 ms) so a picture that comes a moment late still gets its own refresh.
+- **Discord shows the game again.** If the console stops naming its game during the stream,
+  VeloPlay keeps the name it had. The pictures on the card now come straight from the public
+  project, so "PS5" shows even if the picture was never set up in Discord.
+- The log names, every ten seconds, how many refreshes had no new picture and how many pictures
+  were never shown, to find the cause if it still happens.
+
+**Deutsch**
+
+- **Seltener unter 60, zweiter Schritt.** Entpackte Bilder warten jetzt in einer kurzen Schlange
+  und gehen der Reihe nach auf den Bildschirm, eines pro Bildwechsel. Bisher zeigte VeloPlay von
+  zwei Bildern, die das WLAN innerhalb eines Bildwechsels brachte, nur das zweite, und mit
+  Zwischenbildern konnte eine große Reserve das gerade berechnete Bild abschneiden. Ohne
+  Zwischenbilder wartet VeloPlay jetzt ebenfalls eine kleine Reserve (etwa 9 ms), damit auch ein
+  etwas spätes Bild seinen eigenen Bildwechsel bekommt.
+- **Discord zeigt wieder das Spiel.** Nennt die Konsole ihr Spiel während des Streams nicht mehr,
+  behält VeloPlay den Namen, den es hatte. Die Bilder der Karte kommen jetzt direkt aus dem
+  öffentlichen Projekt, so erscheint „PS5“ auch dann, wenn das Bild in Discord nie eingerichtet
+  wurde.
+- Das Protokoll nennt alle zehn Sekunden, wie viele Bildwechsel ohne neues Bild waren und wie
+  viele Bilder nie gezeigt wurden, damit sich die Ursache finden lässt, falls es weiter passiert.
+
 ## 1.10.0
 
 - **Fewer dips below 60.** With pictures in between, a computed picture was lost whenever the next

@@ -118,7 +118,7 @@ void FramePacer::reset() {
 }
 
 FramePacer::Clock::duration FramePacer::addedDelay() const {
-    return period_ * (factor_ - 1) / factor_ + reserve();
+    return period_ * (factor_ - 1) / factor_ + reserve_;
 }
 
 void FramePacer::measureLateness(Clock::time_point arrival) {
@@ -159,12 +159,12 @@ void FramePacer::measureLateness(Clock::time_point arrival) {
 }
 
 void FramePacer::onFrame(std::uint64_t id, Clock::time_point arrival) {
-    if (factor_ > 1) measureLateness(arrival);
+    measureLateness(arrival);
     Slot slot;
     slot.valid = true;
     slot.id = id;
     slot.due = arrival + addedDelay();
-    if (current_.valid && factor_ > 1) {
+    if (current_.valid) {
         // Even distances: 97 % of a period after the picture before, which
         // takes about a second to make up for one that came 10 ms late.
         const Clock::time_point even = current_.due + period_ * 97 / 100;
@@ -177,6 +177,12 @@ void FramePacer::onFrame(std::uint64_t id, Clock::time_point arrival) {
     current_ = slot;
 }
 
+bool FramePacer::wantsNext(Clock::time_point now, Clock::duration slack) const {
+    if (!current_.valid) return true;
+    now += std::clamp(slack, Clock::duration::zero(), period_ / (2 * factor_));
+    return now >= current_.due + period_ / factor_;
+}
+
 FrameChoice FramePacer::choose(Clock::time_point now, Clock::duration slack) const {
     // No more slack than half a step, or a picture could go out a whole step early.
     now += std::clamp(slack, Clock::duration::zero(), period_ / (2 * factor_));
@@ -184,8 +190,13 @@ FrameChoice FramePacer::choose(Clock::time_point now, Clock::duration slack) con
     if (!current_.valid) return choice;
     choice.valid = true;
     choice.steps = factor_;
-    if (!previous_.valid || factor_ <= 1 || now >= current_.due || current_.due <= previous_.due) {
+    if (!previous_.valid || now >= current_.due || current_.due <= previous_.due) {
         choice.base = current_.id;
+        return choice;
+    }
+    // Without pictures in between, the one before stays until the newest one's turn.
+    if (factor_ <= 1) {
+        choice.base = previous_.id;
         return choice;
     }
     // Between the two: how far along the way from the previous picture's

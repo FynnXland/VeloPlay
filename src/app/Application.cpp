@@ -693,9 +693,30 @@ void Application::frame() {
         diag::setStep("taking over a picture");
         const auto now = std::chrono::steady_clock::now();
         videoRenderer_.wantGeneration(pacer_.factor() > 1);
-        for (const media::VideoFrame& picture : pipeline_->takeFrames()) {
+        // How far apart the screen's refreshes are, taken from how often this
+        // point is reached. Half of that is how early a picture may go out,
+        // so each one goes with the refresh nearest to its moment.
+        if (lastRefresh_ != std::chrono::steady_clock::time_point{}) {
+            const double gap = std::chrono::duration<double, std::milli>(now - lastRefresh_).count();
+            if (gap > 1.0 && gap < 50.0) refreshMs_ = refreshMs_ == 0.0 ? gap : refreshMs_ * 0.9 + gap * 0.1;
+        }
+        lastRefresh_ = now;
+        const auto slack = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            std::chrono::duration<double, std::milli>(refreshMs_ * 0.5));
+        for (media::VideoFrame& picture : pipeline_->takeFrames()) waiting_.push_back(std::move(picture));
+        // More waiting than a few refreshes' worth (the window was held up, the screen is slower than
+        // the stream): the oldest go, so the picture does not trail ever further behind.
+        while (waiting_.size() > 8) {
+            waiting_.pop_front();
+            ++overflowPictures_;
+        }
+        while (!waiting_.empty()) {
             // The repeats of a game that runs at half the stream's rate are compared and left out.
             const bool repeat = skipRepeats_ && cadence_.isRepeat(videoRenderer_.submitted() + 1);
+            // A real picture goes to the renderer once it is needed; repeats are only measured, in turn.
+            if (!repeat && !pacer_.wantsNext(now, slack) && waiting_.size() <= 4) break;
+            const media::VideoFrame picture = std::move(waiting_.front());
+            waiting_.pop_front();
             const bool taken = videoRenderer_.submit(picture, !repeat);
             while (const auto change = videoRenderer_.takeChange()) cadence_.add(change->picture, change->mean);
             if (cadence_.halved() != loggedHalved_) {
@@ -722,16 +743,6 @@ void Application::frame() {
                 spdlog::warn("Frame generation is not available: {}", videoRenderer_.frameGeneratorError());
             }
         }
-        // How far apart the screen's refreshes are, taken from how often this
-        // point is reached. Half of that is how early a picture may go out,
-        // so each one goes with the refresh nearest to its moment.
-        if (lastRefresh_ != std::chrono::steady_clock::time_point{}) {
-            const double gap = std::chrono::duration<double, std::milli>(now - lastRefresh_).count();
-            if (gap > 1.0 && gap < 50.0) refreshMs_ = refreshMs_ == 0.0 ? gap : refreshMs_ * 0.9 + gap * 0.1;
-        }
-        lastRefresh_ = now;
-        const auto slack = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-            std::chrono::duration<double, std::milli>(refreshMs_ * 0.5));
         output.choice = pacer_.choose(now, slack);
         output.upscale = config.graphics.superResolutionLevel > 0;
         output.rtx = config.graphics.superResolutionLevel >= 2;
@@ -744,6 +755,11 @@ void Application::frame() {
         output.look = config.graphics.look;
         output.lookStrength = config.graphics.lookStrength;
         // A picture counts as shown when it differs from the one before, real or computed.
+        if (output.choice.valid && output.choice == lastChoice_ && videoRenderer_.hasPicture()) ++repeatedRefreshes_;
+        if (output.choice.valid && output.choice.step == 0 && output.choice.base > lastRealShown_) {
+            if (lastRealShown_ > 0 && output.choice.base > lastRealShown_ + 1) skippedPictures_ += output.choice.base - lastRealShown_ - 1;
+            lastRealShown_ = output.choice.base;
+        }
         if (output.choice.valid && !(output.choice == lastChoice_)) {
             freshPicture = true;
             lastChoice_ = output.choice;
@@ -800,6 +816,8 @@ void Application::frame() {
 
 void Application::forgetPictures() {
     videoRenderer_.clear();
+    waiting_.clear();
+    lastRealShown_ = 0;
     frameTimes_.clear();
     lastPicture_ = {};
     lastChoice_ = {};
@@ -1065,11 +1083,14 @@ void Application::logStreamSummary(std::chrono::steady_clock::time_point now) {
     const media::MediaPipeline::Stats media = pipeline_ ? pipeline_->stats() : media::MediaPipeline::Stats{};
     spdlog::info("Stream: console {:.1f} fps, shown {:.1f} fps, {:.1f} Mbit/s, loss {:.1f} %, decoder {:.1f} ms "
                  "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x, {:.0f} ms inside the PC, "
-                 "{:.1f} ms waited for late pictures, screen {:.0f} Hz{}{}",
+                 "{:.1f} ms waited for late pictures, {} refreshes without a new picture, {} pictures never shown, "
+                 "{} dropped from the queue, screen {:.0f} Hz{}{}{}",
                  stream.streamFps, stream.outputFps, stream.bitrateMbps,
                  stream.packetLossPercent, media.decodeMs, media.decodeMaxMs, media.decodedFrames, media.droppedFrames,
                  media.failedFrames, pacer_.factor(), insideMs_,
-                 std::chrono::duration<double, std::milli>(pacer_.reserve()).count(), displayHz_,
+                 std::chrono::duration<double, std::milli>(pacer_.reserve()).count(), std::exchange(repeatedRefreshes_, 0),
+                 std::exchange(skippedPictures_, 0), std::exchange(overflowPictures_, 0), displayHz_,
+                 GetForegroundWindow() == window_ ? "" : ", window not in front",
                  cadence_.halved() ? ", game at 30 fps (every other picture repeats)" : "",
                  IsIconic(window_) ? ", window minimised" : "");
 }
