@@ -27,6 +27,7 @@ add_executable(veloplay_tests
     test_recording.cpp
     test_capture.cpp
     test_discord.cpp
+    test_wheel.cpp
 )
 target_link_libraries(veloplay_tests PRIVATE veloplay_core miniz::miniz veloplay_opus GTest::gtest GTest::gtest_main)
 if(WIN32)

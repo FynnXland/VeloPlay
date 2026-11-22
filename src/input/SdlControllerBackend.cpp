@@ -48,6 +48,8 @@ class SdlControllerBackend final : public IControllerBackend {
 public:
     ~SdlControllerBackend() override {
         for (auto& [id, pad] : pads_) SDL_CloseGamepad(pad.handle);
+        for (auto& [id, stick] : sticks_) closeStick(stick);
+        SDL_QuitSubSystem(SDL_INIT_HAPTIC);
         SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
     }
 
@@ -56,6 +58,16 @@ public:
         // and closing happens here, under the lock that read() takes too.
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_JOYSTICK_ADDED || event.type == SDL_EVENT_JOYSTICK_REMOVED) {
+                // Gamepads come as both; those are handled below. The rest are wheels, sticks, pedals.
+                std::lock_guard lock(mutex_);
+                if (event.type == SDL_EVENT_JOYSTICK_ADDED) {
+                    if (!SDL_IsGamepad(event.jdevice.which)) openStick(event.jdevice.which);
+                } else {
+                    closeStickById(event.jdevice.which);
+                }
+                continue;
+            }
             if (event.type != SDL_EVENT_GAMEPAD_ADDED && event.type != SDL_EVENT_GAMEPAD_REMOVED) continue;
             std::lock_guard lock(mutex_);
             if (event.type == SDL_EVENT_GAMEPAD_ADDED) open(event.gdevice.which);
@@ -64,7 +76,71 @@ public:
     }
 
     // SDL allows SDL_UpdateGamepads and the getters from any thread.
-    void refresh() override { SDL_UpdateGamepads(); }
+    void refresh() override {
+        SDL_UpdateGamepads();
+        SDL_UpdateJoysticks();
+    }
+
+    std::vector<JoystickInfo> joysticks() const override {
+        std::lock_guard lock(mutex_);
+        std::vector<JoystickInfo> result;
+        for (const auto& [id, stick] : sticks_) result.push_back(stick.info);
+        return result;
+    }
+
+    std::optional<RawJoystick> readJoystick(std::uint32_t id) override {
+        std::lock_guard lock(mutex_);
+        const auto it = sticks_.find(id);
+        if (it == sticks_.end()) return std::nullopt;
+        SDL_Joystick* joystick = it->second.handle;
+        RawJoystick raw;
+        const int axes = std::min(SDL_GetNumJoystickAxes(joystick), 16);
+        for (int i = 0; i < axes; ++i) raw.axes.push_back(SDL_GetJoystickAxis(joystick, i));
+        const int buttons = std::min(SDL_GetNumJoystickButtons(joystick), 64);
+        for (int i = 0; i < buttons; ++i) {
+            if (SDL_GetJoystickButton(joystick, i)) raw.buttons |= std::uint64_t{1} << i;
+        }
+        if (SDL_GetNumJoystickHats(joystick) > 0) {
+            const Uint8 hat = SDL_GetJoystickHat(joystick, 0);
+            raw.hat = static_cast<std::uint8_t>(((hat & SDL_HAT_UP) ? 1 : 0) | ((hat & SDL_HAT_RIGHT) ? 2 : 0) |
+                                                ((hat & SDL_HAT_DOWN) ? 4 : 0) | ((hat & SDL_HAT_LEFT) ? 8 : 0));
+        }
+        return raw;
+    }
+
+    bool setCentering(std::uint32_t id, float strength) override {
+        std::lock_guard lock(mutex_);
+        const auto it = sticks_.find(id);
+        if (it == sticks_.end() || !it->second.haptic) return false;
+        Stick& stick = it->second;
+        if (strength <= 0.0f) {
+            if (stick.spring >= 0) SDL_StopHapticEffect(stick.haptic, stick.spring);
+            return true;
+        }
+        // A spring on the steering axis: the further from the middle, the harder it pulls back.
+        // Capped below the device's maximum; nobody has tried this on a real wheel yet.
+        const Uint16 level = static_cast<Uint16>(std::clamp(strength, 0.0f, 1.0f) * 0.6f * 0xFFFF);
+        SDL_HapticEffect effect{};
+        effect.condition.type = SDL_HAPTIC_SPRING;
+        effect.condition.direction.type = SDL_HAPTIC_CARTESIAN;
+        effect.condition.direction.dir[0] = 1;
+        effect.condition.length = SDL_HAPTIC_INFINITY;
+        effect.condition.right_sat[0] = level;
+        effect.condition.left_sat[0] = level;
+        effect.condition.right_coeff[0] = static_cast<Sint16>(level / 2);
+        effect.condition.left_coeff[0] = static_cast<Sint16>(level / 2);
+        effect.condition.deadband[0] = 0x400;
+        if (stick.spring < 0) {
+            stick.spring = SDL_CreateHapticEffect(stick.haptic, &effect);
+            if (stick.spring < 0) {
+                spdlog::warn("Wheel {}: no centring spring: {}", stick.info.name, SDL_GetError());
+                return false;
+            }
+        } else if (!SDL_UpdateHapticEffect(stick.haptic, stick.spring, &effect)) {
+            return false;
+        }
+        return SDL_RunHapticEffect(stick.haptic, stick.spring, 1);
+    }
 
     std::vector<ControllerInfo> controllers() const override {
         std::lock_guard lock(mutex_);
@@ -160,6 +236,12 @@ public:
         SDL_JoystickID* ids = SDL_GetGamepads(&count);
         for (int i = 0; ids && i < count; ++i) open(ids[i]);
         SDL_free(ids);
+        std::lock_guard lock(mutex_);
+        ids = SDL_GetJoysticks(&count);
+        for (int i = 0; ids && i < count; ++i) {
+            if (!SDL_IsGamepad(ids[i])) openStick(ids[i]);
+        }
+        SDL_free(ids);
     }
 
 private:
@@ -167,6 +249,48 @@ private:
         SDL_Gamepad* handle = nullptr;
         ControllerInfo info;
     };
+    struct Stick {
+        SDL_Joystick* handle = nullptr;
+        SDL_Haptic* haptic = nullptr; // force feedback, where the device has it
+        SDL_HapticEffectID spring = -1;
+        JoystickInfo info;
+    };
+
+    void openStick(SDL_JoystickID id) {
+        if (sticks_.contains(id)) return;
+        SDL_Joystick* handle = SDL_OpenJoystick(id);
+        if (!handle) return;
+        Stick stick;
+        stick.handle = handle;
+        stick.info.id = id;
+        const char* name = SDL_GetJoystickName(handle);
+        stick.info.name = name ? name : "Joystick";
+        stick.haptic = SDL_OpenHapticFromJoystick(handle);
+        if (stick.haptic && (SDL_GetHapticFeatures(stick.haptic) & SDL_HAPTIC_SPRING) == 0) {
+            SDL_CloseHaptic(stick.haptic);
+            stick.haptic = nullptr;
+        }
+        stick.info.force = stick.haptic != nullptr;
+        spdlog::info("Joystick connected: {} ({} axes, {} buttons{})", stick.info.name, SDL_GetNumJoystickAxes(handle),
+                     SDL_GetNumJoystickButtons(handle), stick.info.force ? ", force feedback" : "");
+        sticks_.emplace(id, std::move(stick));
+    }
+
+    static void closeStick(Stick& stick) {
+        if (stick.haptic) {
+            // A spring left running would keep pulling after VeloPlay is gone.
+            SDL_StopHapticEffects(stick.haptic);
+            SDL_CloseHaptic(stick.haptic);
+        }
+        SDL_CloseJoystick(stick.handle);
+    }
+
+    void closeStickById(SDL_JoystickID id) {
+        const auto it = sticks_.find(id);
+        if (it == sticks_.end()) return;
+        closeStick(it->second);
+        sticks_.erase(it);
+    }
     // Guards pads_: the window's thread opens and closes, another one reads.
     mutable std::mutex mutex_;
 
@@ -206,6 +330,7 @@ private:
     }
 
     std::map<std::uint32_t, Pad> pads_;
+    std::map<std::uint32_t, Stick> sticks_;
 };
 
 } // namespace
@@ -223,6 +348,8 @@ std::unique_ptr<IControllerBackend> createSdlControllerBackend() {
         spdlog::error("SDL gamepad support could not start: {}", SDL_GetError());
         return nullptr;
     }
+    // Force feedback for steering wheels; without it wheels still work, they just do not pull back.
+    if (!SDL_InitSubSystem(SDL_INIT_HAPTIC)) spdlog::info("SDL force feedback is not available: {}", SDL_GetError());
     auto backend = std::make_unique<SdlControllerBackend>();
     backend->openConnected();
     return backend;

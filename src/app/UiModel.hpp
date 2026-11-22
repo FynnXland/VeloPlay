@@ -12,6 +12,7 @@
 #include "app/StreamAlerts.hpp"
 #include "app/StreamStats.hpp"
 #include "input/ControllerState.hpp"
+#include "input/Wheel.hpp"
 #include "input/IControllerBackend.hpp"
 #include "protocol/LatencyStats.hpp"
 #include "update/Updater.hpp"
@@ -140,6 +141,19 @@ struct UiModel {
     /// yet; -1 = the user pressed Esc). Codes as in input/KeyboardMouse.hpp.
     bool capturingKey = false;
     int capturedKey = 0;
+
+    /// A steering wheel (beta): what is plugged in and what it does right now.
+    struct WheelView {
+        std::vector<input::JoystickInfo> devices; // wheels, pedals and other joysticks that are no gamepad
+        bool present = false;    // the configured wheel is plugged in
+        bool force = false;      // it can pull back
+        float steer = 0.0f;      // -1 left .. 1 right, as it goes to the console
+        float gas = 0.0f;        // 0 .. 1
+        float brake = 0.0f;
+        std::uint32_t pressed = 0; // controller buttons it presses right now
+        int capturing = -1;      // the WheelTarget waiting for a movement; -1 none
+    };
+    WheelView wheel;
     /// The game keys and mouse are laid out for right now: the one running on
     /// the console of the session, or, with no session, on the first console
     /// that runs one. Empty if none is known.
@@ -248,6 +262,11 @@ public:
     /// and clears it.
     virtual void captureKey() = 0;
     virtual void endKeyCapture() = 0;
+    /// Waits for the wheel to show which axis or button is meant for `target` (a WheelTarget).
+    virtual void captureWheel(int target) = 0;
+    virtual void endWheelCapture() = 0;
+    /// Which joystick is the wheel, by its name.
+    virtual void chooseWheel(const std::string& name) = 0;
     /// The bar at the top asks for something to be done with the window.
     virtual void windowAction(WindowAction action) = 0;
     /// Lets the active controller vibrate for a moment, to try it out. Not during a session.

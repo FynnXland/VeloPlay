@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "input/ControllerState.hpp"
+#include "input/Wheel.hpp"
 
 namespace veloplay::input {
 
@@ -57,6 +58,20 @@ public:
     /// Sends a controller-specific effects block, see DualSenseEffects.hpp.
     /// Returns false if the controller does not take such blocks.
     virtual bool sendEffect(std::uint32_t id, std::span<const std::uint8_t> block) = 0;
+
+    // Joysticks that are no gamepad: steering wheels with pedals, flight sticks.
+    [[nodiscard]] virtual std::vector<JoystickInfo> joysticks() const { return {}; }
+    /// What it reports right now; from any thread, like read(). Empty if it is gone.
+    [[nodiscard]] virtual std::optional<RawJoystick> readJoystick(std::uint32_t id) {
+        (void)id;
+        return std::nullopt;
+    }
+    /// A spring that pulls the wheel back to the middle; 0 switches it off. False if the device has none.
+    virtual bool setCentering(std::uint32_t id, float strength) {
+        (void)id;
+        (void)strength;
+        return false;
+    }
 };
 
 } // namespace veloplay::input

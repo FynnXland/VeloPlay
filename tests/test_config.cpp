@@ -123,6 +123,12 @@ TEST(Config, RoundTripsEverything) {
     config.graphics.deband = false;
     config.discord.enabled = false;
     config.discord.showGame = false;
+    config.controller.wheel.enabled = true;
+    config.controller.wheel.device = "Racing Wheel";
+    config.controller.wheel.steerAxis = 0;
+    config.controller.wheel.gas = {2, 32767, -32768};
+    config.controller.wheel.buttons[0] = 5;
+    config.controller.wheel.centering = 0.5f;
     config.graphics.vsync = false;
     config.controller.deadzone = 0.12f;
     config.controller.rumble = false;

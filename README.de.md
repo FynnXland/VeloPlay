@@ -50,6 +50,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Zeigt das Bild einer Capture-Card genauso (Beta)
+- Lässt dich mit Lenkrad und Pedalen lenken (Beta)
 - Zeigt auf Wunsch in Discord, welches Spiel du über VeloPlay spielst
 - Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint, und installiert sich auf
   Wunsch mit Eintrag im Startmenü auf deinem PC

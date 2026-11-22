@@ -955,6 +955,115 @@ TEST(AppControllerSession, PassesAButtonPressOnWithoutWaitingForTheNextPicture) 
     EXPECT_EQ(h.sessions->inputs(), after);
 }
 
+namespace {
+
+/// No gamepad, one steering wheel whose axes and buttons a test moves.
+class ScriptedWheel final : public input::IControllerBackend {
+public:
+    struct Shared {
+        std::mutex mutex;
+        input::RawJoystick raw;
+        float centering = 0.0f;
+        int springCalls = 0;
+    };
+    explicit ScriptedWheel(std::shared_ptr<Shared> shared) : shared_(std::move(shared)) {}
+    void poll() override {}
+    std::vector<input::ControllerInfo> controllers() const override { return {}; }
+    std::optional<input::ControllerState> read(std::uint32_t) override { return std::nullopt; }
+    bool rumble(std::uint32_t, std::uint16_t, std::uint16_t, std::chrono::milliseconds) override { return false; }
+    bool sendEffect(std::uint32_t, std::span<const std::uint8_t>) override { return false; }
+    std::vector<input::JoystickInfo> joysticks() const override { return {{3, "Racing Wheel", true}}; }
+    std::optional<input::RawJoystick> readJoystick(std::uint32_t id) override {
+        if (id != 3) return std::nullopt;
+        std::lock_guard lock(shared_->mutex);
+        return shared_->raw;
+    }
+    bool setCentering(std::uint32_t, float strength) override {
+        std::lock_guard lock(shared_->mutex);
+        shared_->centering = strength;
+        ++shared_->springCalls;
+        return true;
+    }
+
+private:
+    std::shared_ptr<Shared> shared_;
+};
+
+} // namespace
+
+TEST(AppControllerSession, SteersWithAWheelOnceItsAxesAreShown) {
+    test::MockConsole console({});
+    auto wheel = std::make_shared<ScriptedWheel::Shared>();
+    wheel->raw.axes = {0, 32767, 32767};
+    const auto move = [&](auto change) {
+        std::lock_guard lock(wheel->mutex);
+        change(wheel->raw);
+    };
+    Harness h(console, "session_wheel.json", true, 60s, 0us, std::make_unique<ScriptedWheel>(wheel));
+    ASSERT_TRUE(h.pair());
+    h.app->chooseWheel("Racing Wheel");
+    h.app->config().controller.wheel.enabled = true;
+    h.app->configChanged();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.wheel.present; }));
+    EXPECT_TRUE(h.model.wheel.force);
+
+    // Turn the wheel to show the steering axis.
+    h.app->captureWheel(static_cast<int>(input::WheelTarget::Steer));
+    h.app->update();
+    h.app->fillModel(h.model);
+    EXPECT_EQ(h.model.wheel.capturing, static_cast<int>(input::WheelTarget::Steer));
+    move([](input::RawJoystick& raw) { raw.axes[0] = -25000; });
+    ASSERT_TRUE(h.runUntil([&] { return h.model.wheel.capturing == -1; }));
+    EXPECT_EQ(h.app->config().controller.wheel.steerAxis, 0);
+    move([](input::RawJoystick& raw) { raw.axes[0] = 0; });
+
+    // Press the gas pedal all the way and let go.
+    h.app->captureWheel(static_cast<int>(input::WheelTarget::Gas));
+    h.app->update();
+    move([](input::RawJoystick& raw) { raw.axes[2] = -32768; });
+    h.app->update();
+    move([](input::RawJoystick& raw) { raw.axes[2] = 32767; });
+    ASSERT_TRUE(h.runUntil([&] { return h.model.wheel.capturing == -1; }));
+    EXPECT_EQ(h.app->config().controller.wheel.gas.axis, 2);
+    EXPECT_EQ(h.app->config().controller.wheel.gas.pressed, -32768);
+
+    // A button for Cross.
+    h.app->captureWheel(static_cast<int>(input::WheelTarget::Cross));
+    h.app->update();
+    move([](input::RawJoystick& raw) { raw.buttons = 1u << 4; });
+    ASSERT_TRUE(h.runUntil([&] { return h.model.wheel.capturing == -1; }));
+    EXPECT_EQ(h.app->config().controller.wheel.buttons[0], 4);
+    move([](input::RawJoystick& raw) { raw.buttons = 0; });
+
+    // No spring before the stream.
+    h.app->update();
+    EXPECT_EQ(wheel->centering, 0.0f);
+
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    h.app->update();
+    EXPECT_NEAR(wheel->centering, h.app->config().controller.wheel.centering, 0.01f);
+
+    // Steering left with gas reaches the console as the left stick and R2.
+    move([](input::RawJoystick& raw) {
+        raw.axes[0] = -32768;
+        raw.axes[2] = -32768;
+        raw.buttons = 1u << 4;
+    });
+    h.app->update();
+    const input::ControllerState sent = h.sessions->input();
+    EXPECT_LT(sent.leftX, -30000);
+    EXPECT_EQ(sent.r2, 255);
+    EXPECT_TRUE(sent.pressed(input::Button::Cross));
+
+    // After the stream the wheel lets go.
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    h.app->update();
+    EXPECT_EQ(wheel->centering, 0.0f);
+}
+
 TEST(AppControllerSession, ConnectsAgainToApplyNewStreamSettings) {
     test::MockConsole console({});
     Harness h(console, "session_apply.json");

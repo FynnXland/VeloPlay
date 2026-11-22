@@ -171,6 +171,7 @@ void AppController::update() {
     updateSession(now);
     updateMicrophone(now);
     updatePresence(now);
+    updateWheel();
     diag::setStep("pairing, remote control, settings");
     updatePairing();
     updateAccountLookup();
@@ -263,6 +264,20 @@ void AppController::fillModel(UiModel& model) {
 
     if (options_.captureDevices && options_.captureFactory) model.captureDevices = options_.captureDevices();
     model.discordAvailable = static_cast<bool>(options_.discordPipe);
+    model.wheel = UiModel::WheelView{};
+    model.wheel.devices = controllers_.joysticks();
+    model.wheel.capturing = wheelCapture_.active() ? static_cast<int>(wheelCapture_.target()) : -1;
+    for (const input::JoystickInfo& device : model.wheel.devices) {
+        if (device.name == config_.controller.wheel.device) model.wheel.force = device.force;
+    }
+    if (const auto raw = controllers_.readWheel()) {
+        model.wheel.present = true;
+        const input::ControllerState mapped = input::mapWheel(config_.controller.wheel, *raw);
+        model.wheel.steer = static_cast<float>(mapped.leftX) / 32767.0f;
+        model.wheel.gas = static_cast<float>(mapped.r2) / 255.0f;
+        model.wheel.brake = static_cast<float>(mapped.l2) / 255.0f;
+        model.wheel.pressed = mapped.buttons;
+    }
     model.updaterAvailable = updater_ != nullptr;
     model.install.available = options_.installer != nullptr;
     if (options_.installer) {
@@ -363,7 +378,8 @@ void AppController::pumpInput(std::stop_token stop) {
         // Straight from the device, not what update() saw at the last picture.
         // Controller first, then keys and mouse, then scripts: each adds to what is before it.
         pumpSession_->setControllerState(
-            input::mergeInputs(input::mergeInputs(controllers_.readNow(), keyboardMouse_.state(now)),
+            input::mergeInputs(input::mergeInputs(input::mergeInputs(controllers_.readNow(), controllers_.wheelNow()),
+                                                  keyboardMouse_.state(now)),
                                virtualController_.state(now)),
             now);
     }
@@ -371,8 +387,9 @@ void AppController::pumpInput(std::stop_token stop) {
 
 input::ControllerState AppController::sessionInput() {
     const auto now = Clock::now();
-    return input::mergeInputs(input::mergeInputs(controllers_.state(), keyboardMouse_.state(now)),
-                              virtualController_.state(now));
+    return input::mergeInputs(
+        input::mergeInputs(input::mergeInputs(controllers_.state(), controllers_.wheelNow()), keyboardMouse_.state(now)),
+        virtualController_.state(now));
 }
 
 // ---- actions -----------------------------------------------------------
@@ -988,6 +1005,69 @@ void AppController::openPicturesFolder() {
     if (options_.openFolder && !options_.picturesFolder.empty()) options_.openFolder(options_.picturesFolder);
 }
 
+void AppController::captureWheel(int target) {
+    if (target < 0 || target >= static_cast<int>(input::WheelTarget::Count)) return;
+    const auto raw = controllers_.readWheel();
+    if (!raw) return;
+    // What the wheel shows right now is "at rest"; the movement from there decides.
+    wheelCapture_.start(static_cast<input::WheelTarget>(target), *raw);
+}
+
+void AppController::endWheelCapture() { wheelCapture_.cancel(); }
+
+void AppController::chooseWheel(const std::string& name) {
+    input::WheelSettings& wheel = config_.controller.wheel;
+    if (wheel.device == name) return;
+    // Another wheel numbers its axes and buttons its own way: start over.
+    const input::WheelSettings fresh;
+    const bool enabled = wheel.enabled;
+    const float centering = wheel.centering;
+    wheel = fresh;
+    wheel.device = name;
+    wheel.enabled = enabled;
+    wheel.centering = centering;
+    wheelCapture_.cancel();
+    configChanged();
+}
+
+void AppController::updateWheel() {
+    // While a game streams, the wheel pulls back to the middle, as one does at a console with force feedback.
+    const bool streaming = session_ && session_->connected && !session_->capture &&
+                           stateMachine_.state() == AppState::Streaming;
+    const input::WheelSettings& wheel = config_.controller.wheel;
+    controllers_.setWheelCentering(streaming && wheel.enabled ? wheel.centering : 0.0f);
+
+    if (!wheelCapture_.active()) return;
+    const auto raw = controllers_.readWheel();
+    if (!raw) {
+        wheelCapture_.cancel();
+        return;
+    }
+    const auto found = wheelCapture_.feed(*raw);
+    if (!found) return;
+    input::WheelSettings& settings = config_.controller.wheel;
+    switch (found->target) {
+        case input::WheelTarget::Steer:
+            settings.steerAxis = found->index;
+            settings.steerCenter = found->rest;
+            break;
+        case input::WheelTarget::Gas: settings.gas = {found->index, found->rest, found->extreme}; break;
+        case input::WheelTarget::Brake: settings.brake = {found->index, found->rest, found->extreme}; break;
+        default: {
+            // One button presses one control: it leaves the control it had before.
+            for (int& button : settings.buttons) {
+                if (button == found->index) button = -1;
+            }
+            settings.buttons[static_cast<std::size_t>(static_cast<int>(found->target) -
+                                                      static_cast<int>(input::WheelTarget::Cross))] = found->index;
+            break;
+        }
+    }
+    spdlog::info("Wheel: {} is {} {}", static_cast<int>(found->target),
+                 found->target <= input::WheelTarget::Brake ? "axis" : "button", found->index);
+    configChanged();
+}
+
 void AppController::updatePresence(Clock::time_point now) {
     if (!presence_ && options_.discordPipe) {
         presence_ = std::make_unique<discord::Presence>(options_.discordPipe(), options_.processId);
@@ -1181,6 +1261,7 @@ void AppController::updateSessionGame() {
 void AppController::applySettings() {
     controllers_.setDeadzone(config_.controller.deadzone);
     controllers_.setPreferredName(config_.controller.preferredName);
+    controllers_.setWheel(config_.controller.wheel);
     keyboardMouse_.configure(input::settingsFor(config_.controller.keyboardMouse, sessionGameId_));
     updateDirectTargets();
     applyRemoteApi();

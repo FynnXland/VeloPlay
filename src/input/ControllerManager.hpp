@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -63,6 +64,17 @@ public:
     [[nodiscard]] EffectStrength hapticStrength() const { return hapticStrength_; }
     [[nodiscard]] EffectStrength triggerStrength() const { return triggerStrength_; }
 
+    /// Steering wheels and other joysticks that are no gamepad, as of the last update().
+    [[nodiscard]] const std::vector<JoystickInfo>& joysticks() const { return joysticks_; }
+    /// How the wheel is set up. The wheel is the joystick with the configured name.
+    void setWheel(const WheelSettings& settings);
+    /// The wheel's raw reading, for finding out its axes; empty without a wheel.
+    [[nodiscard]] std::optional<RawJoystick> readWheel();
+    /// What the wheel stands for on the controller, from any thread. Neutral when it is off or not there.
+    [[nodiscard]] ControllerState wheelNow();
+    /// The spring of a wheel with force feedback; 0 lets go.
+    void setWheelCentering(float strength);
+
     /// Plug and unplug events since the last call.
     std::vector<Event> takeEvents();
 
@@ -80,6 +92,12 @@ private:
     ControllerState state_{};
     std::vector<Event> events_;
     // What readNow() needs, readable from another thread. Id 0 is never a controller.
+    std::vector<JoystickInfo> joysticks_;
+    std::mutex wheelMutex_; // guards wheel_ against the input thread
+    WheelSettings wheel_;
+    std::atomic<std::uint32_t> wheelId_{0};
+    std::atomic<bool> wheelPresent_{false};
+    float wheelCentering_ = -1.0f; // what the device was last told; -1 = nothing yet
     std::atomic<std::uint32_t> liveActiveId_{0};
     std::atomic<bool> liveHasActive_{false};
     std::atomic<float> liveDeadzone_{0.08f};

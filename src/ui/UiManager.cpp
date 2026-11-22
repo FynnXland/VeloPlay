@@ -2450,6 +2450,138 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     space(2.0f);
     toggleRow(t.adaptiveTriggers, &config.controller.adaptiveTriggers);
     hint(t.adaptiveTriggersHint);
+
+    drawWheel(model, config);
+}
+
+/// A steering wheel with pedals, beta: nobody has tried one on real hardware yet. The axes are shown by
+/// moving them, never guessed; each row shows live what the wheel does.
+void UiManager::drawWheel(const UiModel& model, AppConfig& config) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    input::WheelSettings& wheel = config.controller.wheel;
+    const UiModel::WheelView& view = model.wheel;
+
+    space(20.0f);
+    {
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const ImVec2 title = measure(TextStyle::Strong, t.wheelTitle);
+        label(TextStyle::Strong, t.wheelTitle);
+        const float pillHeight = measure(TextStyle::Caption, t.beta).y + px(4.0f);
+        ImGui::SetCursorScreenPos(ImVec2(start.x + title.x + px(10.0f), start.y + (title.y - pillHeight) * 0.5f));
+        pill(t.beta, p.beta);
+        ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + std::max(title.y, pillHeight)));
+    }
+    space(8.0f);
+    if (view.devices.empty()) {
+        paragraph(TextStyle::Caption, t.wheelNone, p.textSecondary);
+        return;
+    }
+    const std::string current = wheel.device.empty() ? std::string(t.wheelChoose) : wheel.device;
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(8.0f), px(8.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(px(8.0f), px(6.0f)));
+    if (ImGui::BeginCombo("##wheel", current.c_str())) {
+        for (const input::JoystickInfo& device : view.devices) {
+            if (ImGui::Selectable(device.name.c_str(), device.name == wheel.device)) actions_.chooseWheel(device.name);
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopStyleVar(2);
+    if (wheel.device.empty()) {
+        hint(t.wheelChooseHint);
+        return;
+    }
+    if (!view.present) {
+        hint(t.wheelMissing);
+        return;
+    }
+    space(10.0f);
+    toggleRow(t.wheelUse, &wheel.enabled);
+    hint(t.wheelHint);
+    space(12.0f);
+
+    // One row per part: name, what it does now, which axis or button, and the button to show it.
+    const float width = ImGui::GetContentRegionAvail().x;
+    const auto row = [&](int target, const std::string& name, const std::string& assigned, float level, bool centred,
+                         bool lit, bool bar) {
+        ImGui::PushID(target);
+        const float height = px(36.0f);
+        const ImVec2 min = ImGui::GetCursorScreenPos();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const ImVec2 nameSize = measure(TextStyle::Body, name);
+        drawText(draw, ImVec2(min.x, min.y + (height - nameSize.y) * 0.5f), TextStyle::Body, lit ? p.accent : p.text, name);
+        // The live bar: from the middle for steering, from the left for pedals.
+        const float barX = min.x + width * 0.30f;
+        const float barWidth = width * 0.22f;
+        const float barY = min.y + height * 0.5f - px(3.0f);
+        const bool waiting = view.capturing == target;
+        // While waiting, the instruction takes the bar's place: it needs the room, and the bar says nothing yet.
+        bar = bar && !waiting;
+        if (bar) fill(draw, ImVec2(barX, barY), ImVec2(barX + barWidth, barY + px(6.0f)), toU32(p.control), px(3.0f));
+        if (bar && level != 0.0f) {
+            const float from = centred ? barX + barWidth * 0.5f : barX;
+            const float to = centred ? from + barWidth * 0.5f * std::clamp(level, -1.0f, 1.0f)
+                                     : barX + barWidth * std::clamp(level, 0.0f, 1.0f);
+            fill(draw, ImVec2(std::min(from, to), barY), ImVec2(std::max(from, to), barY + px(6.0f)), toU32(p.accent),
+                 px(3.0f));
+        }
+        const std::string status = waiting ? std::string(target <= static_cast<int>(input::WheelTarget::Brake)
+                                                             ? (target == 0 ? t.wheelTurnNow : t.wheelPressPedalNow)
+                                                             : t.wheelPressButtonNow)
+                                           : assigned;
+        const ImVec2 statusSize = measure(TextStyle::Caption, status);
+        drawText(draw, ImVec2(bar ? barX + barWidth + px(14.0f) : barX, min.y + (height - statusSize.y) * 0.5f), TextStyle::Caption,
+                 waiting ? p.accent : p.textSecondary, status);
+        const char* action = waiting ? t.cancel : t.wheelAssign;
+        ImGui::SetCursorScreenPos(ImVec2(min.x + width - buttonSize(action).x, min.y));
+        if (button(action, ButtonKind::Secondary)) {
+            if (waiting) actions_.endWheelCapture();
+            else actions_.captureWheel(target);
+        }
+        ImGui::SetCursorScreenPos(ImVec2(min.x, min.y + height));
+        space(6.0f);
+        ImGui::PopID();
+    };
+    const auto axisText = [&](int axis) {
+        return axis < 0 ? std::string(t.wheelNotAssigned) : format(t.wheelAxis, {std::to_string(axis + 1)});
+    };
+    const auto buttonText = [&](int index) {
+        return index < 0 ? std::string(t.wheelNotAssigned) : format(t.wheelButton, {std::to_string(index + 1)});
+    };
+    row(static_cast<int>(input::WheelTarget::Steer), t.wheelSteer, axisText(wheel.steerAxis), view.steer, true, false, true);
+    row(static_cast<int>(input::WheelTarget::Gas), t.wheelGas, axisText(wheel.gas.axis), view.gas, false, false, true);
+    row(static_cast<int>(input::WheelTarget::Brake), t.wheelBrake, axisText(wheel.brake.axis), view.brake, false, false, true);
+    static constexpr std::array<std::pair<input::PadControl, input::Button>, input::kWheelButtonTargets> kButtons = {{
+        {input::PadControl::Cross, input::Button::Cross},     {input::PadControl::Circle, input::Button::Circle},
+        {input::PadControl::Square, input::Button::Square},   {input::PadControl::Triangle, input::Button::Triangle},
+        {input::PadControl::L1, input::Button::L1},           {input::PadControl::R1, input::Button::R1},
+        {input::PadControl::L3, input::Button::L3},           {input::PadControl::R3, input::Button::R3},
+        {input::PadControl::Options, input::Button::Options}, {input::PadControl::Create, input::Button::Create},
+        {input::PadControl::Touchpad, input::Button::Touchpad}, {input::PadControl::Ps, input::Button::Ps},
+    }};
+    for (int i = 0; i < input::kWheelButtonTargets; ++i) {
+        const auto& [control, pressedAs] = kButtons[static_cast<std::size_t>(i)];
+        row(static_cast<int>(input::WheelTarget::Cross) + i, controlLabel(t, control),
+            buttonText(wheel.buttons[static_cast<std::size_t>(i)]), 0.0f, false,
+            (view.pressed & input::mask(pressedAs)) != 0, false);
+    }
+    hint(t.wheelDpadHint);
+
+    space(16.0f);
+    float steering = wheel.steering;
+    const std::string value = number(steering, 1) + "x";
+    if (sliderRow(t.wheelSteering, &steering, 0.5f, 3.0f, value)) wheel.steering = std::round(steering * 10.0f) / 10.0f;
+    hint(t.wheelSteeringHint);
+    if (view.force) {
+        space(14.0f);
+        float centering = wheel.centering * 100.0f;
+        if (sliderRow(t.wheelCentering, &centering, 0.0f, 100.0f,
+                      std::to_string(static_cast<int>(std::lround(centering))) + " %")) {
+            wheel.centering = std::round(centering) / 100.0f;
+        }
+        hint(t.wheelCenteringHint);
+    }
 }
 
 namespace {

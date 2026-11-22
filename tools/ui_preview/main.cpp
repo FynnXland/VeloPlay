@@ -61,6 +61,9 @@ public:
     void openPicturesFolder() override {}
     void toggleRecording() override {}
     void showCapture(const std::string&) override {}
+    void captureWheel(int) override {}
+    void endWheelCapture() override {}
+    void chooseWheel(const std::string&) override {}
     void openVideosFolder() override {}
     void startAccountLogin() override {}
     void submitAccountRedirect(std::string_view) override {}
@@ -261,6 +264,25 @@ std::vector<Scene> scenes() {
              model.session.connectedSeconds = 75;
              model.stream = playingStats();
              ui.showPauseMenu();
+         }},
+        {"50-settings-wheel",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.config->controller.wheel.device = "Logitech G29 Driving Force Racing Wheel";
+             model.config->controller.wheel.enabled = true;
+             model.config->controller.wheel.steerAxis = 0;
+             model.config->controller.wheel.gas = {2, 32767, -32768};
+             model.config->controller.wheel.buttons[0] = 0;
+             model.config->controller.wheel.buttons[1] = 2;
+             model.wheel.devices = {{3, "Logitech G29 Driving Force Racing Wheel", true}};
+             model.wheel.present = true;
+             model.wheel.force = true;
+             model.wheel.steer = -0.4f;
+             model.wheel.gas = 0.7f;
+             model.wheel.capturing = static_cast<int>(input::WheelTarget::Brake);
+             model.wheel.pressed = input::mask(input::Button::Cross);
+             ui.openSettings(UiManager::SettingsTab::Controller);
+             ui.scrollSettingsTo(0.62f);
          }},
         {"47-settings-picture-amd",
          [](UiModel& model, UiManager& ui) {

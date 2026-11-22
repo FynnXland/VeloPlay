@@ -11,6 +11,7 @@
 #include "app/AutoStream.hpp"
 #include "app/StreamProfile.hpp"
 #include "input/KeyboardMouse.hpp"
+#include "input/Wheel.hpp"
 #include "protocol/Crypto.hpp"
 #include "protocol/Registration.hpp"
 #include "util/Bytes.hpp"
@@ -50,6 +51,7 @@ struct ControllerSettings {
     bool adaptiveTriggers = true;
     std::string preferredName; // empty = pick automatically
     input::KeyboardMouseSettings keyboardMouse; // playing with keys and mouse instead
+    input::WheelSettings wheel;                  // a steering wheel with pedals, beta
 
     friend bool operator==(const ControllerSettings&, const ControllerSettings&) = default;
 };

@@ -136,6 +136,9 @@ public:
     void testVibration() override;
     void testTriggers(int effect) override;
     void endKeyCapture() override;
+    void captureWheel(int target) override;
+    void endWheelCapture() override;
+    void chooseWheel(const std::string& name) override;
 
     /// Keys and mouse for playing without a controller. The window passes
     /// on what it gets while the picture has the keyboard; the mapper turns
@@ -235,6 +238,8 @@ private:
     void updateSessionGame();
     /// Keeps Discord's card in line with the stream and the settings.
     void updatePresence(Clock::time_point now);
+    /// The wheel's spring while streaming, and the assignment of its axes and buttons.
+    void updateWheel();
     /// Starts or stops the microphone so that it runs exactly while a stream is shown and the setting is on.
     void updateMicrophone(Clock::time_point now);
     /// Ends recording. After it returns nothing reaches the session from the microphone.
@@ -266,6 +271,7 @@ private:
     Clock::time_point micRetryAt_{};           // not tried again before this
     bool micFailureLogged_ = false;
     std::string sessionGameName_;
+    input::WheelCapture wheelCapture_;
     std::unique_ptr<discord::Presence> presence_;
     std::string presenceKey_;          // what the card's time belongs to: the source and its game
     std::int64_t presenceSince_ = 0;   // Unix seconds when that began

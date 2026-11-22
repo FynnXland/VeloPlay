@@ -139,6 +139,28 @@ struct Strings {
     const char* upscalingRtxMissing;
     const char* beta;
     const char* captureCards;
+    const char* wheelTitle;
+    const char* wheelNone;
+    const char* wheelChoose;
+    const char* wheelChooseHint;
+    const char* wheelMissing;
+    const char* wheelUse;
+    const char* wheelHint;
+    const char* wheelSteer;
+    const char* wheelGas;
+    const char* wheelBrake;
+    const char* wheelAssign;
+    const char* wheelNotAssigned;
+    const char* wheelAxis;   // {0} = number
+    const char* wheelButton; // {0} = number
+    const char* wheelTurnNow;
+    const char* wheelPressPedalNow;
+    const char* wheelPressButtonNow;
+    const char* wheelDpadHint;
+    const char* wheelSteering;
+    const char* wheelSteeringHint;
+    const char* wheelCentering;
+    const char* wheelCenteringHint;
     const char* captureCardsHint;
     const char* captureShow;
     const char* captureStop;

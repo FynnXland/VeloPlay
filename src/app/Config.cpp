@@ -88,6 +88,16 @@ void sanitize(AppConfig& config) {
     config.network.statsCorner = std::clamp(config.network.statsCorner, 0, 3);
     config.controller.deadzone = std::clamp(config.controller.deadzone, 0.0f, 0.5f);
     input::sanitize(config.controller.keyboardMouse);
+    {
+        input::WheelSettings& wheel = config.controller.wheel;
+        wheel.steering = std::clamp(wheel.steering, 0.5f, 3.0f);
+        wheel.deadzone = std::clamp(wheel.deadzone, 0.0f, 0.2f);
+        wheel.centering = std::clamp(wheel.centering, 0.0f, 1.0f);
+        wheel.steerAxis = std::clamp(wheel.steerAxis, -1, 15);
+        wheel.gas.axis = std::clamp(wheel.gas.axis, -1, 15);
+        wheel.brake.axis = std::clamp(wheel.brake.axis, -1, 15);
+        for (int& button : wheel.buttons) button = std::clamp(button, -1, 63);
+    }
     if (config.remoteApi.port < 1024) config.remoteApi.port = 9876;
 
     std::erase_if(config.manualHosts, [](const std::string& host) { return !net::parseIpv4(host).has_value(); });
@@ -196,6 +206,18 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             {"games", std::move(games)},
         };
     }
+    {
+        const input::WheelSettings& wheel = config.controller.wheel;
+        const auto pedal = [](const input::PedalAxis& axis) {
+            return json{{"axis", axis.axis}, {"released", axis.released}, {"pressed", axis.pressed}};
+        };
+        root["wheel"] = {
+            {"enabled", wheel.enabled},       {"device", wheel.device},       {"steer_axis", wheel.steerAxis},
+            {"steer_center", wheel.steerCenter}, {"steering", wheel.steering}, {"deadzone", wheel.deadzone},
+            {"gas", pedal(wheel.gas)},         {"brake", pedal(wheel.brake)},  {"buttons", wheel.buttons},
+            {"centering", wheel.centering},
+        };
+    }
     root["remote_api"] = {
         {"enabled", config.remoteApi.enabled},
         {"port", config.remoteApi.port},
@@ -277,6 +299,32 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(controller, "rumble", config.controller.rumble);
     read(controller, "adaptive_triggers", config.controller.adaptiveTriggers);
     read(controller, "preferred_name", config.controller.preferredName);
+
+    {
+        const json& wheelJson = section(root, "wheel");
+        input::WheelSettings& wheel = config.controller.wheel;
+        read(wheelJson, "enabled", wheel.enabled);
+        read(wheelJson, "device", wheel.device);
+        read(wheelJson, "steer_axis", wheel.steerAxis);
+        read(wheelJson, "steer_center", wheel.steerCenter);
+        read(wheelJson, "steering", wheel.steering);
+        read(wheelJson, "deadzone", wheel.deadzone);
+        read(wheelJson, "centering", wheel.centering);
+        const auto readPedal = [&](const char* key, input::PedalAxis& into) {
+            const json& pedal = section(wheelJson, key);
+            read(pedal, "axis", into.axis);
+            read(pedal, "released", into.released);
+            read(pedal, "pressed", into.pressed);
+        };
+        readPedal("gas", wheel.gas);
+        readPedal("brake", wheel.brake);
+        const auto buttons = wheelJson.find("buttons");
+        if (buttons != wheelJson.end() && buttons->is_array()) {
+            for (std::size_t i = 0; i < wheel.buttons.size() && i < buttons->size(); ++i) {
+                if ((*buttons)[i].is_number_integer()) wheel.buttons[i] = (*buttons)[i].get<int>();
+            }
+        }
+    }
 
     // Controls a file does not name keep their default key, so a newer version can add controls.
     const json& keyboardMouse = section(root, "keyboard_mouse");

@@ -1,5 +1,7 @@
 #include "input/ControllerManager.hpp"
 
+#include <cmath>
+
 #include "input/DualSenseEffects.hpp"
 
 #include <algorithm>
@@ -50,6 +52,16 @@ void ControllerManager::update() {
     controllers_ = std::move(current);
 
     selectActive();
+    joysticks_ = backend_->joysticks();
+    {
+        std::lock_guard lock(wheelMutex_);
+        const auto wheel = std::find_if(joysticks_.begin(), joysticks_.end(),
+                                        [&](const JoystickInfo& info) { return info.name == wheel_.device; });
+        const bool present = !wheel_.device.empty() && wheel != joysticks_.end();
+        if (present && (!wheelPresent_.load() || wheelId_.load() != wheel->id)) wheelCentering_ = -1.0f;
+        wheelId_.store(present ? wheel->id : 0);
+        wheelPresent_.store(present);
+    }
     liveActiveId_.store(activeId_.value_or(0), std::memory_order_relaxed);
     liveHasActive_.store(activeId_.has_value(), std::memory_order_relaxed);
 
@@ -57,6 +69,39 @@ void ControllerManager::update() {
     if (activeId_) {
         if (const auto raw = backend_->read(*activeId_)) state_ = applyDeadzoneToSticks(*raw, deadzone_);
     }
+}
+
+void ControllerManager::setWheel(const WheelSettings& settings) {
+    std::lock_guard lock(wheelMutex_);
+    if (settings.device != wheel_.device) wheelCentering_ = -1.0f;
+    wheel_ = settings;
+}
+
+std::optional<RawJoystick> ControllerManager::readWheel() {
+    if (!backend_ || !wheelPresent_.load()) return std::nullopt;
+    return backend_->readJoystick(wheelId_.load());
+}
+
+ControllerState ControllerManager::wheelNow() {
+    if (!backend_ || !wheelPresent_.load()) return {};
+    WheelSettings settings;
+    {
+        std::lock_guard lock(wheelMutex_);
+        if (!wheel_.enabled) return {};
+        settings = wheel_;
+    }
+    const auto raw = backend_->readJoystick(wheelId_.load());
+    if (!raw) return {};
+    return mapWheel(settings, *raw);
+}
+
+void ControllerManager::setWheelCentering(float strength) {
+    if (!backend_ || !wheelPresent_.load()) return;
+    strength = std::clamp(strength, 0.0f, 1.0f);
+    // Only changes go to the device; telling it the same sixty times a second would only load its driver.
+    if (std::abs(strength - wheelCentering_) < 0.01f) return;
+    wheelCentering_ = strength;
+    backend_->setCentering(wheelId_.load(), strength);
 }
 
 ControllerState ControllerManager::readNow() {

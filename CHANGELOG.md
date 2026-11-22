@@ -3,6 +3,24 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.6.0
+
+- **Steering wheel (beta).** Settings > Controller > Steering wheel. The PS5 only knows a
+  controller over Remote Play, so the wheel turns the left stick, the gas pedal presses R2 and the
+  brake L2; its buttons press the buttons you give them, its D-pad is the D-pad. You show each part
+  once by moving it. Wheels with force feedback pull back to the middle while you play (the
+  strength is adjustable); the PS5 sends no steering forces from the game. Not tried with a real
+  wheel yet.
+
+**Deutsch**
+
+- **Lenkrad (Beta).** Einstellungen > Controller > Lenkrad. Die PS5 kennt über Remote Play nur
+  einen Controller. Das Lenkrad bewegt deshalb den linken Stick, das Gaspedal drückt R2, die
+  Bremse L2; seine Knöpfe drücken die Tasten, die du ihnen gibst, sein Steuerkreuz ist das
+  Steuerkreuz. Jedes Teil zeigst du einmal, indem du es bewegst. Lenkräder mit Force Feedback
+  ziehen beim Spielen zur Mitte (Stärke einstellbar); Lenkkräfte aus dem Spiel schickt die PS5
+  nicht. Mit einem echten Lenkrad noch nicht ausprobiert.
+
 ## 1.5.0
 
 - **Capture cards (beta).** If Windows knows a capture card, the start page lists it under

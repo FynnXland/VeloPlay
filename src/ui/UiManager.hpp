@@ -82,6 +82,7 @@ private:
     void drawCaptureNote(const UiModel& model);
     void drawRecordingBadge(const UiModel& model);
     void drawCaptureCards(const UiModel& model);
+    void drawWheel(const UiModel& model, AppConfig& config);
     void drawCaptureTab(const UiModel& model);
     /// Where the display goes for its size, in the corner the settings name.
     [[nodiscard]] ImVec2 statsCornerAt(const UiModel& model, ImVec2 size) const;

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.5.0
+    VERSION 1.6.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -64,6 +64,7 @@ add_library(veloplay_core STATIC
     src/input/ControllerState.cpp
     src/input/InputMerger.cpp
     src/input/KeyboardMouse.cpp
+    src/input/Wheel.cpp
     src/input/VirtualController.cpp
     src/input/ControllerManager.cpp
     src/input/RemoteControl.cpp
