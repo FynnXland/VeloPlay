@@ -92,6 +92,11 @@ TEST(DiscordPresence, BuildsTheActivityDiscordExpects) {
     EXPECT_EQ(json["assets"]["small_text"], "VeloPlay");
     ASSERT_EQ(json["buttons"].size(), 1u);
     EXPECT_EQ(json["buttons"][0]["url"], "https://github.com/FynnXland/VeloPlay");
+    // A click on a line or a picture leads to the project too; the button is shown to others only.
+    EXPECT_EQ(json["details_url"], "https://github.com/FynnXland/VeloPlay");
+    EXPECT_EQ(json["state_url"], "https://github.com/FynnXland/VeloPlay");
+    EXPECT_EQ(json["assets"]["large_url"], "https://github.com/FynnXland/VeloPlay");
+    EXPECT_EQ(json["assets"]["small_url"], "https://github.com/FynnXland/VeloPlay");
 
     // Discord refuses an activity with texts of one character; those are left out instead.
     discord::Activity bare = sample();

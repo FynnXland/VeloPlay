@@ -339,6 +339,7 @@ struct Strings {
     const char* noticeBitrateLowered; // {0} = new rate in Mbit/s
     const char* accountSignIn;
     const char* accountSignInHint;
+    const char* accountSignInBrowser;
     const char* accountSigningIn;
     const char* accountFetching;
     const char* accountLookupFailed;

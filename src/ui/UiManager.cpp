@@ -1058,6 +1058,8 @@ void UiManager::drawPairing(const UiModel& model) {
             } else {
                 paragraph(TextStyle::Caption, t.accountSignInHint, p.textSecondary);
             }
+            // Sony's page in the embedded window knows no passkey of the user's own browser.
+            if (edgeButton(t.accountSignInBrowser, ButtonKind::Link)) actions_.startAccountLoginInBrowser();
         }
         space(8.0f);
         if (edgeButton(t.accountHelp, ButtonKind::Link)) actions_.openHelp("account-id");
@@ -1138,11 +1140,23 @@ void UiManager::drawPairingProgress(const UiModel& model) {
             space(8.0f);
             paragraph(TextStyle::Body, t.pairingDoneBody, p.textSecondary);
             space(24.0f);
-            alignRight(buttonSize(t.done).x);
-            if (button(t.done, ButtonKind::Primary) || cancelPressed()) {
+            // Connecting is what comes next almost always; it is offered here, without going back first.
+            const bool canConnect = !model.pairing.hostId.empty();
+            const float doneWidth = buttonSize(t.done).x;
+            const float connectWidth = canConnect ? buttonSize(t.connect).x + px(8.0f) : 0.0f;
+            alignRight(doneWidth + connectWidth);
+            const bool done = button(t.done, canConnect ? ButtonKind::Secondary : ButtonKind::Primary) || cancelPressed();
+            bool connect = false;
+            if (canConnect) {
+                ImGui::SameLine(0.0f, px(8.0f));
+                connect = button(t.connect, ButtonKind::Primary);
+            }
+            if (done || connect) {
+                const std::string hostId = model.pairing.hostId;
                 actions_.dismissPairing();
                 closeSheet();
                 ImGui::CloseCurrentPopup();
+                if (connect) actions_.connect(hostId);
             }
             break;
         }

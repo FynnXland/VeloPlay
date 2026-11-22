@@ -65,6 +65,12 @@ nlohmann::json activityJson(const Activity& activity) {
     if (activity.buttonLabel.size() >= 2 && activity.buttonUrl.rfind("https://", 0) == 0) {
         out["buttons"] = nlohmann::json::array(
             {{{"label", shortened(activity.buttonLabel, 32)}, {"url", activity.buttonUrl}}});
+        // Every line and picture of the card leads there too (Discord's activity object: details_url,
+        // state_url, assets.large_url, assets.small_url). The button is shown to others only.
+        if (out.contains("details")) out["details_url"] = activity.buttonUrl;
+        if (out.contains("state")) out["state_url"] = activity.buttonUrl;
+        out["assets"]["large_url"] = activity.buttonUrl;
+        if (out["assets"].contains("small_image")) out["assets"]["small_url"] = activity.buttonUrl;
     }
     return out;
 }

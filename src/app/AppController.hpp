@@ -44,6 +44,8 @@ public:
         ISecretProtector* protector = nullptr; // must outlive the controller
         std::unique_ptr<input::IControllerBackend> controllerBackend;
         std::function<void(std::string_view topic)> openHelp;
+        /// Opens an address in the user's own browser.
+        std::function<void(const std::string& url)> openAddress;
         /// Starts the program again and ends this instance. Used after an update.
         std::function<void()> restart;
         /// Asks the window for a copy of the picture on screen. Without it there are no screenshots.
@@ -179,6 +181,7 @@ public:
     /// The window made its graphics device anew after it was lost; a running stream says so over the picture.
     void graphicsRestored(std::chrono::steady_clock::time_point now);
     void startAccountLogin() override;
+    void startAccountLoginInBrowser() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
 
@@ -278,6 +281,7 @@ private:
     input::WheelCapture wheelCapture_;
     std::unique_ptr<discord::Presence> presence_;
     bool presenceFailed_ = false;      // the card threw once; no more tries until VeloPlay starts again
+    bool sessionGameLogged_ = false;
     std::string presenceKey_;          // what the card's time belongs to: the source and its game
     std::int64_t presenceSince_ = 0;   // Unix seconds when that began
     bool capturingKey_ = false;                // the settings wait for the key that is pressed next

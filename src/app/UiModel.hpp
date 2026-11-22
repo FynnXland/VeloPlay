@@ -31,6 +31,7 @@ struct PairingStatus {
     std::string consoleName;                   // set on success
     ErrorCode error = ErrorCode::InvalidData;  // set on failure
     std::string errorDetail;                   // technical message for the log line
+    std::string hostId;                        // set on success: the console to connect to right away
 };
 
 /// Finding out the PSN account ID by signing in at Sony.
@@ -320,6 +321,9 @@ public:
 
     /// Opens Sony's sign-in page; progress shows up in UiModel::accountLookup.
     virtual void startAccountLogin() = 0;
+    /// The same in the user's own browser (a passkey, a password manager): the address the browser
+    /// ends on is pasted into the field for the account ID afterwards.
+    virtual void startAccountLoginInBrowser() = 0;
     /// Hands over the address Sony sent the browser to after signing in.
     virtual void submitAccountRedirect(std::string_view url) = 0;
     /// The user has seen the outcome, or gives up; resets the lookup to Idle.

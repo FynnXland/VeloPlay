@@ -348,6 +348,7 @@ constexpr Strings kGerman = {
                             "Stream.",    .accountSignIn = "Bei PlayStation anmelden",
     .accountSignInHint = "Öffnet die Anmeldeseite von Sony in einem eigenen Fenster. Du meldest dich dort an, VeloPlay "
                          "liest danach deine Account-ID aus. Dein Passwort sieht und speichert VeloPlay nicht.",
+    .accountSignInBrowser = "Lieber im eigenen Browser anmelden, etwa mit Passkey",
     .accountSigningIn = "Warte auf deine Anmeldung bei Sony. Hat sich dafür dein Browser geöffnet, kopiere "
                         "nach der Anmeldung die Adresse der leeren Seite und füge sie oben ein.",
     .accountFetching = "Frage Sony nach deiner Account-ID.",
@@ -830,6 +831,7 @@ constexpr Strings kEnglish = {
                             "{0} Mbit/s for this session. Change it for good under Settings > Stream.",    .accountSignIn = "Sign in with PlayStation",
     .accountSignInHint = "Opens Sony's sign-in page in a window of its own. You sign in there, VeloPlay then reads "
                          "your account ID. VeloPlay neither sees nor stores your password.",
+    .accountSignInBrowser = "Sign in in your own browser instead, with a passkey for example",
     .accountSigningIn = "Waiting for you to sign in at Sony. If your browser opened for it, copy the address "
                         "of the empty page after signing in and paste it above.",
     .accountFetching = "Asking Sony for your account ID.",

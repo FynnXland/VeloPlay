@@ -3,6 +3,31 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.10.2
+
+- **Fixed: a black strip at the bottom in full screen.** If the window was enlarged before you
+  switched to full screen, the bottom stayed black at the height of the taskbar, and the taskbar
+  did not come up when the pointer rested there.
+- **Connect right after pairing.** The message that the console is paired now has a Connect button
+  next to Done.
+- **Sign in with your own browser.** Under the PlayStation sign-in there is now a way to use your
+  own browser instead, for a passkey for example. The sign-in window also shows VeloPlay's icon.
+- **Discord:** a click on a line or a picture of the card now leads to VeloPlay's page. When the
+  console names no game, the card says "PS5" instead of VeloPlay twice.
+
+**Deutsch**
+
+- **Behoben: ein schwarzer Streifen unten im Vollbild.** War das Fenster vergrößert, bevor du auf
+  Vollbild geschaltet hast, blieb unten ein schwarzer Streifen in Höhe der Taskleiste, und die
+  Taskleiste kam nicht, wenn der Mauszeiger dort ruhte.
+- **Gleich nach dem Koppeln verbinden.** Die Meldung, dass die Konsole gekoppelt ist, hat jetzt
+  neben „Fertig“ einen Knopf „Verbinden“.
+- **Im eigenen Browser anmelden.** Unter der Anmeldung bei PlayStation gibt es jetzt den Weg über
+  den eigenen Browser, etwa für einen Passkey. Das Anmeldefenster zeigt außerdem das Zeichen von
+  VeloPlay.
+- **Discord:** Ein Klick auf eine Zeile oder ein Bild der Karte führt jetzt auf die Seite von
+  VeloPlay. Nennt die Konsole kein Spiel, steht auf der Karte „PS5“ statt zweimal VeloPlay.
+
 ## 1.10.1
 
 - **Fewer dips below 60, second step.** Decoded pictures now wait in a short queue and go to the

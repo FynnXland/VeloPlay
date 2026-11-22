@@ -249,6 +249,9 @@ int Application::run() {
     options.protector = protector_.get();
     options.controllerBackend = input::createSdlControllerBackend();
     options.openHelp = [this](std::string_view topic) { openHelp(topic); };
+    options.openAddress = [this](const std::string& url) {
+        ShellExecuteW(window_, L"open", toWide(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    };
     // Asked for from inside the drawing of a frame; resizing the window there would pull the
     // picture away under the drawing. It is done before the next frame instead.
     options.windowAction = [this](WindowAction action) { pendingWindowAction_ = action; };
@@ -1195,17 +1198,21 @@ void Application::toggleFullscreen(bool remember) {
             !GetMonitorInfoW(MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST), &monitor)) {
             return;
         }
-        SetWindowLongPtrW(window_, GWL_STYLE, style & ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW));
+        // Set before the frame is worked out again: WM_NCCALCSIZE gives an enlarged window only the area
+        // beside the taskbar, and a window enlarged before it went full screen still counts as enlarged.
+        // Set after, the full screen kept a black strip the height of the taskbar (reported by the user).
+        fullscreen_ = true;
+        SetWindowLongPtrW(window_, GWL_STYLE, style & ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW | WS_MAXIMIZE));
         SetWindowPos(window_, HWND_TOP, monitor.rcMonitor.left, monitor.rcMonitor.top,
                      monitor.rcMonitor.right - monitor.rcMonitor.left, monitor.rcMonitor.bottom - monitor.rcMonitor.top,
                      SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     } else {
+        fullscreen_ = false;
         SetWindowLongPtrW(window_, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
         SetWindowPlacement(window_, &windowedPlacement_);
         SetWindowPos(window_, nullptr, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
-    fullscreen_ = !fullscreen_;
     taskbarPeek_ = false;
     edgeSince_ = {};
     awaySince_ = {};
@@ -1293,7 +1300,8 @@ void Application::updateTaskbarPeek(std::chrono::steady_clock::time_point now) {
         // a window that fills the screen once that window is no longer the active one; handing the
         // front to the taskbar brings it over the picture.
         SetForegroundWindow(taskbar);
-        spdlog::info("Window: the taskbar comes over the picture");
+        spdlog::info("Window: the taskbar comes over the picture{}",
+                     isTaskbar(GetForegroundWindow()) ? "" : " (Windows did not hand it the front)");
         return;
     }
     if (overTaskbar) {

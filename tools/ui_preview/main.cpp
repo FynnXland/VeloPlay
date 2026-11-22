@@ -67,6 +67,7 @@ public:
     void chooseWheel(const std::string&) override {}
     void openVideosFolder() override {}
     void startAccountLogin() override {}
+    void startAccountLoginInBrowser() override {}
     void submitAccountRedirect(std::string_view) override {}
     void dismissAccountLookup() override {}
 };
@@ -237,6 +238,7 @@ std::vector<Scene> scenes() {
              ui.openPairing("192.168.1.44");
              model.pairing.phase = PairingStatus::Phase::Succeeded;
              model.pairing.consoleName = "PS5-417";
+             model.pairing.hostId = "AABBCCDDEEFF";
          }},
         {"11-settings-stream",
          [](UiModel& model, UiManager& ui) {

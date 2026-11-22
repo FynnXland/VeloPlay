@@ -47,6 +47,10 @@ bool LoginWindow::open(HWND owner, const std::string& url, std::string_view redi
     windowClass.lpfnWndProc = &LoginWindow::windowProc;
     windowClass.hInstance = instance;
     windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    // VeloPlay's own icon (resource 1, src/app/veloplay.rc), not the blank one Windows puts in.
+    windowClass.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(1));
+    windowClass.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON),
+                                                        GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
     windowClass.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
     windowClass.lpszClassName = kClassName;
     RegisterClassExW(&windowClass); // fails harmlessly when it is registered already

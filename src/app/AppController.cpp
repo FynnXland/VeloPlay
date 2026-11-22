@@ -916,7 +916,7 @@ void AppController::startPairing(std::string_view address, std::string_view acco
     const auto account = protocol::PsnAccountId::parse(accountId);
     const auto pinValue = protocol::parsePin(pin);
     if (!ip || !account || !pinValue) {
-        pairing_ = {PairingStatus::Phase::Failed, {}, ErrorCode::InvalidArgument, "invalid address, account ID or PIN"};
+        pairing_ = {PairingStatus::Phase::Failed, {}, ErrorCode::InvalidArgument, "invalid address, account ID or PIN", {}};
         return;
     }
 
@@ -924,7 +924,7 @@ void AppController::startPairing(std::string_view address, std::string_view acco
     config_.accountId = account->toBase64();
     configChanged();
 
-    pairing_ = {PairingStatus::Phase::Running, {}, {}, {}};
+    pairing_ = {PairingStatus::Phase::Running, {}, {}, {}, {}};
     pairingAddress_ = net::formatIpv4(*ip);
 
     protocol::RegistrationParams params;
@@ -1124,6 +1124,8 @@ void AppController::updatePresence(Clock::time_point now) {
         activity.platformText = t.captureCards;
     } else {
         if (config_.discord.showGame) activity.game = sessionGameName_;
+        // Without a game named by the console the card names the console, not VeloPlay twice.
+        if (activity.game.empty()) activity.game = "PS5";
         activity.platformImage = discordPicture("ps5");
         activity.platformText = "PS5";
     }
@@ -1276,6 +1278,7 @@ void AppController::updateSessionGame() {
     if (!session_) {
         id.clear();
         name.clear();
+        sessionGameLogged_ = false;
     } else {
         for (const protocol::DiscoveredHost& host : discovered_) {
             if (!equalsIgnoreCase(host.info.hostId, session_->hostId) || host.info.state != protocol::HostState::Ready) continue;
@@ -1285,6 +1288,18 @@ void AppController::updateSessionGame() {
             id = host.info.runningAppTitleId;
             name = host.info.runningAppName;
         }
+    }
+    if (session_ && session_->connected && !sessionGameLogged_) {
+        // Once per stream, whatever it is: Discord showed no game, and only this says whether the console names one.
+        sessionGameLogged_ = true;
+        const protocol::DiscoveredHost* console = nullptr;
+        for (const protocol::DiscoveredHost& host : discovered_) {
+            if (equalsIgnoreCase(host.info.hostId, session_->hostId)) console = &host;
+        }
+        spdlog::info("Game on the console at the start of the stream: {}",
+                     !console ? std::string("the console has not answered the search")
+                     : id.empty() ? std::string("none named in its answer")
+                                  : name + " (" + id + ")");
     }
     if (id == sessionGameId_) return;
     sessionGameId_ = std::move(id);
@@ -1391,6 +1406,20 @@ void AppController::startAccountLogin() {
     }
 }
 
+void AppController::startAccountLoginInBrowser() {
+    accountStatus_ = AccountLookup{};
+    if (!accountLookup_ || !options_.openAddress) {
+        accountStatus_.phase = AccountLookup::Phase::Failed;
+        accountStatus_.error = ErrorCode::InvalidArgument;
+        accountStatus_.errorDetail = "signing in is not available in this build";
+        return;
+    }
+    accountLookup_->cancel();
+    // Waits like the window does; the address pasted afterwards goes through submitAccountRedirect().
+    accountStatus_.phase = AccountLookup::Phase::SigningIn;
+    options_.openAddress(protocol::psnLoginUrl());
+}
+
 void AppController::submitAccountRedirect(std::string_view url) {
     const auto code = protocol::psnCodeFromRedirect(url);
     accountStatus_ = AccountLookup{};
@@ -1448,7 +1477,7 @@ void AppController::updatePairing() {
             return;
         }
         spdlog::warn("Pairing failed: {}", error.message);
-        pairing_ = {PairingStatus::Phase::Failed, {}, error.code, error.message};
+        pairing_ = {PairingStatus::Phase::Failed, {}, error.code, error.message, {}};
         return;
     }
 
@@ -1460,7 +1489,7 @@ void AppController::updatePairing() {
         }
     }
 
-    pairing_ = {PairingStatus::Phase::Succeeded, console.name, {}, {}};
+    pairing_ = {PairingStatus::Phase::Succeeded, console.name, {}, {}, console.hostId};
     std::erase_if(config_.consoles, [&](const RegisteredConsole& c) { return c.hostId == console.hostId; });
     config_.consoles.push_back(std::move(console));
     updateDirectTargets();
