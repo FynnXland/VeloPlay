@@ -170,6 +170,19 @@ constexpr Strings kGerman = {
     .updateFailWrite = "VeloPlay darf seinen Ordner nicht ändern. Lade die neue Version von der Download-Seite und ersetze den Ordner.",
     .updateFailArchive = "Die neue Version ließ sich nicht entpacken. Lade sie von der Download-Seite.",
     .openDownloads = "Download-Seite öffnen",
+    .installTitle = "Installation",
+    .installHint = "VeloPlay läuft gerade aus dem Ordner, in den du es entpackt hast. Installieren kopiert seine "
+                   "Dateien nach {0}, legt einen Eintrag im Startmenü an und trägt es in Windows unter den "
+                   "installierten Apps ein. Einstellungen und Kopplungen bleiben. Danach startest du VeloPlay aus dem "
+                   "Startmenü.",
+    .installButton = "Auf diesem PC installieren",
+    .installBusy = "Wird installiert …",
+    .installedHint = "VeloPlay ist auf diesem PC installiert und steht im Startmenü. Entfernen kannst du es in Windows "
+                     "unter Einstellungen > Apps > Installierte Apps.",
+    .installFailed = "Die Installation hat nicht geklappt. VeloPlay läuft weiter aus diesem Ordner.",
+    .uninstallRunning = "VeloPlay läuft noch. Schließ es und entferne es dann noch einmal.",
+    .uninstallDone = "VeloPlay ist entfernt. Einstellungen und Kopplungen liegen weiter unter %APPDATA%\\VeloPlay, "
+                     "falls du es wieder installierst.",
     .updatesTitle = "Updates",
     .updatesInstalled = "Installiert ist Version {0}.",
     .updatesAuto = "Beim Start nach Updates suchen",
@@ -572,6 +585,18 @@ constexpr Strings kEnglish = {
     .updateFailWrite = "VeloPlay may not change its folder. Get the new version from the download page and replace the folder.",
     .updateFailArchive = "The new version could not be unpacked. Get it from the download page.",
     .openDownloads = "Open download page",
+    .installTitle = "Installation",
+    .installHint = "VeloPlay is running from the folder you unpacked it into. Installing copies its files to {0}, "
+                   "adds it to the start menu and to the installed apps in Windows. Settings and pairings stay. "
+                   "Afterwards you start VeloPlay from the start menu.",
+    .installButton = "Install on this PC",
+    .installBusy = "Installing …",
+    .installedHint = "VeloPlay is installed on this PC and is in the start menu. To remove it, go to Settings > Apps > "
+                     "Installed apps in Windows.",
+    .installFailed = "Installing did not work. VeloPlay goes on running from this folder.",
+    .uninstallRunning = "VeloPlay is still running. Close it, then remove it once more.",
+    .uninstallDone = "VeloPlay has been removed. Settings and pairings stay in %APPDATA%\\VeloPlay, in case you "
+                     "install it again.",
     .updatesTitle = "Updates",
     .updatesInstalled = "Version {0} is installed.",
     .updatesAuto = "Check for updates at startup",

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -13,6 +14,7 @@
 
 #include "app/AppState.hpp"
 #include "app/Config.hpp"
+#include "app/Installer.hpp"
 #include "app/UiModel.hpp"
 #include "input/ControllerManager.hpp"
 #include "input/RemoteControl.hpp"
@@ -43,6 +45,10 @@ public:
         std::function<void(std::string_view topic)> openHelp;
         /// Starts the program again and ends this instance. Used after an update.
         std::function<void()> restart;
+        /// Installing on this PC. Without an installer the settings do not offer it.
+        IInstaller* installer = nullptr; // must outlive the controller
+        /// Starts the installed program and ends this instance.
+        std::function<void(const std::filesystem::path& program)> startInstalled;
         /// Self-update needs all three. Leave `http` empty to switch it off.
         update::IHttpClient* http = nullptr; // must outlive the controller
         std::filesystem::path installDir;
@@ -141,6 +147,7 @@ public:
     void checkForUpdates() override;
     void installUpdate() override;
     void restart() override;
+    void installProgram() override;
     void startAccountLogin() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
@@ -242,6 +249,10 @@ private:
     std::string probeHostId_;
     std::string probeName_;
     std::unique_ptr<update::Updater> updater_;
+    // Copying the program takes a moment; it runs beside the window and update() picks the outcome up.
+    std::future<Result<std::filesystem::path>> installing_;
+    std::string installError_;
+    void updateInstall();
 
     std::unique_ptr<protocol::PsnAccountLookup> accountLookup_;
     AccountLookup accountStatus_;

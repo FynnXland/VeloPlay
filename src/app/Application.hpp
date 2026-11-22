@@ -73,11 +73,16 @@ private:
     bool restartRequested_ = false;
     bool successorStarted_ = false; // the instance that takes over after an update is already running
     bool startedAfter_ = false;     // this instance was started by one before it and has to come to the front itself
-    void startSuccessor();
+    /// Starts `program` (the installed one, or this one again) so that it takes over from this instance.
+    void startSuccessor(const std::filesystem::path& program);
+    std::filesystem::path successorProgram_;
     void waitForPredecessor();
+    /// "--install" and "--uninstall": done without a window. Gives the exit code if there was such a command.
+    std::optional<int> runCommand();
 
     std::unique_ptr<ISecretProtector> protector_;
     std::unique_ptr<update::IHttpClient> http_;
+    std::unique_ptr<IInstaller> installer_; // outlives the controller, which copies with it
     render::D3D11Device device_;
     // Declared before the controller, so they outlive it: the controller
     // tells the pipeline when a session ends.

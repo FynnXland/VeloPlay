@@ -175,6 +175,14 @@ struct Strings {
     const char* updateFailWrite;
     const char* updateFailArchive;
     const char* openDownloads;
+    const char* installTitle;
+    const char* installHint; // {0} = folder
+    const char* installButton;
+    const char* installBusy;
+    const char* installedHint;
+    const char* installFailed;
+    const char* uninstallRunning;
+    const char* uninstallDone;
     const char* updatesTitle;
     const char* updatesInstalled; // {0} = version
     const char* updatesAuto;

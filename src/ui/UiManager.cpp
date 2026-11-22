@@ -2827,6 +2827,25 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         }
     }
 
+    if (model.install.available) {
+        sectionTitle(t.installTitle);
+        if (model.install.installed) {
+            paragraph(TextStyle::Caption, t.installedHint, p.textSecondary);
+        } else {
+            paragraph(TextStyle::Caption, format(t.installHint, {model.install.target}), p.textSecondary);
+            space(10.0f);
+            const bool idle = !model.install.busy && model.state != AppState::Streaming;
+            if (button(model.install.busy ? t.installBusy : t.installButton, ButtonKind::Secondary, ImVec2(0, 0), idle)) {
+                actions_.installProgram();
+            }
+            if (!model.install.error.empty()) {
+                space(8.0f);
+                paragraph(TextStyle::Caption, t.installFailed, p.danger);
+                paragraph(TextStyle::Caption, model.install.error, p.textTertiary);
+            }
+        }
+    }
+
     if (model.microphoneAvailable) {
         sectionTitle(t.micTitle);
         toggleRow(t.micEnable, &config.audio.microphone);

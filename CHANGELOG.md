@@ -3,6 +3,23 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.1.0
+
+- **Install VeloPlay on this PC.** Settings > Advanced has **Install on this PC**. It copies
+  VeloPlay's own files (nothing else that lies next to them) to `%LOCALAPPDATA%\Programs\VeloPlay`,
+  adds an entry to the start menu and to Windows' list of installed apps, and goes on in the
+  installed program. No administrator rights are needed. Updates work there as before. You
+  remove it like any other app under Settings > Apps > Installed apps; settings and pairings stay.
+
+**Deutsch**
+
+- **VeloPlay auf diesem PC installieren.** Unter Einstellungen > Erweitert gibt es **Auf diesem PC
+  installieren**. Es kopiert VeloPlays eigene Dateien (nichts, was sonst daneben liegt) nach
+  `%LOCALAPPDATA%\Programs\VeloPlay`, legt einen Eintrag im Startmenü an, trägt es in Windows unter
+  den installierten Apps ein und macht im installierten Programm weiter. Administratorrechte
+  braucht das nicht. Updates funktionieren dort wie bisher. Entfernen kannst du es wie jede andere
+  App unter Einstellungen > Apps > Installierte Apps; Einstellungen und Kopplungen bleiben.
+
 ## 1.0.0
 
 The first version that is called finished. Everything it does has been played on a real PS5:

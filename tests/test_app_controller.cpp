@@ -78,7 +78,8 @@ struct Harness {
 
     Harness(const test::MockConsole& console, const char* fileName, bool removeOld = true,
             std::chrono::milliseconds stallTimeout = 60s, std::chrono::microseconds inputInterval = 0us,
-            std::unique_ptr<input::IControllerBackend> backend = nullptr) {
+            std::unique_ptr<input::IControllerBackend> backend = nullptr,
+            const std::function<void(AppController::Options&)>& adjust = {}) {
         const auto dir = std::filesystem::temp_directory_path() / "veloplay_tests";
         std::filesystem::create_directories(dir);
         configPath = dir / fileName;
@@ -104,6 +105,7 @@ struct Harness {
         options.controllerBackend = std::move(backend);
         options.microphone = &microphone;
         options.microphoneRetry = 20ms;
+        if (adjust) adjust(options);
         app = std::make_unique<AppController>(std::move(options));
     }
 
@@ -142,6 +144,59 @@ struct Harness {
 };
 
 } // namespace
+
+/// An installer that copies nothing: it says what it was asked and can be told to fail.
+struct FakeInstaller final : IInstaller {
+    bool isInstalled = false;
+    bool fail = false;
+    std::atomic<int> calls{0};
+
+    [[nodiscard]] bool installed() const override { return isInstalled; }
+    [[nodiscard]] std::filesystem::path target() const override { return "programs/VeloPlay"; }
+    Result<std::filesystem::path> install() override {
+        ++calls;
+        if (fail) return Error{ErrorCode::Io, "the disk is full"};
+        return std::filesystem::path("programs/VeloPlay/VeloPlay.exe");
+    }
+};
+
+TEST(AppController, InstallsAndGoesOnInTheInstalledProgram) {
+    test::MockConsole console(test::MockConsole::Config{});
+    FakeInstaller installer;
+    std::filesystem::path started;
+    Harness h(console, "controller_install.json", true, 60s, 0us, nullptr, [&](AppController::Options& options) {
+        options.installer = &installer;
+        options.startInstalled = [&](const std::filesystem::path& program) { started = program; };
+    });
+    h.app->start();
+    h.app->fillModel(h.model);
+    EXPECT_TRUE(h.model.install.available);
+    EXPECT_FALSE(h.model.install.installed);
+    EXPECT_EQ(h.model.install.target, std::filesystem::path("programs/VeloPlay").string());
+
+    // An attempt that fails says why and leaves the program where it runs.
+    installer.fail = true;
+    h.app->installProgram();
+    ASSERT_TRUE(h.runUntil([&] { return !h.model.install.busy && !h.model.install.error.empty(); }));
+    EXPECT_EQ(h.model.install.error, "the disk is full");
+    EXPECT_TRUE(started.empty());
+
+    // One that works hands over to the installed program.
+    installer.fail = false;
+    h.app->installProgram();
+    ASSERT_TRUE(h.runUntil([&] { return !started.empty(); }));
+    EXPECT_EQ(started, std::filesystem::path("programs/VeloPlay/VeloPlay.exe"));
+    EXPECT_TRUE(h.model.install.error.empty());
+    EXPECT_EQ(installer.calls.load(), 2);
+
+    // The installed program does not install itself again.
+    installer.isInstalled = true;
+    h.app->installProgram();
+    h.app->update();
+    h.app->fillModel(h.model);
+    EXPECT_TRUE(h.model.install.installed);
+    EXPECT_EQ(installer.calls.load(), 2);
+}
 
 TEST(AppController, PairsWakesAndRemembersAConsole) {
     test::MockConsole::Config consoleConfig;

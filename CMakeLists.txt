@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.0.0
+    VERSION 1.1.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -83,6 +83,7 @@ add_library(veloplay_core STATIC
     src/app/ConsoleList.cpp
     src/app/AppController.cpp
     src/app/HelpLinks.cpp
+    src/app/Installer.cpp
     # Texts live with the UI but have no toolkit dependency, so the tests can check them.
     src/ui/Strings.cpp
 )
@@ -142,6 +143,7 @@ if(VELOPLAY_BUILD_APP)
         src/main.cpp
         src/app/Application.cpp
         src/app/HangProbe.cpp
+        src/app/InstallerWin.cpp
         src/app/LoginWindow.cpp
         src/input/SdlControllerBackend.cpp
         src/app/veloplay.manifest

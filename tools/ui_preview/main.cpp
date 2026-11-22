@@ -56,6 +56,7 @@ public:
     void checkForUpdates() override {}
     void installUpdate() override {}
     void restart() override {}
+    void installProgram() override {}
     void startAccountLogin() override {}
     void submitAccountRedirect(std::string_view) override {}
     void dismissAccountLookup() override {}
@@ -286,6 +287,34 @@ std::vector<Scene> scenes() {
              model.config->controller.keyboardMouse.enabled = true;
              ui.openSettings(UiManager::SettingsTab::Keyboard);
              ui.scrollSettingsTo(0.5f);
+         }},
+        {"39-settings-install",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.updaterAvailable = true;
+             model.install.available = true;
+             model.install.target = "C:\\Users\\Jörg\\AppData\\Local\\Programs\\VeloPlay";
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(0.35f);
+         }},
+        {"40-settings-install-failed",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.updaterAvailable = true;
+             model.install.available = true;
+             model.install.target = "C:\\Users\\Jörg\\AppData\\Local\\Programs\\VeloPlay";
+             model.install.error = "could not copy avcodec-63.dll: There is not enough space on the disk.";
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(0.35f);
+         }},
+        {"41-settings-installed",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.updaterAvailable = true;
+             model.install.available = true;
+             model.install.installed = true;
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(0.35f);
          }},
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {

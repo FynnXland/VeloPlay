@@ -19,6 +19,7 @@
 
 #include "app/HangProbe.hpp"
 #include "app/HelpLinks.hpp"
+#include "app/Installer.hpp"
 #include "util/LogFiles.hpp"
 #include "input/SdlControllerBackend.hpp"
 #include "update/Release.hpp"
@@ -123,7 +124,34 @@ Application::~Application() {
     UnregisterClassW(kWindowClass, GetModuleHandleW(nullptr));
 }
 
-void Application::startSuccessor() {
+std::optional<int> Application::runCommand() {
+    int count = 0;
+    LPWSTR* arguments = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!arguments) return std::nullopt;
+    bool install = false;
+    bool remove = false;
+    bool quiet = false;
+    for (int i = 1; i < count; ++i) {
+        const std::wstring_view argument(arguments[i]);
+        if (argument == L"--install") install = true;
+        if (argument == L"--uninstall") remove = true;
+        if (argument == L"--quiet") quiet = true;
+    }
+    LocalFree(arguments);
+    if (remove) {
+        // What Windows runs when the user removes VeloPlay under Settings > Apps.
+        const bool german = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_GERMAN;
+        const ui::Strings& t = ui::strings(german ? ui::Language::German : ui::Language::English);
+        return uninstall(executablePath(), quiet, kWindowClass, toWide(t.uninstallRunning), toWide(t.uninstallDone));
+    }
+    if (install) {
+        // Installing without the window, for scripts and for the check after each build.
+        return createInstaller(executablePath())->install() ? 0 : 1;
+    }
+    return std::nullopt;
+}
+
+void Application::startSuccessor(const std::filesystem::path& exe) {
     // After an update the program starts itself again. That used to happen at
     // the very end, when this window was gone: by then Windows had brought
     // some other program to the front, and a program started from the
@@ -131,7 +159,7 @@ void Application::startSuccessor() {
     // behind everything. So the new instance is started now, while this
     // window is the one in front, and is allowed by name to take the front.
     // It waits until this one has ended before it touches ports and files.
-    const std::filesystem::path exe = executablePath();
+    successorProgram_ = exe;
     const std::filesystem::path folder = exe.parent_path();
     const std::wstring arguments = L"--after " + std::to_wstring(GetCurrentProcessId());
     SHELLEXECUTEINFOW start{};
@@ -174,6 +202,7 @@ void Application::waitForPredecessor() {
 }
 
 int Application::run() {
+    if (const std::optional<int> done = runCommand()) return *done;
     waitForPredecessor();
     // The embedded browser needs this thread to be a single-threaded COM apartment.
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -265,9 +294,18 @@ int Application::run() {
     options.installDir = executablePath().parent_path();
     options.restart = [this] {
         restartRequested_ = true;
-        startSuccessor();
+        startSuccessor(executablePath());
         PostMessageW(window_, WM_CLOSE, 0, 0);
     };
+    // Installing on this PC: the installed program takes over as the new instance does after an update.
+    installer_ = createInstaller(executablePath());
+    options.installer = installer_.get();
+    options.startInstalled = [this](const std::filesystem::path& program) {
+        restartRequested_ = true;
+        startSuccessor(program);
+        PostMessageW(window_, WM_CLOSE, 0, 0);
+    };
+    refreshInstallation(executablePath()); // an update changed the version Windows lists
     controller_ = std::make_unique<AppController>(std::move(options));
     controller_->start();
 
@@ -352,7 +390,7 @@ int Application::run() {
         ui_.reset();
         controller_.reset();
         if (!successorStarted_) {
-            const std::filesystem::path exe = executablePath();
+            const std::filesystem::path exe = successorProgram_.empty() ? executablePath() : successorProgram_;
             ShellExecuteW(nullptr, L"open", exe.c_str(), L"--after 0", exe.parent_path().c_str(), SW_SHOWNORMAL);
         }
         return 0;

@@ -150,6 +150,16 @@ struct UiModel {
 
     ConnectionTest connectionTest;
 
+    /// Installing the program on this PC (see IInstaller).
+    struct InstallView {
+        bool available = false; // false on anything but Windows
+        bool installed = false; // the running program is the installed one
+        bool busy = false;      // files are being copied
+        std::string target;     // the folder it is installed into
+        std::string error;      // technical message of an attempt that failed
+    };
+    InstallView install;
+
     /// False on builds that cannot update themselves (anything but Windows).
     bool updaterAvailable = false;
     update::UpdateStatus update;
@@ -230,6 +240,8 @@ public:
     virtual void installUpdate() = 0;
     /// Closes the program and starts it again, after an update.
     virtual void restart() = 0;
+    /// Installs the program on this PC and goes on in the installed one.
+    virtual void installProgram() = 0;
 
     /// Opens Sony's sign-in page; progress shows up in UiModel::accountLookup.
     virtual void startAccountLogin() = 0;

@@ -48,7 +48,8 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
   and says so when the connection stumbles
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Measures the connection to a console and suggests stream settings that fit it
-- Updates itself with one click when a new version is published
+- Updates itself with one click when a new version is published, and installs itself on your PC
+  with a start menu entry if you like
 - Stores the console's keys encrypted with your Windows account
 - Offers a local interface for scripts ([docs/remote_control.md](docs/remote_control.md))
 - Speaks German and English
@@ -95,6 +96,10 @@ On the console:
 2. Unpack it into a folder of your own, for example `Documents\VeloPlay`. Do not put it under
    `C:\Program Files`: VeloPlay updates itself and needs to change its own folder.
 3. Start `VeloPlay.exe`.
+4. Optional: **Settings > Advanced > Install on this PC** copies VeloPlay to
+   `%LOCALAPPDATA%\Programs\VeloPlay`, adds it to the start menu and to Windows' list of installed
+   apps. No administrator rights are needed. You remove it like any other app under
+   Settings > Apps > Installed apps; your settings stay.
 
 From then on VeloPlay tells you when a new version is out. One click on **Update** downloads and
 installs it, another one restarts the program.

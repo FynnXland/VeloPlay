@@ -47,7 +47,8 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
   die Verbindung hakt
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
-- Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint
+- Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint, und installiert sich auf
+  Wunsch mit Eintrag im Startmenü auf deinem PC
 - Speichert die Schlüssel der Konsole verschlüsselt mit deinem Windows-Konto
 - Bietet eine lokale Schnittstelle für Skripte ([docs/remote_control.md](docs/remote_control.md), englisch)
 - Spricht Deutsch und Englisch
@@ -95,6 +96,10 @@ Auf der Konsole:
    unter `C:\Programme` ab: VeloPlay aktualisiert sich selbst und muss dafür den eigenen Ordner
    ändern dürfen.
 3. Starte `VeloPlay.exe`.
+4. Wenn du willst: **Einstellungen > Erweitert > Auf diesem PC installieren** kopiert VeloPlay nach
+   `%LOCALAPPDATA%\Programs\VeloPlay`, legt einen Eintrag im Startmenü an und trägt es in Windows
+   unter den installierten Apps ein. Administratorrechte braucht das nicht. Entfernen kannst du es
+   wie jede andere App unter Einstellungen > Apps > Installierte Apps; deine Einstellungen bleiben.
 
 Ab dann meldet VeloPlay, wenn eine neue Version da ist. Ein Klick auf **Aktualisieren** lädt und
 installiert sie, ein zweiter startet das Programm neu.

@@ -22,6 +22,7 @@ add_executable(veloplay_tests
     test_session.cpp
     test_media.cpp
     test_psn_account.cpp
+    test_install.cpp
 )
 target_link_libraries(veloplay_tests PRIVATE veloplay_core miniz::miniz veloplay_opus GTest::gtest GTest::gtest_main)
 if(WIN32)

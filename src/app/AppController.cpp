@@ -103,6 +103,7 @@ AppController::AppController(Options options)
 }
 
 AppController::~AppController() {
+    if (installing_.valid()) installing_.wait(); // the copy uses the installer, which outlives only the controller
     // The pump goes first: it reads the controllers and talks to the session.
     if (pump_.joinable()) {
         pump_.request_stop();
@@ -170,6 +171,7 @@ void AppController::update() {
     diag::setStep("pairing, remote control, settings");
     updatePairing();
     updateAccountLookup();
+    updateInstall();
 
     std::vector<input::QuickAction> actions;
     {
@@ -256,6 +258,13 @@ void AppController::fillModel(UiModel& model) {
     }
 
     model.updaterAvailable = updater_ != nullptr;
+    model.install.available = options_.installer != nullptr;
+    if (options_.installer) {
+        model.install.installed = options_.installer->installed();
+        model.install.target = install::utf8(options_.installer->target());
+    }
+    model.install.busy = installing_.valid();
+    model.install.error = installError_;
     if (updater_) model.update = updater_->status();
 
     model.remoteApiRunning = remoteServer_.running();
@@ -945,6 +954,26 @@ void AppController::installUpdate() {
 void AppController::restart() {
     if (configDirty_) saveNow();
     if (options_.restart) options_.restart();
+}
+
+void AppController::installProgram() {
+    if (!options_.installer || installing_.valid() || options_.installer->installed()) return;
+    installError_.clear();
+    // The installed program reads the same settings; what is still unsaved has to be in the file first.
+    if (configDirty_) saveNow();
+    installing_ = std::async(std::launch::async, [installer = options_.installer] { return installer->install(); });
+}
+
+void AppController::updateInstall() {
+    if (!installing_.valid() || installing_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+    const Result<std::filesystem::path> installed = installing_.get();
+    if (!installed) {
+        installError_ = installed.error().message;
+        spdlog::warn("Install: {}", installError_);
+        return;
+    }
+    spdlog::info("Install: done, going on in {}", install::utf8(installed.value()));
+    if (options_.startInstalled) options_.startInstalled(installed.value());
 }
 
 // ---- internals ---------------------------------------------------------

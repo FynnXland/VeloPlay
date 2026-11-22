@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.0.0</span>
+    <span class="pill">Version 1.1.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -216,6 +216,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Eingang automatisch: Auflösung, Bildrate und Datenrate wählt das Programm</li>
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
+        <li>Sich auf dem PC installieren, mit Eintrag im Startmenü und bei den Apps von Windows</li>
         <li>Skripte auf dem PC Tasten senden lassen</li>
         <li>Deutsch und Englisch</li>
       </ul>
@@ -463,9 +464,23 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
         <li><strong>Controller:</strong> welcher Controller, der Test dafür, Totzone der Sticks, Vibration, adaptive Trigger.</li>
         <li><strong>Maus &amp; Tastatur (eigene Seite seit 0.18.0):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
-        <li><strong>Erweitert:</strong> Sprache, Updates, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
+        <li><strong>Erweitert:</strong> Sprache, Updates, Installation, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
+        <li><strong>Installation (seit 1.1.0):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben.</li>
       </ul>
       <p class="small muted">Änderungen werden von selbst gespeichert. Die Werte unter „Eingang“ gelten ab der nächsten Verbindung, alles andere sofort.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/installieren.png" alt="Einstellungen, Reiter Erweitert: Abschnitt Installation mit Erklärung, Zielordner und dem Knopf Auf diesem PC installieren" width="1100" height="720">
+    <div>
+      <h3>Installieren</h3>
+      <ul>
+        <li><strong>Wofür:</strong> Nach dem Entpacken läuft VeloPlay aus irgendeinem Ordner. Installiert liegt es an einem festen Platz, steht im Startmenü und bei den Apps von Windows.</li>
+        <li><strong>Was kopiert wird:</strong> nur VeloPlays eigene Dateien. Liegt VeloPlay entpackt im Download-Ordner, bleibt alles andere dort, wo es ist.</li>
+        <li><strong>Danach:</strong> Das installierte Programm startet und macht weiter, mit denselben Einstellungen und Kopplungen. Updates kommen wie gewohnt.</li>
+        <li><strong>Entfernen:</strong> Windows-Einstellungen &gt; Apps &gt; Installierte Apps &gt; VeloPlay. Eine entpackte Kopie entfernt sich nie selbst.</li>
+      </ul>
     </div>
   </div>
 
@@ -773,7 +788,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.0.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.1.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -836,7 +851,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>284 automatische Tests unter Linux und 308 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>289 automatische Tests unter Linux und 313 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -855,6 +870,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Am 22.11.2026: Der Ton läuft auch über Kopfhörer, die Trigger funktionieren. Die Haptik ist zu spüren.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>
+      <tr><td>Installieren und Entfernen</td><td>Welche Dateien kopiert werden, ist unter Linux getestet, auch mit fremden Dateien und Ordnern daneben, die nicht mitkommen dürfen. Bei jedem Build installiert ein Windows-Rechner von GitHub das Programm, prüft Dateien, Startmenü und den Eintrag bei den Apps, installiert ein zweites Mal, entfernt es wieder und prüft, dass alles weg ist und eine entpackte Kopie sich nicht selbst löscht. Am 22.11.2026: alle 18 Prüfungen bestanden. Am PC des Autors noch nicht ausprobiert.</td><td class="state soon">auf Windows geprüft, beim Autor offen</td></tr>
       <tr><td>Updater</td><td>Mit nachgestellten Veröffentlichungen: neuere, ältere, falsche Prüfsumme, manipuliertes Archiv, abgebrochener Download</td><td class="state ok">bestanden</td></tr>
       <tr><td>Windows-Programm startet</td><td>Wird nach jedem Build gestartet und auf Grafik, Suche und Update-Abfrage geprüft</td><td class="state ok">läuft</td></tr>
       <tr><td>Aussehen der Oberfläche</td><td>Jeder Bildschirm wird in beiden Sprachen als Bild gerendert und angesehen. Seit 0.18.0 prüft das Werkzeug dabei selbst jede Fläche und jeden Text darauf, ob ein Rand etwas abschneidet, auch bei Knöpfen, deren Hintergrund erst unter dem Mauszeiger sichtbar wird. Es fand den Knopf „Konsole hinzufügen“, dem links die runden Ecken fehlten, und eine hart abgeschnittene Zeile am Ende der Einstellungen. Ein Fund lässt den Build scheitern. Seit 1.0.0 läuft das auch im kleinsten Fenster (820 x 560), und ein Menü, das über das Fenster hinausragt, zählt ebenfalls als Fund.</td><td class="state ok">geprüft</td></tr>
