@@ -68,9 +68,9 @@ discord::Activity sample() {
     activity.game = "Astro Bot";
     activity.state = "über VeloPlay";
     activity.since = 1'763'800'000;
-    activity.smallImage = "ps5";
-    activity.smallText = "PS5";
-    activity.largeText = "VeloPlay";
+    activity.platformImage = "ps5";
+    activity.platformText = "PS5";
+    activity.appText = "VeloPlay";
     activity.buttonLabel = "VeloPlay holen";
     activity.buttonUrl = "https://github.com/FynnXland/VeloPlay";
     return activity;
@@ -83,9 +83,13 @@ TEST(DiscordPresence, BuildsTheActivityDiscordExpects) {
     EXPECT_EQ(json["details"], "Astro Bot");
     EXPECT_EQ(json["state"], "über VeloPlay");
     EXPECT_EQ(json["timestamps"]["start"], 1'763'800'000); // seconds, not milliseconds
-    EXPECT_EQ(json["assets"]["large_image"], "veloplay");
-    EXPECT_EQ(json["assets"]["small_image"], "ps5");
-    EXPECT_EQ(json["assets"]["small_text"], "PS5");
+    // The game first: the member list says "Playing Astro Bot", the big picture is the PS5,
+    // VeloPlay is the small one at its side.
+    EXPECT_EQ(json["status_display_type"], 2);
+    EXPECT_EQ(json["assets"]["large_image"], "ps5");
+    EXPECT_EQ(json["assets"]["large_text"], "PS5");
+    EXPECT_EQ(json["assets"]["small_image"], "veloplay");
+    EXPECT_EQ(json["assets"]["small_text"], "VeloPlay");
     ASSERT_EQ(json["buttons"].size(), 1u);
     EXPECT_EQ(json["buttons"][0]["url"], "https://github.com/FynnXland/VeloPlay");
 
@@ -96,6 +100,7 @@ TEST(DiscordPresence, BuildsTheActivityDiscordExpects) {
     bare.buttonUrl = "http://not-secure.example";
     const nlohmann::json without = discord::activityJson(bare);
     EXPECT_FALSE(without.contains("details"));
+    EXPECT_FALSE(without.contains("status_display_type")); // without a game the line names VeloPlay
     EXPECT_FALSE(without.contains("state"));
     EXPECT_FALSE(without.contains("buttons"));
     // Long texts are cut to Discord's 128 characters.

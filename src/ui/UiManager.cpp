@@ -456,9 +456,21 @@ void UiManager::draw(const UiModel& model) {
             keyOverlay_ = false; // a menu is open; the layout does not come back by itself
         }
         pictureOwnsInput_ = presenting && !pauseMenu_ && !settingsInGame;
-        // While the picture has the window to itself there is no bar: nothing but the game.
+        // While the picture has the window to itself there is no bar: nothing but the game. The
+        // pointer at the top edge brings it over the picture, which keeps its size; it leaves
+        // once the pointer leaves it. Mouse and keys given to the game hold the pointer elsewhere.
         windowBarHeight_ = 0.0f;
-        if (!pictureOwnsInput_) drawWindowBar(model);
+        windowBarButtonsWidth_ = 0.0f;
+        if (!pictureOwnsInput_) {
+            drawWindowBar(model);
+        } else {
+            const ImGuiIO& io = ImGui::GetIO();
+            const float y = io.MousePos.y - ImGui::GetMainViewport()->Pos.y;
+            const bool inside = ImGui::IsMousePosValid() && ImGui::GetMainViewport()->Size.x > 0.0f && y >= -1.0f;
+            barPeek_ = inside && (y <= px(2.0f) || (barPeek_ && y <= px(kWindowBarHeight) + px(12.0f)));
+            const float shown = context().animator.to(static_cast<ImGuiID>(0x5A1E7400), barPeek_ ? 1.0f : 0.0f, 0.12f, 0.0f);
+            if (shown > 0.01f) drawWindowBar(model, shown);
+        }
         return;
     }
     if (std::exchange(settingsFromGame_, false)) {
@@ -1590,13 +1602,14 @@ void UiManager::drawRecordingBadge(const UiModel& model) {
 /// The window's own bar: mark and name on the left, the time and the
 /// buttons for the window on the right. Windows draws no title bar for this
 /// window; whatever part of the bar is no button is where it is dragged by.
-void UiManager::drawWindowBar(const UiModel& model) {
+void UiManager::drawWindowBar(const UiModel& model, float shown) {
     windowBarHeight_ = 0.0f;
     windowBarButtonsWidth_ = 0.0f;
     if (!model.ownWindowBar) return;
     const Palette& p = palette();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const float height = px(kWindowBarHeight);
+    const float slide = std::round((1.0f - shown) * height);
     const float buttonWidth = px(kWindowBarButton);
     // Full screen has nothing to maximise.
     std::vector<WindowAction> buttons = {WindowAction::ToggleFullscreen, WindowAction::Minimize};
@@ -1604,7 +1617,7 @@ void UiManager::drawWindowBar(const UiModel& model) {
     buttons.push_back(WindowAction::Close);
     const float buttonsWidth = buttonWidth * static_cast<float>(buttons.size());
 
-    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y - slide));
     ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, height));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -1612,8 +1625,9 @@ void UiManager::drawWindowBar(const UiModel& model) {
     ImGui::Begin("window-bar", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    const ImVec2 min = viewport->Pos;
+    // Over the picture it lies over everything, the display and the notes too, which are drawn in front.
+    ImDrawList* draw = pictureOwnsInput_ ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
+    const ImVec2 min(viewport->Pos.x, viewport->Pos.y - slide);
     fill(draw, min, ImVec2(min.x + viewport->Size.x, min.y + height), toU32(p.background));
 
     const float mark = px(18.0f);
@@ -1686,7 +1700,7 @@ void UiManager::drawWindowBar(const UiModel& model) {
     }
     ImGui::End();
     ImGui::PopStyleVar(3);
-    windowBarHeight_ = height;
+    windowBarHeight_ = height - slide;
     windowBarButtonsWidth_ = buttonsWidth;
 }
 

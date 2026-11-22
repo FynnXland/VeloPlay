@@ -1098,15 +1098,15 @@ void AppController::updatePresence(Clock::time_point now) {
     discord::Activity activity;
     if (session_->capture) {
         activity.game = t.captureCards;
-        activity.smallImage = "capture";
-        activity.smallText = t.captureCards;
+        activity.platformImage = "capture";
+        activity.platformText = t.captureCards;
     } else {
         if (config_.discord.showGame) activity.game = sessionGameName_;
-        activity.smallImage = "ps5";
-        activity.smallText = "PS5";
+        activity.platformImage = "ps5";
+        activity.platformText = "PS5";
     }
     activity.state = t.presenceState;
-    activity.largeText = "VeloPlay";
+    activity.appText = "VeloPlay";
     activity.buttonLabel = t.presenceButton;
     activity.buttonUrl = "https://github.com/" + std::string(update::kReleaseRepository);
     // The time runs from the start of the stream, and starts again with another game.

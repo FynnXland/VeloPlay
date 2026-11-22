@@ -22,9 +22,11 @@ struct Activity {
     std::string game;      // empty: no game line (a capture card, or the user does not want it shown)
     std::string state;     // the second line
     std::int64_t since = 0; // Unix seconds when the stream began
-    std::string smallImage; // "ps5" or "capture"
-    std::string smallText;
-    std::string largeText;  // shown when the big picture is pointed at
+    // The big picture is where the game comes from ("ps5" or "capture"), the small one VeloPlay:
+    // the card is about the game, VeloPlay stays at the side.
+    std::string platformImage;
+    std::string platformText; // shown when the big picture is pointed at
+    std::string appText;      // shown when the small VeloPlay picture is pointed at
     std::string buttonLabel;
     std::string buttonUrl;
 

@@ -565,8 +565,8 @@ TEST(AppControllerSession, ShowsTheStreamInDiscordAndClearsItAfterwards) {
     const nlohmann::json& shown = log->activities[0];
     EXPECT_EQ(shown["pid"], 77);
     EXPECT_EQ(shown["activity"]["state"], "über VeloPlay");
-    EXPECT_EQ(shown["activity"]["assets"]["large_image"], "veloplay");
-    EXPECT_EQ(shown["activity"]["assets"]["small_image"], "ps5");
+    EXPECT_EQ(shown["activity"]["assets"]["large_image"], "ps5");
+    EXPECT_EQ(shown["activity"]["assets"]["small_image"], "veloplay");
     EXPECT_GT(shown["activity"]["timestamps"]["start"].get<std::int64_t>(), 1'700'000'000);
 
     h.app->disconnect();

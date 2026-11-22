@@ -47,12 +47,19 @@ nlohmann::json activityJson(const Activity& activity) {
     nlohmann::json out = nlohmann::json::object();
     putText(out, "details", activity.game);
     putText(out, "state", activity.state);
+    // The line in the list of members names the game ("Playing Astro Bot") instead of VeloPlay.
+    // Field and values from Discord's activity object: 2 = details.
+    if (out.contains("details")) out["status_display_type"] = 2;
     if (activity.since > 0) out["timestamps"] = {{"start", activity.since}};
-    nlohmann::json assets = {{"large_image", "veloplay"}};
-    putText(assets, "large_text", activity.largeText);
-    if (!activity.smallImage.empty()) {
-        assets["small_image"] = activity.smallImage;
-        putText(assets, "small_text", activity.smallText);
+    nlohmann::json assets = nlohmann::json::object();
+    if (activity.platformImage.empty()) {
+        assets["large_image"] = "veloplay";
+        putText(assets, "large_text", activity.appText);
+    } else {
+        assets["large_image"] = activity.platformImage;
+        putText(assets, "large_text", activity.platformText);
+        assets["small_image"] = "veloplay";
+        putText(assets, "small_text", activity.appText);
     }
     out["assets"] = assets;
     if (activity.buttonLabel.size() >= 2 && activity.buttonUrl.rfind("https://", 0) == 0) {

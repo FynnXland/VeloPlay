@@ -3,6 +3,28 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.9.0
+
+- **Full screen keeps the whole picture.** When the pointer rests on the bottom edge, the Windows
+  taskbar now comes over the picture instead of the window making room for it, and it goes away
+  again once the pointer leaves it. Before, the window could stay a little smaller afterwards
+  (for example 1920 x 1048 with the picture at 1863 x 1048).
+- **The bar with minimise and full screen comes over the picture** when the pointer goes to the top
+  edge, also during a stream. The picture keeps its size.
+- **Discord shows the game first.** The member list says "Playing" and the name of the game instead
+  of VeloPlay; the big picture is the PS5 (or the capture card), VeloPlay sits small beside it.
+
+**Deutsch**
+
+- **Im Vollbild bleibt das ganze Bild.** Ruht der Mauszeiger am unteren Rand, legt sich die
+  Taskleiste von Windows jetzt über das Bild, statt dass das Fenster Platz macht, und sie geht
+  wieder, sobald der Zeiger sie verlässt. Bisher konnte das Fenster danach etwas kleiner bleiben
+  (etwa 1920 x 1048, das Bild 1863 x 1048).
+- **Die Leiste mit Minimieren und Vollbild kommt über das Bild,** wenn der Mauszeiger an den oberen
+  Rand geht, auch im Stream. Das Bild behält seine Größe.
+- **Discord zeigt zuerst das Spiel.** In der Mitgliederliste steht „Spielt“ und der Name des
+  Spiels statt VeloPlay; groß ist die PS5 (oder die Capture-Card) zu sehen, VeloPlay klein daneben.
+
 ## 1.8.0
 
 - **The graphics driver restarting no longer ends VeloPlay.** When Windows restarts the graphics

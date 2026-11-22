@@ -89,7 +89,8 @@ private:
     [[nodiscard]] ImVec2 statsCornerAt(const UiModel& model, ImVec2 size) const;
     void drawKeyOverlay(const UiModel& model);
     void drawMicrophoneBadge(const UiModel& model);
-    void drawWindowBar(const UiModel& model);
+    /// `shown` 0..1 slides it in from above, for the bar that comes over the picture.
+    void drawWindowBar(const UiModel& model, float shown = 1.0f);
     void drawSession(const UiModel& model);
     [[nodiscard]] std::string number(float value, int decimals) const;
     void drawEmptyState(const UiModel& model);
@@ -136,6 +137,7 @@ private:
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
     bool pictureOwnsInput_ = false;
     float windowBarHeight_ = 0.0f;
+    bool barPeek_ = false; // the bar is over the picture because the pointer went to the top edge
     float windowBarButtonsWidth_ = 0.0f;
     float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
     double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down

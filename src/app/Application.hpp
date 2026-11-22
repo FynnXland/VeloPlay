@@ -166,7 +166,7 @@ private:
     std::chrono::steady_clock::time_point nextSummary_{};
     bool minimised_ = false;
     std::optional<WindowAction> pendingWindowAction_; // asked for while drawing, done before the next frame
-    bool taskbarPeek_ = false;                         // the window has made room for the taskbar
+    bool taskbarPeek_ = false;                         // the taskbar was handed the front and lies over the picture
     std::chrono::steady_clock::time_point edgeSince_{}; // since when the pointer rests on the taskbar's edge
     std::chrono::steady_clock::time_point awaySince_{}; // since when it has left the taskbar again
     // The stack reader has to outlive the watch that uses it.

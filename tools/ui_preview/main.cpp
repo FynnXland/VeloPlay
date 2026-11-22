@@ -5,6 +5,7 @@
 // On a machine without a display, run it under a virtual one:
 //   xvfb-run -a ./ui_preview out
 
+#include <cfloat>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -477,6 +478,17 @@ std::vector<Scene> scenes() {
              model.stream = playingStats();
              model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
          }},
+        {"52-stream-window-bar",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.windowFullscreen = true;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+         },
+         // The pointer goes to the top edge: the bar comes over the picture.
+         [](UiModel&, int frame) { ImGui::GetIO().AddMousePosEvent(600.0f, frame < 10 ? 300.0f : 1.0f); }},
         {"51-stream-graphics-restored",
          [](UiModel& model, UiManager&) {
              withConsoles(model);
@@ -716,6 +728,8 @@ int main(int argc, char** argv) {
             io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
             io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
             io.DeltaTime = 1.0f / 60.0f;
+            // No pointer unless a scene puts one somewhere: the hidden window's own would wander in.
+            io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
             if (scene.step) scene.step(model, frame);
             manager.feedNavigation(model);
             // What counts is the picture that gets written: in the first frames sizes are not settled yet.

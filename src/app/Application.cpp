@@ -1200,12 +1200,36 @@ void Application::applyWindowAction(WindowAction action) {
     }
 }
 
+namespace {
+
+/// The taskbar of Windows on the screen `monitor`: the main one, or one of those on further screens.
+HWND taskbarOn(HMONITOR monitor) {
+    if (const HWND main = FindWindowW(L"Shell_TrayWnd", nullptr); main && MonitorFromWindow(main, MONITOR_DEFAULTTONULL) == monitor) {
+        return main;
+    }
+    for (HWND other = FindWindowExW(nullptr, nullptr, L"Shell_SecondaryTrayWnd", nullptr); other;
+         other = FindWindowExW(nullptr, other, L"Shell_SecondaryTrayWnd", nullptr)) {
+        if (MonitorFromWindow(other, MONITOR_DEFAULTTONULL) == monitor) return other;
+    }
+    return nullptr;
+}
+
+bool isTaskbar(HWND window) {
+    wchar_t name[64] = {};
+    if (!window || !GetClassNameW(GetAncestor(window, GA_ROOT), name, 64)) return false;
+    return std::wstring_view(name) == L"Shell_TrayWnd" || std::wstring_view(name) == L"Shell_SecondaryTrayWnd";
+}
+
+} // namespace
+
 void Application::updateTaskbarPeek(std::chrono::steady_clock::time_point now) {
     using std::chrono::milliseconds;
     // Only in full screen, and never while mouse and keys belong to the game.
+    const HMONITOR screen = MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST);
     MONITORINFO monitor{sizeof(monitor)};
-    if (!fullscreen_ || gameInput_ || !GetMonitorInfoW(MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST), &monitor)) {
+    if (!fullscreen_ || gameInput_ || !GetMonitorInfoW(screen, &monitor)) {
         edgeSince_ = {};
+        taskbarPeek_ = false;
         return;
     }
     const RECT& all = monitor.rcMonitor;
@@ -1226,18 +1250,22 @@ void Application::updateTaskbarPeek(std::chrono::steady_clock::time_point now) {
                                           (left && pointer.x < work.left) || (right && pointer.x >= work.right));
 
     if (!taskbarPeek_) {
-        if (!atEdge) {
+        if (!atEdge || GetForegroundWindow() != window_) {
             edgeSince_ = {};
             return;
         }
         if (edgeSince_ == std::chrono::steady_clock::time_point{}) edgeSince_ = now;
         // A moment of resting there, so that brushing the edge in passing does nothing.
         if (now - edgeSince_ < milliseconds(300)) return;
+        const HWND taskbar = taskbarOn(screen);
+        if (!taskbar) return;
         taskbarPeek_ = true;
         awaySince_ = {};
-        // The window steps back to the area beside the taskbar; Windows then puts the taskbar in front.
-        SetWindowPos(window_, nullptr, work.left, work.top, work.right - work.left, work.bottom - work.top,
-                     SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
+        // The window keeps its size, and so does the picture. Windows puts its taskbar in front of
+        // a window that fills the screen once that window is no longer the active one; handing the
+        // front to the taskbar brings it over the picture.
+        SetForegroundWindow(taskbar);
+        spdlog::info("Window: the taskbar comes over the picture");
         return;
     }
     if (overTaskbar) {
@@ -1246,13 +1274,14 @@ void Application::updateTaskbarPeek(std::chrono::steady_clock::time_point now) {
     }
     if (awaySince_ == std::chrono::steady_clock::time_point{}) awaySince_ = now;
     if (now - awaySince_ < milliseconds(700)) return;
-    // Left alone: back over the whole screen. Not while another window is in
-    // front, opened from the taskbar; then this happens once ours is in front again.
-    if (GetForegroundWindow() != window_) return;
     taskbarPeek_ = false;
     edgeSince_ = {};
-    SetWindowPos(window_, HWND_TOP, all.left, all.top, all.right - all.left, all.bottom - all.top,
-                 SWP_NOOWNERZORDER | SWP_NOACTIVATE);
+    // Left alone: the picture takes the front back, and the taskbar goes behind it again. Not when
+    // something opened from the taskbar is in front now (a menu, another program); that stays.
+    if (isTaskbar(GetForegroundWindow())) {
+        SetForegroundWindow(window_);
+        spdlog::info("Window: the taskbar went back behind the picture{}", GetForegroundWindow() == window_ ? "" : " (Windows kept it in front)");
+    }
 }
 
 LRESULT Application::hitTest(HWND window, LPARAM lParam) const {
