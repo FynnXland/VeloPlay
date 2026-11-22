@@ -120,6 +120,10 @@ public:
     /// Forgets the pictures, for example when a session ends.
     void clear();
 
+    /// Lets go of everything made on the device, as if it had never been created. For a device
+    /// that was lost: create() on the new one starts from here.
+    void reset();
+
 private:
     struct Target {
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;

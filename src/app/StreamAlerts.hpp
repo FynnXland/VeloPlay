@@ -19,6 +19,7 @@ enum class StreamAlert {
     DecoderBehind,    // this PC threw pictures away because unpacking fell behind
     FewerPictures,    // the console sends clearly fewer pictures than asked for, without losses
     BatteryLow,       // the controller's battery is nearly empty and it is not charging
+    GraphicsRestored, // the graphics card had a hiccup and the picture was set up again
 };
 
 /// What is known about the stream at one moment.
@@ -50,11 +51,14 @@ public:
     /// The notes to show right now, most pressing first.
     [[nodiscard]] std::vector<StreamAlert> active(Clock::time_point now) const;
 
+    /// The graphics device was lost and made anew; the next update() says so for a few seconds.
+    void graphicsRestored(Clock::time_point now) { restoredAt_ = now; }
+
     /// Notes that appeared with the last update(), for the log.
     [[nodiscard]] const std::vector<StreamAlert>& raised() const { return raised_; }
 
 private:
-    static constexpr int kKinds = 6;
+    static constexpr int kKinds = 7;
     struct Slot {
         bool on = false;
         Clock::time_point until{}; // shown up to here
@@ -73,6 +77,7 @@ private:
     Clock::time_point fewerSince_{};        // since when too few pictures arrive; zero = enough
     Clock::time_point fewerQuietUntil_{};   // said once; not again before this
     int batteryToldAt_ = 101;               // the charge the last note was about; 101 = none yet
+    Clock::time_point restoredAt_{};        // when the graphics device was made anew; zero = not since the last update
 };
 
 } // namespace veloplay

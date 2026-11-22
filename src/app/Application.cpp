@@ -120,7 +120,7 @@ Application::Application() = default;
 Application::~Application() {
     controller_.reset(); // stops background threads before the window goes away
     if (imguiReady_) {
-        ImGui_ImplDX11_Shutdown();
+        if (dx11Ready_) ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
     }
@@ -190,6 +190,10 @@ void Application::waitForPredecessor() {
     int count = 0;
     LPWSTR* arguments = CommandLineToArgvW(GetCommandLineW(), &count);
     if (!arguments) return;
+    // For the check on GitHub's machine: the path after a lost graphics device, without losing one.
+    for (int i = 1; i < count; ++i) {
+        if (std::wstring_view(arguments[i]) == L"--test-device-loss") testDeviceLoss_ = true;
+    }
     for (int i = 1; i < count; ++i) {
         if (std::wstring_view(arguments[i]) != L"--after") continue;
         startedAfter_ = true;
@@ -237,6 +241,7 @@ int Application::run() {
     ImGui_ImplWin32_Init(window_);
     ImGui_ImplDX11_Init(device_.device(), device_.context());
     imguiReady_ = true;
+    dx11Ready_ = true;
 
     protector_ = createDpapiProtector();
     AppController::Options options;
@@ -438,6 +443,7 @@ int Application::run() {
     // responding" while its loop runs (issue 3); the first watch cannot see that.
     hangProbe_ = std::jthread([this, window = window_](std::stop_token stop) { watchForHang(window, stop); });
 
+    if (testDeviceLoss_) testLossAt_ = std::chrono::steady_clock::now() + std::chrono::seconds(6);
     MSG message{};
     while (message.message != WM_QUIT) {
         diag::loopTurned();
@@ -448,7 +454,26 @@ int Application::run() {
             DispatchMessageW(&message);
             continue;
         }
-        if (deviceLost_) break;
+        if (deviceLost_) {
+            // The window keeps answering while the card comes back; the stream goes on meanwhile.
+            const auto now = std::chrono::steady_clock::now();
+            if (!deviceGivenUp_ && now >= nextRecovery_ && !recoverDevice(now)) {
+                // A driver that is being updated or restarted needs some seconds; past that it is not coming.
+                if (now - lostSince_ >= std::chrono::seconds(20)) deviceGivenUp_ = true;
+                else nextRecovery_ = now + std::chrono::seconds(1);
+            }
+            if (deviceGivenUp_) {
+                spdlog::error("Graphics: no new device after {} attempt(s); VeloPlay ends", recoveryAttempts_);
+                break;
+            }
+            if (deviceLost_) MsgWaitForMultipleObjects(0, nullptr, FALSE, 100, QS_ALLINPUT);
+            continue;
+        }
+        if (testLossAt_ != std::chrono::steady_clock::time_point{} && std::chrono::steady_clock::now() >= testLossAt_) {
+            testLossAt_ = {};
+            markDeviceLost("a test asked for it");
+            continue;
+        }
         frame();
     }
 
@@ -478,7 +503,7 @@ int Application::run() {
         return 0;
     }
 
-    if (deviceLost_) {
+    if (deviceGivenUp_) {
         MessageBoxW(window_,
                     L"The graphics driver stopped responding or was updated.\n\nPlease start VeloPlay again.",
                     L"VeloPlay", MB_ICONWARNING);
@@ -590,21 +615,7 @@ void Application::frame() {
         pipeline_->setHapticsEnabled(config.controller.rumble);
 
         if (!streaming) {
-            videoRenderer_.clear();
-            frameTimes_.clear();
-            lastPicture_ = {};
-            lastChoice_ = {};
-            pacer_.reset();
-            lastRefresh_ = {};
-            refreshMs_ = 0.0;
-            insideMs_ = 0.0;
-            arrivals_ = {};
-            inputRate_.reset(model_.requestedStream.fps);
-            cadence_.reset();
-            skipRepeats_ = false;
-            loggedHalved_ = false;
-            loggedGenerator_.clear();
-            nextRateSample_ = {};
+            forgetPictures();
         } else if (model_.stream && now >= nextRateSample_) {
             // Once a second: is it a 30 or a 60 fps stream that arrives?
             nextRateSample_ = now + std::chrono::seconds(1);
@@ -772,13 +783,102 @@ void Application::frame() {
                     std::chrono::steady_clock::now());
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     diag::setStep("presenting");
-    if (!device_.present(streaming ? config.graphics.vsync : true)) deviceLost_ = true;
+    if (!device_.present(streaming ? config.graphics.vsync : true)) markDeviceLost(device_.lostReason());
     collectScreenshot();
     diag::setStep("idle");
 
     // The dashboard does not need 60 redraws per second while another window
     // has focus. A running stream does.
     if (!streaming && GetForegroundWindow() != window_) Sleep(40);
+}
+
+void Application::forgetPictures() {
+    videoRenderer_.clear();
+    frameTimes_.clear();
+    lastPicture_ = {};
+    lastChoice_ = {};
+    pacer_.reset();
+    lastRefresh_ = {};
+    refreshMs_ = 0.0;
+    insideMs_ = 0.0;
+    arrivals_ = {};
+    inputRate_.reset(model_.requestedStream.fps);
+    cadence_.reset();
+    skipRepeats_ = false;
+    loggedHalved_ = false;
+    loggedGenerator_.clear();
+    nextRateSample_ = {};
+}
+
+void Application::markDeviceLost(const std::string& why) {
+    const auto now = std::chrono::steady_clock::now();
+    spdlog::warn("Graphics: the device was lost ({}); it is made anew", why.empty() ? "no reason given" : why);
+    std::erase_if(losses_, [&](std::chrono::steady_clock::time_point at) { return now - at > std::chrono::minutes(1); });
+    losses_.push_back(now);
+    // A card that falls over again and again right after each new start would only flicker on.
+    if (losses_.size() > 3) {
+        spdlog::error("Graphics: lost {} times within a minute", losses_.size());
+        deviceGivenUp_ = true;
+    }
+    deviceLost_ = true;
+    lostSince_ = now;
+    nextRecovery_ = now + std::chrono::milliseconds(200); // a moment for the driver to come back
+    recoveryAttempts_ = 0;
+    vendorBeforeLoss_ = device_.adapterVendor();
+}
+
+bool Application::recoverDevice(std::chrono::steady_clock::time_point now) {
+    diag::setStep("making the graphics device anew");
+    ++recoveryAttempts_;
+    // A recording ends with a file that plays: its copies of the picture lived on the old device.
+    if (recordStarting_.valid()) {
+        const Result<bool> started = recordStarting_.get();
+        if (!started) spdlog::warn("Recording did not start: {}", started.error().message);
+    }
+    if (!recordStopping_.valid() && recorder_ && recorder_->running()) stopRecording("the graphics device was lost");
+    recordStream_.reset();
+    grabber_ = render::FrameGrabber{};
+    // Everything made on the old device goes before the device itself, the swap chain above all:
+    // a window takes a new one only once the old one is gone.
+    videoRenderer_.reset();
+    if (pipeline_) pipeline_->setDevice(nullptr);
+    if (dx11Ready_) {
+        ImGui_ImplDX11_Shutdown();
+        dx11Ready_ = false;
+    }
+    device_.destroy();
+
+    std::string error;
+    if (!device_.create(window_, error)) {
+        spdlog::warn("Graphics: attempt {} found no device: {}", recoveryAttempts_, error);
+        return false;
+    }
+    // Right after a driver restart Windows can offer only its software renderer for a moment.
+    // Taking that would leave the stream on the processor for the rest of the run.
+    // During a driver update it may also be a basic adapter of Windows; either way not the card from before.
+    if (vendorBeforeLoss_ != 0 && device_.adapterVendor() != vendorBeforeLoss_ && now - lostSince_ < std::chrono::seconds(10)) {
+        spdlog::info("Graphics: only {} so far; waiting for the graphics card", device_.adapterName());
+        device_.destroy();
+        return false;
+    }
+    ImGui_ImplDX11_Init(device_.device(), device_.context());
+    dx11Ready_ = true;
+    std::string renderError;
+    if (!videoRenderer_.create(device_.device(), device_.context(), renderError)) {
+        spdlog::warn("Graphics: video output on the new device failed: {}", renderError);
+        // Without the renderer there is no picture; it was there before, so this is no recovery yet.
+        if (videoReady_) return false;
+    }
+    if (pipeline_) pipeline_->setDevice(device_.device());
+    forgetPictures();
+    generatorFailureLogged_ = false;
+    rtxFailureLogged_ = false;
+    deviceLost_ = false;
+    spdlog::info("Graphics: device made anew on {} after {} attempt(s), {} ms after it was lost", device_.adapterName(),
+                 recoveryAttempts_,
+                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lostSince_).count());
+    controller_->graphicsRestored(std::chrono::steady_clock::now());
+    return true;
 }
 
 void Application::handleRecording(bool showVideo, media::ShownKind kind, std::chrono::steady_clock::time_point now) {

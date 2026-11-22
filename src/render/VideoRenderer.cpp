@@ -1,4 +1,5 @@
 #include "render/VideoRenderer.hpp"
+#include "render/ShaderCompiler.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -184,16 +185,7 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 )";
 
 bool compile(const char* source, std::size_t length, const char* target, ComPtr<ID3DBlob>& code, std::string& error) {
-    ComPtr<ID3DBlob> messages;
-    const HRESULT result = D3DCompile(source, length, nullptr, nullptr, nullptr, "main", target, 0, 0,
-                                      code.GetAddressOf(), messages.GetAddressOf());
-    if (SUCCEEDED(result)) return true;
-    error = "shader did not compile";
-    if (messages) {
-        error += ": ";
-        error.append(static_cast<const char*>(messages->GetBufferPointer()), messages->GetBufferSize());
-    }
-    return false;
+    return compileShader(source, length, target, code, error);
 }
 
 struct Constants {
@@ -292,6 +284,8 @@ bool VideoRenderer::create(ID3D11Device* device, ID3D11DeviceContext* context, s
     if (rtx->create(device, context, rtxError_)) rtx_ = std::move(rtx);
     return true;
 }
+
+void VideoRenderer::reset() { *this = VideoRenderer(); }
 
 void VideoRenderer::clear() {
     hasPicture_ = false;

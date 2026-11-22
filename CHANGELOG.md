@@ -3,6 +3,29 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.8.0
+
+- **The graphics driver restarting no longer ends VeloPlay.** When Windows restarts the graphics
+  driver (a driver crash, a driver update while you play), VeloPlay sets its picture up again on
+  the same window and the stream goes on; a note over the picture says so. A running video
+  recording is closed so the file plays. Before, VeloPlay showed a message and closed. Tried on
+  GitHub's machine through the same path; a real driver restart has not been tried yet.
+- **Settings: one page for everything you steer with.** On top there are now Input, Output,
+  Controls, Capture and Advanced. Controls has its own row with Controller, Mouse & keys and Wheel;
+  the wheel no longer sits at the end of the controller page.
+
+**Deutsch**
+
+- **Ein Neustart des Grafiktreibers beendet VeloPlay nicht mehr.** Startet Windows den
+  Grafiktreiber neu (Absturz des Treibers, Treiber-Update beim Spielen), baut VeloPlay das Bild im
+  selben Fenster neu auf, und der Stream läuft weiter; ein Hinweis über dem Bild sagt es. Eine
+  laufende Videoaufnahme wird abgeschlossen, damit die Datei abspielbar bleibt. Bisher kam eine
+  Meldung, und VeloPlay schloss sich. Auf dem Rechner von GitHub über denselben Weg geprüft; ein
+  echter Neustart des Treibers ist noch nicht ausprobiert.
+- **Einstellungen: eine Seite für alles, womit du steuerst.** Oben stehen jetzt Eingang, Ausgabe,
+  Steuerung, Aufnahme und Erweitert. Steuerung hat eine eigene Leiste mit Controller, Maus &
+  Tastatur und Lenkrad; das Lenkrad steht nicht mehr am Ende der Controller-Seite.
+
 ## 1.7.1
 
 - **Fixed: VeloPlay closed right after the first picture while Discord was running** (1.7.0).

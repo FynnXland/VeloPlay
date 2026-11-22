@@ -501,6 +501,38 @@ TEST(MediaPipeline, HandsOutEveryPictureWithItsTimes) {
     pipeline.end();
 }
 
+TEST(MediaPipeline, StartsAgainFromAWholePictureOnANewDevice) {
+    media::MediaPipeline pipeline({});
+    StreamSettings settings;
+    settings.codec = VideoCodec::H264;
+    pipeline.begin(settings);
+    const auto units = accessUnits(readClip("clip.h264"), false);
+    ASSERT_GE(units.size(), 3u);
+    for (const Bytes& unit : units) EXPECT_TRUE(pipeline.onVideo(unit, 0, false));
+    ASSERT_TRUE(pipeline.waitUntilIdle(10'000ms));
+    const std::vector<media::VideoFrame> before = pipeline.takeFrames();
+    ASSERT_FALSE(before.empty());
+    const std::uint64_t counted = before.back().sequence;
+    for (const Bytes& unit : units) EXPECT_TRUE(pipeline.onVideo(unit, 0, false));
+    ASSERT_TRUE(pipeline.waitUntilIdle(10'000ms));
+
+    // The graphics device was lost and made anew. Pictures of the old one must not reach the
+    // new one, and what follows refers to pictures the old decoder had: the console is asked
+    // for a whole picture first, once.
+    pipeline.setDevice(nullptr);
+    EXPECT_TRUE(pipeline.takeFrames().empty());
+    EXPECT_FALSE(pipeline.onVideo(units[1], 0, false));
+    for (const Bytes& unit : units) EXPECT_TRUE(pipeline.onVideo(unit, 0, false));
+    ASSERT_TRUE(pipeline.waitUntilIdle(10'000ms));
+    const std::vector<media::VideoFrame> after = pipeline.takeFrames();
+    ASSERT_FALSE(after.empty());
+    // A new decoder counts from one again; the old one would have gone on.
+    EXPECT_GT(counted, 1u);
+    EXPECT_LE(after.back().sequence, units.size());
+    EXPECT_LT(after.front().sequence, counted + 1);
+    pipeline.end();
+}
+
 TEST(MediaPipeline, TakesPicturesAndSoundThatNeedNoDecoding) {
     FakeAudioOutput audio;
     media::MediaPipeline pipeline({nullptr, &audio, nullptr});

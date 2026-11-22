@@ -48,6 +48,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
   deiner Wahl, und sagt, wenn die Verbindung hakt
 - Speichert mit F12 Fotos vom Spiel und nimmt mit F10 Videos mit Ton auf
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
+- Baut das Bild selbst wieder auf, wenn der Grafiktreiber neu startet, statt sich zu beenden
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Zeigt das Bild einer Capture-Card genauso (Beta)
 - Lässt dich mit Lenkrad und Pedalen lenken (Beta)
@@ -359,9 +360,8 @@ im Spiel, Selbst-Update.
 
 Als Nächstes:
 
-1. Sich selbst fangen, wenn der Grafiktreiber neu startet
-2. Von unterwegs spielen, außerhalb des Heimnetzes
-3. HDR
+1. Von unterwegs spielen, außerhalb des Heimnetzes
+2. HDR
 
 ## Dank
 

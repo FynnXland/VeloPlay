@@ -19,6 +19,7 @@
 #include <wrl/client.h>
 
 #include "audio/WasapiOutput.hpp"
+#include "render/D3D11Device.hpp"
 #include "render/RtxVideoScaler.hpp"
 #include "render/FrameGrabber.hpp"
 #include "render/VideoRenderer.hpp"
@@ -195,6 +196,65 @@ TEST(VideoRenderer, TakesNv12AndFollowsFormatChanges) {
     onCard.height = 16;
     onCard.layout = media::PixelLayout::D3D11Nv12; // without a texture
     EXPECT_FALSE(renderer.submit(onCard));
+}
+
+// After a lost device the window makes everything anew on the same window. A window takes only
+// one swap chain of this kind, so this fails unless the old one is entirely gone. On the PC with
+// the graphics card it runs on the card, elsewhere on whatever Windows offers.
+TEST(D3D11Device, StartsAgainOnTheSameWindowAndDrawsThere) {
+    const HWND window = CreateWindowExW(0, L"STATIC", L"VeloPlay test", WS_OVERLAPPEDWINDOW, 0, 0, 320, 240,
+                                        nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+    ASSERT_NE(window, nullptr);
+    render::D3D11Device device;
+    render::VideoRenderer renderer;
+    SolidFrame red(32, 16, 63, 102, 240, false);
+    // What was drawn into the back buffer, at its centre.
+    const auto centre = [&]() -> std::array<int, 4> {
+        ComPtr<ID3D11Texture2D> buffer = device.backBuffer();
+        D3D11_TEXTURE2D_DESC desc{};
+        buffer->GetDesc(&desc);
+        desc.BindFlags = 0;
+        desc.MiscFlags = 0;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        ComPtr<ID3D11Texture2D> staging;
+        if (FAILED(device.device()->CreateTexture2D(&desc, nullptr, staging.GetAddressOf()))) return {-1, -1, -1, -1};
+        device.context()->CopyResource(staging.Get(), buffer.Get());
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(device.context()->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) return {-1, -1, -1, -1};
+        const auto* p = static_cast<const std::uint8_t*>(mapped.pData) + (desc.Height / 2) * mapped.RowPitch +
+                        (desc.Width / 2) * 4;
+        const std::array<int, 4> out{p[2], p[1], p[0], p[3]}; // the back buffer is BGRA
+        device.context()->Unmap(staging.Get(), 0);
+        return out;
+    };
+    // Like the decoder of a stream, which still holds the old device when the new one is made.
+    ComPtr<ID3D11Device> heldOn;
+    for (int round = 0; round < 3; ++round) {
+        SCOPED_TRACE(round);
+        std::string error;
+        ASSERT_TRUE(device.create(window, error)) << error;
+        ASSERT_TRUE(renderer.create(device.device(), device.context(), error)) << error;
+        ASSERT_TRUE(renderer.submit(red.frame));
+        const float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+        device.beginFrame(black);
+        renderer.draw(device.width(), device.height());
+        const std::array<int, 4> seen = centre();
+        EXPECT_NEAR(seen[0], 255, 4);
+        EXPECT_NEAR(seen[1], 0, 4);
+        EXPECT_NEAR(seen[2], 0, 4);
+        EXPECT_TRUE(device.present(true));
+        if (round == 0) std::printf("[ device    ] %s\n", device.adapterName().c_str());
+        // As after a loss: the renderer lets go first, then the device. Round 0 keeps the old
+        // device alive, as the decoder does; round 1 leaves the destroy() to create().
+        renderer.reset();
+        EXPECT_FALSE(renderer.hasPicture());
+        if (round == 0) heldOn = device.device();
+        if (round != 1) device.destroy();
+    }
+    heldOn.Reset();
+    device.destroy();
+    DestroyWindow(window);
 }
 
 TEST(WasapiOutput, OpensTheDefaultDeviceOrSaysThereIsNone) {

@@ -81,6 +81,8 @@ bool MediaPipeline::onVideo(std::span<const std::uint8_t> accessUnit, int, bool)
     {
         std::lock_guard lock(queueMutex_);
         if (stopping_ || !decodeThread_.joinable()) return false;
+        // Asked once more under the lock: setDevice() sets it while it empties the queue.
+        if (pictureLost_.exchange(false)) return false;
         taken = queue_.push(std::vector<std::uint8_t>(accessUnit.begin(), accessUnit.end()),
                             std::chrono::steady_clock::now(), dropped);
     }
@@ -95,8 +97,29 @@ bool MediaPipeline::onVideo(std::span<const std::uint8_t> accessUnit, int, bool)
     return true;
 }
 
+void MediaPipeline::setDevice(void* d3d11Device) {
+    {
+        std::lock_guard lock(deviceMutex_);
+        options_.d3d11Device = d3d11Device;
+    }
+    {
+        std::lock_guard lock(mutex_);
+        ++deviceGeneration_;
+        pending_.clear();
+    }
+    // What waits refers to pictures the old decoder had; the new one starts from a whole picture.
+    std::lock_guard lock(queueMutex_);
+    queue_.clear();
+    pictureLost_.store(true);
+}
+
 void MediaPipeline::decodeLoop() {
     bool failedForGood = false;
+    std::uint64_t generation = 0; // of the device the decoder was made on
+    {
+        std::lock_guard lock(mutex_);
+        generation = deviceGeneration_;
+    }
     // The average hides what makes a stream stutter: one picture in thirty
     // that takes far longer than the rest. So the slowest one is kept too,
     // over this second and the one before.
@@ -115,9 +138,18 @@ void MediaPipeline::decodeLoop() {
             unit = std::move(*queue_.pop(&received));
             decoding_ = true;
         }
+        {
+            std::lock_guard lock(mutex_);
+            if (generation != deviceGeneration_) {
+                generation = deviceGeneration_;
+                video_.reset();
+                failedForGood = false;
+            }
+        }
         if (failedForGood) continue;
 
         if (!video_) {
+            std::lock_guard lock(deviceMutex_);
             auto created = VideoDecoder::create({codec_, options_.d3d11Device});
             if (!created) {
                 spdlog::error("Video decoder: {}", created.error().message);
@@ -138,6 +170,8 @@ void MediaPipeline::decodeLoop() {
         slowestNow = std::max(slowestNow, ms);
 
         std::lock_guard lock(mutex_);
+        // Made on a device that was replaced meanwhile: its pictures cannot go to the new one.
+        if (generation != deviceGeneration_) continue;
         stats_.decodeMaxMs = std::max(slowestNow, slowestBefore);
         if (!decoded) {
             if (stats_.failedFrames++ % 60 == 0) {

@@ -70,11 +70,27 @@ private:
     void logStreamSummary(std::chrono::steady_clock::time_point now);
     void watchForHang(HWND window, std::stop_token stop);
     void openHelp(std::string_view topic);
+    /// The graphics device is gone (driver crash, driver update, card removed): from the next turn
+    /// of the loop on, recoverDevice() makes everything on it anew instead of drawing.
+    void markDeviceLost(const std::string& why);
+    /// One attempt at a new device with all that lives on it. False: try again a moment later.
+    bool recoverDevice(std::chrono::steady_clock::time_point now);
+    /// Forgets the shown pictures and what was measured about them.
+    void forgetPictures();
 
     HWND window_ = nullptr;
     float scale_ = 1.0f;
     bool imguiReady_ = false;
+    bool dx11Ready_ = false; // ImGui draws with the current graphics device
     bool deviceLost_ = false;
+    bool deviceGivenUp_ = false; // no new device came, or it got lost again and again: the program ends
+    std::chrono::steady_clock::time_point lostSince_{};
+    std::chrono::steady_clock::time_point nextRecovery_{};
+    int recoveryAttempts_ = 0;
+    unsigned vendorBeforeLoss_ = 0;
+    std::deque<std::chrono::steady_clock::time_point> losses_; // of the last minute
+    bool testDeviceLoss_ = false; // --test-device-loss: counts the device as lost a few seconds after the start
+    std::chrono::steady_clock::time_point testLossAt_{};
     bool restartRequested_ = false;
     bool successorStarted_ = false; // the instance that takes over after an update is already running
     bool startedAfter_ = false;     // this instance was started by one before it and has to come to the front itself

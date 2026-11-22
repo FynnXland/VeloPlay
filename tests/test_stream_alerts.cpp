@@ -228,3 +228,23 @@ TEST(StreamAlerts, MentionALowBatteryOnceAtEachMark) {
     silent.update(unknown, now);
     EXPECT_FALSE(shows(silent, StreamAlert::BatteryLow, now));
 }
+
+TEST(StreamAlerts, SayOnceForAWhileThatThePictureWasSetUpAgain) {
+    StreamAlerts alerts;
+    Clock::time_point now{};
+    alerts.reset(now);
+    alerts.update(fine(), now);
+    // Even in the first seconds of a stream, when other notes still keep quiet.
+    now += 1s;
+    alerts.graphicsRestored(now);
+    alerts.update(fine(), now);
+    EXPECT_TRUE(shows(alerts, StreamAlert::GraphicsRestored, now));
+    ASSERT_EQ(alerts.raised().size(), 1u);
+    EXPECT_EQ(alerts.raised().front(), StreamAlert::GraphicsRestored);
+    now += 16ms;
+    alerts.update(fine(), now);
+    EXPECT_TRUE(alerts.raised().empty()); // into the log once
+    EXPECT_TRUE(shows(alerts, StreamAlert::GraphicsRestored, now));
+    for (int i = 0; i < 400; ++i, now += 16ms) alerts.update(fine(), now);
+    EXPECT_FALSE(shows(alerts, StreamAlert::GraphicsRestored, now));
+}

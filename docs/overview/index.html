@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.7.0</span>
+    <span class="pill">Version 1.8.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -205,6 +205,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Die PS5 mit dem Controller am PC steuern, oder mit Maus und Tastatur, auf Wunsch mit eigener Belegung pro Spiel</li>
         <li>Vibration, adaptive Trigger (Widerstand von L2 und R2) und Haptik des DualSense</li>
         <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
+        <li>Weiterlaufen, wenn der Grafiktreiber neu startet: das Bild wird im selben Fenster neu aufgebaut (seit 1.8.0, ein echter Neustart des Treibers noch nicht ausprobiert)</li>
         <li>Die PS5 von hier aus in den Ruhemodus schicken</li>
         <li>Bildrate, Datenrate, Antwortzeit, Paketverlust und Dekoder live ablesen</li>
         <li>Hinweise über dem Bild, wenn die Verbindung hakt, Bilder fehlen, kein Controller da ist oder sein Akku zur Neige geht</li>
@@ -229,7 +230,6 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Sich selbst fangen, wenn die Grafikkarte kurz aussetzt</li>
         <li>Von unterwegs spielen, außerhalb des Heimnetzes</li>
         <li>HDR</li>
       </ul>
@@ -469,10 +469,11 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>Eingang:</strong> was die PS5 schickt. Ein Schalter „Automatisch“; ist er aus, erscheinen Bildrate (30 oder 60), Auflösung, Codec, HDR und Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
+        <li><strong>Steuerung (seit 1.8.0):</strong> alles, womit du steuerst, auf einer Seite. Eine zweite, schmalere Leiste wählt zwischen Controller, Maus &amp; Tastatur und Lenkrad; beim nächsten Öffnen kommt die zuletzt gesehene.</li>
         <li><strong>Controller:</strong> welcher Controller, der Test dafür, Totzone der Sticks, Vibration, adaptive Trigger.</li>
-        <li><strong>Lenkrad (seit 1.6.0, Beta):</strong> unten auf der Seite Controller. Die PS5 kennt über Remote Play nur einen Controller, also bewegt das Lenkrad den linken Stick, das Gas drückt R2, die Bremse L2, die Knöpfe drücken die Tasten, die du ihnen gibst, das Steuerkreuz bleibt Steuerkreuz. Welche Achse und welcher Knopf was ist, unterscheidet sich von Lenkrad zu Lenkrad; deshalb zeigst du jedes Teil einmal, indem du es bewegst (drehen, Pedal ganz durchtreten und loslassen, Knopf drücken), und ein Balken zeigt live, was ankommt. Lenkräder mit Force Feedback ziehen beim Spielen zur Mitte, höchstens mit 60 % ihrer Kraft, voreingestellt 30 %; nach dem Stream und beim Beenden lassen sie los. Lenkkräfte aus dem Spiel kommen über Remote Play nicht an.</li>
+        <li><strong>Lenkrad (seit 1.6.0, Beta, eigene Seite seit 1.8.0):</strong> Die PS5 kennt über Remote Play nur einen Controller, also bewegt das Lenkrad den linken Stick, das Gas drückt R2, die Bremse L2, die Knöpfe drücken die Tasten, die du ihnen gibst, das Steuerkreuz bleibt Steuerkreuz. Welche Achse und welcher Knopf was ist, unterscheidet sich von Lenkrad zu Lenkrad; deshalb zeigst du jedes Teil einmal, indem du es bewegst (drehen, Pedal ganz durchtreten und loslassen, Knopf drücken), und ein Balken zeigt live, was ankommt. Lenkräder mit Force Feedback ziehen beim Spielen zur Mitte, höchstens mit 60 % ihrer Kraft, voreingestellt 30 %; nach dem Stream und beim Beenden lassen sie los. Lenkkräfte aus dem Spiel kommen über Remote Play nicht an.</li>
         <li><strong>Aufnahme (seit 1.2.0, Videos seit 1.3.0):</strong> die Ordner für Fotos und Videos, je mit einem Knopf, der den Ordner öffnet. Clips stehen dort als „kommt mit einer der nächsten Versionen“, ohne Schalter, der noch nichts tut.</li>
-        <li><strong>Maus &amp; Tastatur (eigene Seite seit 0.18.0):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
+        <li><strong>Maus &amp; Tastatur (unter Steuerung):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
         <li><strong>Erweitert:</strong> Sprache, Updates, Installation, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
         <li><strong>Discord (seit 1.5.0):</strong> „In Discord anzeigen, was du spielst“ ist voreingestellt an. Solange gestreamt wird, steht im Discord-Profil „Spielt VeloPlay“, darunter das Spiel und „über VeloPlay“, dazu die Spielzeit, groß das VeloPlay-Logo und klein „PS5“ oder das Symbol einer Capture-Card. Andere sehen einen Knopf „VeloPlay holen“. Ein zweiter Schalter lässt den Namen des Spiels weg. Discord muss als Programm auf demselben PC laufen; VeloPlay spricht es über dessen lokale Verbindung an (benannte Leitung <code>discord-ipc-0</code> bis <code>-9</code>), schickt eine Änderung höchstens alle 15 Sekunden und löscht die Karte, sobald der Stream endet.</li>
         <li><strong>Installation (seit 1.1.0):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben.</li>
@@ -626,6 +627,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Bilder gehen unterwegs verloren:</strong> mindestens drei in fünf Sekunden. Einzelne repariert die Übertragung unbemerkt.</li>
         <li><strong>Dein PC kommt mit dem Entpacken der Bilder nicht nach:</strong> der PC hat Bilder verworfen, das Netz ist dann nicht schuld.</li>
         <li><strong>Die PS5 schickt gerade weniger Bilder:</strong> deutlich weniger als verlangt, ohne dass etwas verloren ging. Das liegt am Spiel oder an der Konsole.</li>
+        <li><strong>Aussetzer der Grafikkarte, Bild neu aufgebaut (seit 1.8.0):</strong> Windows hat den Grafiktreiber neu gestartet. VeloPlay legt dann alles, was auf der Grafikkarte lag, neu an, im selben Fenster, und bittet die PS5 um ein ganzes Bild, damit der Stream ohne Neuverbinden weitergeht. Eine laufende Videoaufnahme wird abgeschlossen. Bleibt die Karte länger als 20 Sekunden weg oder setzt sie öfter als dreimal in einer Minute aus, erscheint wie früher eine Meldung, und VeloPlay schließt sich.</li>
         <li>Ein Hinweis bleibt ein paar Sekunden stehen, nachdem die Ursache weg ist, und steht mit Uhrzeit im Protokoll.</li>
       </ul>
     </div>
@@ -814,7 +816,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.7.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.8.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -877,7 +879,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>311 automatische Tests unter Linux und 343 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>315 automatische Tests unter Linux und 348 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -920,6 +922,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Haptik am echten Controller</td><td>Rückmeldung vom 22.11.2026: Das feine Rütteln ist im Controller zu spüren.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
       <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Seit dem 21.11.2026 mehrfach benutzt: Das Programm hat sich über den eingebauten Updater von 0.10.0 bis 0.13.0 gebracht. Eine neue Version erscheint dort 10 bis 30 Minuten nach der Veröffentlichung.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Neuaufbau nach einem Neustart des Grafiktreibers (1.8.0)</td><td>Ein Test baut Gerät, Bildausgabe und Fenster-Anbindung dreimal hintereinander auf derselben Karte neu auf (auf dem Runner die RTX 4070), einer prüft, dass der Dekoder neu anfängt und keine alten Bilder durchlässt. Auf einem Windows-Rechner von GitHub geht das Programm denselben Weg sechs Sekunden nach dem Start und wird danach fotografiert. Einen echten Absturz des Treibers kann dort niemand auslösen.</td><td class="state soon">echter Fall offen</td></tr>
       <tr><td>RTX Video Super Resolution</td><td>Die Tests laufen nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Der Vergleich mit und ohne NVIDIAs Schalter belegt auf der RTX 4070, dass das Netz das Bild verändert, auch bei gleicher Größe. Ob es besser aussieht, kann kein Test sagen; dafür gibt es <kbd>F8</kbd> im Spiel. Erster Eindruck am 21.11.2026 auf einem 1080p-Bildschirm: kaum ein sichtbarer Unterschied.</td><td class="state no">wenig sichtbar</td></tr>
     </tbody>
   </table></div>

@@ -359,6 +359,7 @@ void UiManager::openSettings(SettingsTab tab) {
     sheet_ = Sheet::Settings;
     ++sheetGeneration_;
     settingsTab_ = tab;
+    if (tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel) controlsTab_ = tab;
     editedGameChosen_ = false; // the key layout shown is picked anew: the one in use now
 }
 
@@ -1325,13 +1326,14 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
 
     // Every note has its place in the row and fades in and out there, so
     // one that leaves does not make the others jump at once.
-    const std::array<std::pair<StreamAlert, const char*>, 6> notes = {{
+    const std::array<std::pair<StreamAlert, const char*>, 7> notes = {{
         {StreamAlert::NoController, t.alertNoController},
         {StreamAlert::ConnectionStalls, t.alertConnection},
         {StreamAlert::PicturesLost, t.alertLost},
         {StreamAlert::DecoderBehind, t.alertDecoder},
         {StreamAlert::FewerPictures, t.alertFewer},
         {StreamAlert::BatteryLow, t.alertBattery},
+        {StreamAlert::GraphicsRestored, t.alertGraphicsRestored},
     }};
     const float padX = px(14.0f);
     const float padY = px(8.0f);
@@ -2224,19 +2226,41 @@ void UiManager::drawSettings(const UiModel& model) {
 
     label(TextStyle::Title, t.settings);
     space(14.0f);
-    const std::array<const char*, 6> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabKeyboard, t.tabCapture,
-                                             t.tabAdvanced};
-    settingsTab_ = static_cast<SettingsTab>(
-        segmented("tabs", tabs, static_cast<int>(settingsTab_), ImGui::GetContentRegionAvail().x));
+    // Five pages on top. Everything one steers with shares "Controls", which has its own row below.
+    constexpr std::array<SettingsTab, 5> kTop = {SettingsTab::Stream, SettingsTab::Picture, SettingsTab::Controller,
+                                                 SettingsTab::Capture, SettingsTab::Advanced};
+    const auto controls = [](SettingsTab tab) {
+        return tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel;
+    };
+    const auto topOf = [&](SettingsTab tab) {
+        if (controls(tab)) return 2;
+        return static_cast<int>(std::find(kTop.begin(), kTop.end(), tab) - kTop.begin());
+    };
+    const std::array<const char*, 5> tabs = {t.tabStream, t.tabPicture, t.tabControls, t.tabCapture, t.tabAdvanced};
+    const int top = topOf(settingsTab_);
+    int chosen = segmented("tabs", tabs, top, ImGui::GetContentRegionAvail().x);
     // On a controller the shoulder buttons turn the pages, as they do on the console.
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 6);
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 5) % 6);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) chosen = (chosen + 1) % 5;
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) chosen = (chosen + 4) % 5;
+    if (chosen != top) settingsTab_ = chosen == 2 ? controlsTab_ : kTop[static_cast<std::size_t>(chosen)];
+    // The row under "Controls" takes its height from the list below, so the sheet keeps its size.
+    float rowHeight = 0.0f;
+    if (controls(settingsTab_)) {
+        const float rowTop = ImGui::GetCursorScreenPos().y;
+        space(10.0f);
+        const std::array<const char*, 3> pages = {t.tabController, t.tabKeyboard, t.tabWheel};
+        const int page = static_cast<int>(settingsTab_) - static_cast<int>(SettingsTab::Controller);
+        const int picked = segmented("controls-tabs", pages, page, ImGui::GetContentRegionAvail().x * 0.75f);
+        settingsTab_ = static_cast<SettingsTab>(static_cast<int>(SettingsTab::Controller) + picked);
+        controlsTab_ = settingsTab_;
+        rowHeight = ImGui::GetCursorScreenPos().y - rowTop;
+    }
     space(18.0f);
 
     // A fixed height keeps the sheet from jumping when the tab changes. The
     // scrollbar lives in the sheet's right margin, so controls keep their edge.
     const float contentWidth = ImGui::GetContentRegionAvail().x;
-    const float bodyHeight = std::min(px(440.0f), ImGui::GetMainViewport()->Size.y - px(260.0f));
+    const float bodyHeight = std::min(px(440.0f), ImGui::GetMainViewport()->Size.y - px(260.0f)) - rowHeight;
     const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
     ImGui::BeginChild("settings-body", ImVec2(contentWidth + px(12.0f), bodyHeight), ImGuiChildFlags_NavFlattened,
                       ImGuiWindowFlags_NoBackground);
@@ -2250,6 +2274,7 @@ void UiManager::drawSettings(const UiModel& model) {
         case SettingsTab::Picture: drawPictureTab(model, config); break;
         case SettingsTab::Controller: drawControllerTab(model, config); break;
         case SettingsTab::Keyboard: drawKeyboardMouse(model, config); break;
+        case SettingsTab::Wheel: drawWheel(model, config); break;
         case SettingsTab::Capture: drawCaptureTab(model); break;
         case SettingsTab::Advanced: drawAdvancedTab(model, config); break;
     }
@@ -2480,8 +2505,6 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     space(2.0f);
     toggleRow(t.adaptiveTriggers, &config.controller.adaptiveTriggers);
     hint(t.adaptiveTriggersHint);
-
-    drawWheel(model, config);
 }
 
 /// A steering wheel with pedals, beta: nobody has tried one on real hardware yet. The axes are shown by
@@ -2492,7 +2515,6 @@ void UiManager::drawWheel(const UiModel& model, AppConfig& config) {
     input::WheelSettings& wheel = config.controller.wheel;
     const UiModel::WheelView& view = model.wheel;
 
-    space(20.0f);
     {
         const ImVec2 start = ImGui::GetCursorScreenPos();
         const ImVec2 title = measure(TextStyle::Strong, t.wheelTitle);

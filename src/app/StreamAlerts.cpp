@@ -31,6 +31,8 @@ constexpr seconds kFewerQuiet{60};
 constexpr int kBatteryLow = 15;
 constexpr int kBatteryVeryLow = 5;
 constexpr seconds kBatteryShown{8};
+// Long enough to read after the picture came back; the picture is back within a second.
+constexpr seconds kRestoredShown{6};
 
 } // namespace
 
@@ -60,6 +62,12 @@ void StreamAlerts::update(const StreamObservation& o, Clock::time_point now) {
         if (controllerGone_ == Clock::time_point{}) controllerGone_ = now;
         // Shown for as long as there is none.
         if (now - controllerGone_ >= kControllerPatience) raise(StreamAlert::NoController, now + kHold);
+    }
+
+    // A hiccup of the graphics card counts at any time, the first seconds too.
+    if (restoredAt_ != Clock::time_point{}) {
+        raise(StreamAlert::GraphicsRestored, restoredAt_ + kRestoredShown);
+        restoredAt_ = {};
     }
 
     // So does its battery. On the cable or above the mark nothing is owed, and the next low is news again.

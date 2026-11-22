@@ -95,6 +95,12 @@ public:
     /// rumble, which the application ignores when vibration is switched off.
     void setHapticsEnabled(bool enabled) { hapticsEnabled_.store(enabled); }
 
+    /// Decode on another Direct3D 11 device from now on (null: on the processor), after the
+    /// one before was lost. The decoder is made anew, pictures of the old device are dropped,
+    /// and the next onVideo() returns false so the console sends a whole picture to start from.
+    /// Once this returns, nothing is made on the old device any more.
+    void setDevice(void* d3d11Device);
+
     // IMediaSink
     void begin(const StreamSettings& stream) override;
     void end() override;
@@ -123,8 +129,10 @@ public:
 private:
     void decodeLoop();
 
-    Options options_;
+    Options options_; // d3d11Device under deviceMutex_
     std::atomic<int> audioDelayMs_{40};
+    /// Held while a decoder is made, so setDevice() can wait for one in the making.
+    std::mutex deviceMutex_;
     std::atomic<bool> hapticsEnabled_{true};
 
     // Network thread only, between begin() and end().
@@ -148,6 +156,7 @@ private:
     std::mutex mutex_;
     std::deque<VideoFrame> pending_; // decoded and not fetched yet; a handful at most
     Stats stats_;
+    std::uint64_t deviceGeneration_ = 0; // counts setDevice(); a decoder of an older count is replaced
 };
 
 } // namespace veloplay::media

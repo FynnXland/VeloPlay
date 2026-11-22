@@ -51,6 +51,7 @@ ComPtr<IDXGIAdapter1> pickAdapter(IDXGIFactory2* factory) {
 } // namespace
 
 bool D3D11Device::create(HWND window, std::string& error) {
+    destroy();
     ComPtr<IDXGIFactory2> factory;
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
     if (FAILED(hr)) {
@@ -159,6 +160,31 @@ bool D3D11Device::create(HWND window, std::string& error) {
     return true;
 }
 
+void D3D11Device::destroy() {
+    // Direct3D 11 destroys objects late, once the context lets go of them. The device itself may
+    // outlive this (the old decoder still holds it), so its swap chain has to go explicitly:
+    // every reference released first, then ClearState() and Flush(), which is Microsoft's order.
+    if (context_) context_->OMSetRenderTargets(0, nullptr, nullptr);
+    renderTarget_.Reset();
+    if (frameLatencyWait_) {
+        CloseHandle(frameLatencyWait_);
+        frameLatencyWait_ = nullptr;
+    }
+    swapChain_.Reset();
+    if (context_) {
+        context_->ClearState();
+        context_->Flush();
+    }
+    context_.Reset();
+    device_.Reset();
+    adapterName_.clear();
+    adapterVendor_ = 0;
+    tearingSupported_ = false;
+    swapChainFlags_ = 0;
+    width_ = 0;
+    height_ = 0;
+}
+
 Microsoft::WRL::ComPtr<ID3D11Texture2D> D3D11Device::backBuffer() const {
     Microsoft::WRL::ComPtr<ID3D11Texture2D> buffer;
     if (swapChain_) swapChain_->GetBuffer(0, IID_PPV_ARGS(&buffer));
@@ -211,7 +237,10 @@ bool D3D11Device::present(bool vsync) {
     const UINT flags = (!vsync && tearingSupported_) ? DXGI_PRESENT_ALLOW_TEARING : 0;
     const HRESULT hr = swapChain_->Present(vsync ? 1 : 0, flags);
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
-        spdlog::error("{}", hresult("Present", device_->GetDeviceRemovedReason()));
+        // The removed reason tells more than the result: hung, reset, driver error, card gone.
+        const HRESULT reason = hr == DXGI_ERROR_DEVICE_REMOVED ? device_->GetDeviceRemovedReason() : hr;
+        lostReason_ = hresult("Present", reason);
+        spdlog::error("{}", lostReason_);
         return false;
     }
     return true;

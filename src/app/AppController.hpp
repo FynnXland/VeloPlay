@@ -176,6 +176,8 @@ public:
     void openVideosFolder() override;
     /// The window reports how a screenshot went.
     void captureFinished(bool saved, std::string where, std::string detail, bool video = false);
+    /// The window made its graphics device anew after it was lost; a running stream says so over the picture.
+    void graphicsRestored(std::chrono::steady_clock::time_point now);
     void startAccountLogin() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;

@@ -48,6 +48,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
   the corner you choose, and says so when the connection stumbles
 - Saves screenshots of the game with F12 and records videos with sound with F10
 - Reconnects on its own after a drop and can put the PS5 into rest mode
+- Sets the picture up again by itself when the graphics driver restarts, instead of closing
 - Measures the connection to a console and suggests stream settings that fit it
 - Shows the picture of a capture card the same way (beta)
 - Lets you steer with a steering wheel and pedals (beta)
@@ -364,9 +365,8 @@ in the game, self-update.
 
 Next:
 
-1. Recover by itself when the graphics driver restarts
-2. Play from outside the home network
-3. HDR
+1. Play from outside the home network
+2. HDR
 
 ## Credits
 

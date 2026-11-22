@@ -16,11 +16,18 @@ namespace veloplay::render {
 class D3D11Device {
 public:
     D3D11Device() = default;
+    ~D3D11Device() { destroy(); }
     D3D11Device(const D3D11Device&) = delete;
     D3D11Device& operator=(const D3D11Device&) = delete;
 
     /// Returns false if no usable graphics adapter was found; `error` then says why.
+    /// After destroy() it can be called again for the same window.
     bool create(HWND window, std::string& error);
+
+    /// Lets go of the swap chain and the device, so that create() can start over after the
+    /// device was lost. Everything else made on the device has to be released before.
+    /// A window takes only one swap chain of this kind; the old one has to be gone entirely.
+    void destroy();
 
     /// Call after the window changed size. Zero sizes (minimised) are ignored.
     void resize(UINT width, UINT height);
@@ -34,8 +41,9 @@ public:
     /// decoder, which shares the device, would stand still for that long.
     void waitForFrame(unsigned timeoutMs);
 
-    /// Returns false when the device was lost (driver update, GPU removed).
+    /// Returns false when the device was lost (driver update, GPU removed); lostReason() then says why.
     bool present(bool vsync);
+    [[nodiscard]] const std::string& lostReason() const { return lostReason_; }
 
     [[nodiscard]] ID3D11Device* device() const { return device_.Get(); }
     [[nodiscard]] ID3D11DeviceContext* context() const { return context_.Get(); }
@@ -56,10 +64,11 @@ private:
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain_;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTarget_;
     std::string adapterName_;
+    std::string lostReason_;
     unsigned adapterVendor_ = 0;
     bool tearingSupported_ = false;
     UINT swapChainFlags_ = 0;
-    HANDLE frameLatencyWait_ = nullptr; // owned by the swap chain
+    HANDLE frameLatencyWait_ = nullptr; // closed in destroy()
     UINT width_ = 0;
     UINT height_ = 0;
 };

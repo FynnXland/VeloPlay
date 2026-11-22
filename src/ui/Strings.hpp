@@ -107,6 +107,8 @@ struct Strings {
     const char* tabPicture;
     const char* tabController;
     const char* tabKeyboard;
+    const char* tabControls;
+    const char* tabWheel;
     const char* tabCapture;
     const char* tabAdvanced;
     const char* inputIntro;  // heads the tab with what the console sends
@@ -384,6 +386,7 @@ struct Strings {
     const char* alertDecoder;
     const char* alertFewer;
     const char* alertBattery;
+    const char* alertGraphicsRestored;
     const char* waitingForRelease; // the console has not let go of the session before
     // Playing with keyboard and mouse.
     const char* kbmTitle;

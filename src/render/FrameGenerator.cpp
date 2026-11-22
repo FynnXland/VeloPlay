@@ -1,4 +1,5 @@
 #include "render/FrameGenerator.hpp"
+#include "render/ShaderCompiler.hpp"
 
 #include "render/NvofMotion.hpp"
 
@@ -448,16 +449,7 @@ struct Constants {
 };
 
 bool compile(const char* source, std::size_t length, const char* target, ComPtr<ID3DBlob>& code, std::string& error) {
-    ComPtr<ID3DBlob> messages;
-    const HRESULT result = D3DCompile(source, length, nullptr, nullptr, nullptr, "main", target, 0, 0,
-                                      code.GetAddressOf(), messages.GetAddressOf());
-    if (SUCCEEDED(result)) return true;
-    error = "shader did not compile";
-    if (messages) {
-        error += ": ";
-        error.append(static_cast<const char*>(messages->GetBufferPointer()), messages->GetBufferSize());
-    }
-    return false;
+    return compileShader(source, length, target, code, error);
 }
 
 bool makePixelShader(ID3D11Device* device, const char* source, std::size_t length, ComPtr<ID3D11PixelShader>& shader,

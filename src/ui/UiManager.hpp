@@ -17,7 +17,8 @@ class UiManager {
 public:
     enum class Sheet { None, Pairing, Settings, Connection };
     enum class PairingStep { Console, Account, Pin, Progress };
-    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Capture, Advanced };
+    /// Controller, Keyboard and Wheel are the three pages under "Controls", which has a row of its own.
+    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Wheel, Capture, Advanced };
 
     explicit UiManager(IUiActions& actions);
 
@@ -123,6 +124,7 @@ private:
     bool accountPrefilled_ = false;
 
     SettingsTab settingsTab_ = SettingsTab::Stream;
+    SettingsTab controlsTab_ = SettingsTab::Controller; // the page under "Controls" seen last
     std::string newAddress_;
     int remotePortEdit_ = 0;
     bool remotePortActive_ = false;

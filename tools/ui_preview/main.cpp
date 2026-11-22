@@ -281,8 +281,7 @@ std::vector<Scene> scenes() {
              model.wheel.gas = 0.7f;
              model.wheel.capturing = static_cast<int>(input::WheelTarget::Brake);
              model.wheel.pressed = input::mask(input::Button::Cross);
-             ui.openSettings(UiManager::SettingsTab::Controller);
-             ui.scrollSettingsTo(0.62f);
+             ui.openSettings(UiManager::SettingsTab::Wheel);
          }},
         {"47-settings-picture-amd",
          [](UiModel& model, UiManager& ui) {
@@ -477,6 +476,15 @@ std::vector<Scene> scenes() {
              model.session.connectedSeconds = 240;
              model.stream = playingStats();
              model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
+         }},
+        {"51-stream-graphics-restored",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.alerts = {StreamAlert::PicturesLost, StreamAlert::GraphicsRestored};
          }},
         {"42-stream-screenshot",
          [](UiModel& model, UiManager&) {

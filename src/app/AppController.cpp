@@ -801,6 +801,10 @@ void AppController::handleQuit(session::QuitReason reason, const std::string& de
     failSession(reason, detail);
 }
 
+void AppController::graphicsRestored(Clock::time_point now) {
+    if (session_) session_->alerts.graphicsRestored(now);
+}
+
 void AppController::updateAlerts(const session::SessionStats& stats, Clock::time_point now) {
     StreamObservation observation;
     observation.sincePicture = std::chrono::duration_cast<milliseconds>(now - session_->lastPicture);
@@ -825,6 +829,7 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
             case StreamAlert::DecoderBehind: what = "the decoder threw pictures away"; break;
             case StreamAlert::FewerPictures: what = "the console sends fewer pictures than asked for"; break;
             case StreamAlert::BatteryLow: what = "the controller's battery is low"; break;
+            case StreamAlert::GraphicsRestored: what = "the graphics device was made anew"; break;
         }
         spdlog::info("Note over the picture: {} ({} ms since the last picture, {:.0f} fps, {} lost, {} dropped)", what,
                      observation.sincePicture.count(), stats.streamFps, stats.framesLost, droppedFrames_);
