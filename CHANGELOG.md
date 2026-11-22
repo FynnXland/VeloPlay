@@ -3,6 +3,16 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.4.1
+
+- Smooth colour steps no longer shimmers in still pictures, and leaves flat areas exactly as they
+  are.
+
+**Deutsch**
+
+- „Farbstufen glätten“ grieselt in stehenden Bildern nicht mehr und lässt glatte Flächen genau,
+  wie sie sind.
+
 ## 1.4.0
 
 - **Smoother skies.** At a low bitrate, skies and soft gradients show visible steps. A new pass

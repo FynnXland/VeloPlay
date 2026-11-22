@@ -140,12 +140,12 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 
 // Banding: a stream at 6 to 15 Mbit/s turns smooth skies and gradients
 // into visible steps one or two levels apart. Each pixel looks at four
-// neighbours at a random distance and angle (different for every pixel and
-// every picture). Only where all four lie within a step or two of it, which
-// is where the picture is flat apart from the steps, it takes their average;
-// anywhere with detail or an edge it keeps its own value. The average is
-// dithered by up to one level, so writing it back into 8 bits does not cut
-// new steps. Written for VeloPlay after the idea known from flash3kyuu and
+// neighbours at a random distance and angle (different for every pixel,
+// the same in every picture). Only where all four lie within a step or two
+// of it, which is where the picture is flat apart from the steps, it takes
+// their average; anywhere with detail or an edge it keeps its own value.
+// Where that moves the pixel, it is dithered by up to one level, so writing
+// it back into 8 bits does not cut new steps. Written for VeloPlay after the idea known from flash3kyuu and
 // libplacebo; see THIRD_PARTY.md.
 const char kDebandShader[] = VELOPLAY_OUTPUT_CONSTANTS R"(
 Texture2D source : register(t0);
@@ -171,9 +171,11 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     float worst = max(max(most(abs(a - c)), most(abs(b - c))), max(most(abs(d - c)), most(abs(e - c))));
     float drift = most(abs(average - c));
     float w = (1.0 - smoothstep(threshold, threshold * 2.0, worst)) * (1.0 - smoothstep(threshold * 0.5, threshold, drift));
-    // Two random values add up to a triangle between minus and plus one level.
+    // Two random values add up to a triangle between minus and plus one level. Only where the average
+    // really moves the pixel: a flat area keeps its exact value instead of picking up noise.
     float grain = (hash(px * 1.31 + seed * 3.1) + hash(px * 0.77 + seed * 2.3 + 5.0) - 1.0) / 255.0;
-    return float4(saturate(lerp(c, average, w) + grain * w), 1.0);
+    float moved = saturate(drift * 255.0 * 2.0);
+    return float4(saturate(lerp(c, average, w) + grain * w * moved), 1.0);
 }
 )";
 
@@ -604,8 +606,9 @@ void VideoRenderer::draw(UINT targetWidth, UINT targetHeight, const Output& outp
         OutputConstants smooth{};
         smooth.sourceSize[0] = static_cast<float>(width_);
         smooth.sourceSize[1] = static_cast<float>(height_);
-        debanded_.seed = (debanded_.seed + 1) % 4093;
-        smooth.seed = static_cast<float>(debanded_.seed) * 0.6180339f;
+        // The same random pattern in every picture. A new one each time made a still picture shimmer:
+        // in a model on compressed skies about half the pixels changed by a level from one draw to the next.
+        smooth.seed = 0.0f;
         smooth.threshold = kDebandThreshold;
         smooth.radius = kDebandRadius;
         D3D11_VIEWPORT whole{};
@@ -616,6 +619,9 @@ void VideoRenderer::draw(UINT targetWidth, UINT targetHeight, const Output& outp
         pass(debandShader_.Get(), debanded_.target.target.Get(), whole, &picture, 1, outputConstants_.Get());
         picture = debanded_.target.view.Get();
         debanded_.used = true;
+        // Unbound before anything reads it: RTX Video hands this very texture to the video processor.
+        ID3D11RenderTargetView* noTarget = nullptr;
+        context_->OMSetRenderTargets(1, &noTarget, nullptr);
     }
 
     const float scale = std::min(static_cast<float>(targetWidth) / static_cast<float>(width_),

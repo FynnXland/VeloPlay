@@ -164,7 +164,6 @@ private:
     Target scaled_;        // the picture at window size, when sharpening needs one
     struct {
         Target target;     // the picture with its banding smoothed, at the stream's size
-        int seed = 0;
         bool used = false; // the last draw went through it
     } debanded_;
     std::unique_ptr<IFrameGenerator> generator_;

@@ -648,32 +648,47 @@ TEST(VideoRenderer, SmoothsBandingAndLeavesDetailAlone) {
         return sum / (kTarget - 16);
     };
 
-    // A gradient in steps of two brightness levels, each 16 pixels wide: what a low bitrate makes of a sky.
-    SolidFrame steps(kTarget, kTarget, 100, 128, 128, false);
-    for (UINT y = 0; y < kTarget; ++y) {
-        for (UINT x = 0; x < kTarget; ++x) steps.luma[y * kTarget + x] = static_cast<std::uint8_t>(100 + 2 * (x / 16));
+    // Gradients in steps of one and of two brightness levels, each 16 pixels wide: what a low bitrate makes
+    // of a sky. One level is the usual case in 8 bits.
+    for (const int step : {1, 2}) {
+        SolidFrame steps(kTarget, kTarget, 100, 128, 128, false);
+        for (UINT y = 0; y < kTarget; ++y) {
+            for (UINT x = 0; x < kTarget; ++x) {
+                steps.luma[y * kTarget + x] = static_cast<std::uint8_t>(100 + step * static_cast<int>(x / 16));
+            }
+        }
+        const auto banded = shown(steps, false);
+        const auto smoothed = shown(steps, true);
+        // How far each column lies from the straight ramp through the middles of the steps.
+        double before = 0.0;
+        double after = 0.0;
+        double largestJumpBefore = 0.0;
+        double largestJumpAfter = 0.0;
+        const double first = columnMean(banded, 8);
+        const double slope = (columnMean(banded, 56) - first) / 48.0;
+        for (UINT x = 16; x < 48; ++x) {
+            const double ramp = first + slope * (static_cast<double>(x) - 8.0);
+            before += std::abs(columnMean(banded, x) - ramp);
+            after += std::abs(columnMean(smoothed, x) - ramp);
+            largestJumpBefore = std::max(largestJumpBefore, std::abs(columnMean(banded, x + 1) - columnMean(banded, x)));
+            largestJumpAfter = std::max(largestJumpAfter, std::abs(columnMean(smoothed, x + 1) - columnMean(smoothed, x)));
+        }
+        std::printf("banding in steps of %d: off the ramp by %.2f levels before, %.2f after; largest step %.2f before, "
+                    "%.2f after\n",
+                    step, before / 32.0, after / 32.0, largestJumpBefore, largestJumpAfter);
+        EXPECT_GT(largestJumpBefore, 0.8 * step) << "steps of " << step;
+        EXPECT_LT(after, before * 0.7) << "steps of " << step;
+        EXPECT_LT(largestJumpAfter, largestJumpBefore * 0.6) << "steps of " << step;
     }
-    const auto banded = shown(steps, false);
-    const auto smoothed = shown(steps, true);
-    // How far each column lies from the straight ramp through the middles of the steps.
-    double before = 0.0;
-    double after = 0.0;
-    double largestJumpBefore = 0.0;
-    double largestJumpAfter = 0.0;
-    const double first = columnMean(banded, 8);
-    const double slope = (columnMean(banded, 56) - first) / 48.0;
-    for (UINT x = 16; x < 48; ++x) {
-        const double ramp = first + slope * (static_cast<double>(x) - 8.0);
-        before += std::abs(columnMean(banded, x) - ramp);
-        after += std::abs(columnMean(smoothed, x) - ramp);
-        largestJumpBefore = std::max(largestJumpBefore, std::abs(columnMean(banded, x + 1) - columnMean(banded, x)));
-        largestJumpAfter = std::max(largestJumpAfter, std::abs(columnMean(smoothed, x + 1) - columnMean(smoothed, x)));
+
+    // The same picture drawn twice comes out the same: no shimmer on a still picture.
+    {
+        SolidFrame steps(kTarget, kTarget, 100, 128, 128, false);
+        for (UINT y = 0; y < kTarget; ++y) {
+            for (UINT x = 0; x < kTarget; ++x) steps.luma[y * kTarget + x] = static_cast<std::uint8_t>(100 + x / 16);
+        }
+        EXPECT_EQ(shown(steps, true), shown(steps, true));
     }
-    std::printf("banding: off the ramp by %.2f levels before, %.2f after; largest step %.2f before, %.2f after\n",
-                before / 32.0, after / 32.0, largestJumpBefore, largestJumpAfter);
-    EXPECT_GT(largestJumpBefore, 1.5);
-    EXPECT_LT(after, before * 0.7);
-    EXPECT_LT(largestJumpAfter, largestJumpBefore * 0.6);
 
     // Detail: a fine checkerboard 30 levels apart stays as it is.
     SolidFrame checker(kTarget, kTarget, 100, 128, 128, false);
@@ -708,13 +723,9 @@ TEST(VideoRenderer, SmoothsBandingAndLeavesDetailAlone) {
     for (std::size_t i = 0; i < plainEdge.size(); ++i) edgeOff = std::max(edgeOff, std::abs(plainEdge[i] - debandedEdge[i]));
     EXPECT_LE(edgeOff, 1) << "the edge was softened";
 
-    // A flat area stays flat: at most the one level of dither.
+    // A flat area stays exactly as it is: no dither where nothing was smoothed.
     SolidFrame flat(kTarget, kTarget, 120, 128, 128, false);
-    const auto plainFlat = shown(flat, false);
-    const auto debandedFlat = shown(flat, true);
-    int flatOff = 0;
-    for (std::size_t i = 0; i < plainFlat.size(); ++i) flatOff = std::max(flatOff, std::abs(plainFlat[i] - debandedFlat[i]));
-    EXPECT_LE(flatOff, 1);
+    EXPECT_EQ(shown(flat, false), shown(flat, true));
 }
 
 // ---- On the real graphics card ------------------------------------------------
@@ -1906,6 +1917,16 @@ TEST(OnTheGraphicsCard, LetsNvidiasNetworkWorkOnAPictureThatKeepsItsSize) {
     // The same picture, not a different one.
     EXPECT_NEAR(surface.mean(), plainMean, 4.0);
     EXPECT_LT(apart, 12.0);
+
+    // With the colour steps smoothed first, RTX Video gets the smoothed picture and still runs.
+    output.deband = true;
+    surface.begin();
+    renderer.draw(kWidth, kHeight, output);
+    EXPECT_TRUE(renderer.debanded());
+    EXPECT_STREQ(renderer.scalerName(), "RTX Video") << renderer.rtxError();
+    EXPECT_NEAR(surface.mean(), plainMean, 4.0);
+    EXPECT_TRUE(renderer.rtxAvailable()) << renderer.rtxError();
+    output.deband = false;
 
     // A window smaller than the stream: the picture is shrunk by the plain filter, the network stays out of it.
     surface.begin();
