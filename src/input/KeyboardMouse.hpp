@@ -96,9 +96,24 @@ inline constexpr int WheelDown = 0x1002;
 /// display and full screen. They cannot be given to the controller.
 [[nodiscard]] bool isReservedKey(int code);
 
-/// A layout for games seen from behind the character: W A S D to walk, the
-/// mouse to look, left and right button to shoot and aim.
+/// Layouts to start from. In all of them W A S D walk, the mouse looks, and
+/// the left and right button shoot and aim.
+///
+/// Standard puts keys where PC games have them onto the buttons where
+/// PlayStation games have the same thing: Space jumps and jumping is Cross,
+/// Shift runs and running is a press on the left stick, and so on. OpenWorld
+/// differs in the keys a game with walking and driving is known for: Tab for
+/// the weapon wheel, Q for cover, C to look back, M for the map, P to pause.
+enum class KeyPreset { Standard, OpenWorld };
+[[nodiscard]] std::array<int, kPadControlCount> presetKeyBindings(KeyPreset preset);
+/// The preset these keys are, if they are one.
+[[nodiscard]] std::optional<KeyPreset> presetOf(const std::array<int, kPadControlCount>& keys);
+
+/// The layout a new installation starts with: the standard preset.
 [[nodiscard]] std::array<int, kPadControlCount> defaultKeyBindings();
+/// What that was up to 0.17: run on Cross and jump on Square, as an older
+/// game had it. Kept to tell a layout nobody ever changed from a chosen one.
+[[nodiscard]] std::array<int, kPadControlCount> firstKeyBindings();
 
 /// A layout of its own for one game. The game is told by the title id the
 /// console reports for what is running (like "PPSA01325").

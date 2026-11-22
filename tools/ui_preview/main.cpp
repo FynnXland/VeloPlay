@@ -20,6 +20,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include "ui/UiManager.hpp"
+#include "ui/Widgets.hpp"
 
 using namespace veloplay;
 
@@ -254,8 +255,7 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              withGameLayout(model);
-             ui.openSettings(UiManager::SettingsTab::Controller);
-             ui.scrollSettingsTo(0.36f);
+             ui.openSettings(UiManager::SettingsTab::Keyboard);
          }},
         {"33-stream-key-layout",
          [](UiModel& model, UiManager& ui) {
@@ -272,8 +272,8 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              model.config->controller.keyboardMouse.enabled = true;
-             ui.openSettings(UiManager::SettingsTab::Controller);
-             ui.scrollSettingsTo(1.0f);
+             ui.openSettings(UiManager::SettingsTab::Keyboard);
+             ui.scrollSettingsTo(0.5f);
          }},
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {
@@ -520,6 +520,7 @@ int main(int argc, char** argv) {
                                           "/System/Library/Fonts/Supplemental/Arial Bold.ttf"});
 
     int failures = 0;
+    int cutOff = 0;
     for (const Scene& scene : scenes()) {
         // A fresh ImGui context per scene: no popup or animation state leaks over.
         IMGUI_CHECKVERSION();
@@ -546,6 +547,9 @@ int main(int argc, char** argv) {
         model.requestedStream = effectiveStream(config, {});
         model.displayHz = 60.0;
 
+        // Every surface and every text that a window cuts off in part gets noted (see ui::ClipAudit).
+        ui::context().audit.enabled = true;
+
         // Enough frames for every spring to settle.
         for (int frame = 0; frame < 90; ++frame) {
             ImGui_ImplOpenGL3_NewFrame();
@@ -555,6 +559,8 @@ int main(int argc, char** argv) {
             io.DeltaTime = 1.0f / 60.0f;
             if (scene.step) scene.step(model, frame);
             manager.feedNavigation(model);
+            // What counts is the picture that gets written: in the first frames sizes are not settled yet.
+            ui::context().audit.findings.clear();
             ImGui::NewFrame();
             manager.draw(model);
             ImGui::Render();
@@ -573,9 +579,18 @@ int main(int argc, char** argv) {
             ++failures;
         }
 
+        for (const std::string& finding : ui::context().audit.findings) {
+            std::fprintf(stderr, "CUT OFF in %s (%s): %s\n", scene.name.c_str(), language.c_str(), finding.c_str());
+            ++cutOff;
+        }
+
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
+    }
+    if (cutOff > 0) {
+        std::fprintf(stderr, "%d things are cut off at an edge. Each one shows as a missing corner or a clipped word.\n", cutOff);
+        ++failures;
     }
 
     glfwDestroyWindow(window);

@@ -58,25 +58,45 @@ TEST(KeyboardMouse, KeepsTheProgramsOwnKeysAwayFromTheGame) {
     EXPECT_EQ(settings.keys[static_cast<std::size_t>(PadControl::Cross)], key::None);
 }
 
-TEST(KeyboardMouse, DefaultLayoutUsesEachKeyOnce) {
-    const auto keys = defaultKeyBindings();
-    std::set<int> seen;
-    for (const int code : keys) {
-        if (code == key::None) continue;
-        EXPECT_TRUE(seen.insert(code).second) << "key " << code << " stands for two controls";
-        EXPECT_FALSE(isReservedKey(code));
+TEST(KeyboardMouse, EveryPresetUsesEachKeyOnce) {
+    for (const auto& keys : {presetKeyBindings(KeyPreset::Standard), presetKeyBindings(KeyPreset::OpenWorld), firstKeyBindings()}) {
+        std::set<int> seen;
+        for (const int code : keys) {
+            if (code == key::None) continue;
+            EXPECT_TRUE(seen.insert(code).second) << "key " << code << " stands for two controls";
+            EXPECT_FALSE(isReservedKey(code));
+        }
+        // Walking is on W A S D, shooting and aiming on the mouse buttons.
+        EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::LeftStickUp)], 'W');
+        EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::R2)], key::MouseLeft);
+        EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::L2)], key::MouseRight);
     }
-    // Walking is on W A S D, shooting and aiming on the mouse buttons.
-    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::LeftStickUp)], 'W');
-    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::R2)], key::MouseLeft);
-    EXPECT_EQ(keys[static_cast<std::size_t>(PadControl::L2)], key::MouseRight);
-    // Every control has a name for the settings file, and the name leads back to it.
-    for (std::size_t i = 0; i < kPadControlCount; ++i) {
-        const auto control = static_cast<PadControl>(i);
-        ASSERT_FALSE(padControlName(control).empty());
-        EXPECT_EQ(parsePadControl(padControlName(control)), control);
-    }
-    EXPECT_FALSE(parsePadControl("nonsense").has_value());
+}
+
+TEST(KeyboardMouse, StartsWithKeysWherePcGamesHaveThem) {
+    const auto at = [](const std::array<int, kPadControlCount>& keys, PadControl control) {
+        return keys[static_cast<std::size_t>(control)];
+    };
+    // Space jumps and jumping is Cross; Shift runs and running is a press on the left stick.
+    const auto standard = defaultKeyBindings();
+    EXPECT_EQ(standard, presetKeyBindings(KeyPreset::Standard));
+    EXPECT_EQ(at(standard, PadControl::Cross), key::Space);
+    EXPECT_EQ(at(standard, PadControl::L3), key::Shift);
+    EXPECT_EQ(at(standard, PadControl::Circle), key::Ctrl);
+    EXPECT_EQ(at(standard, PadControl::Square), 'R');
+    // The other preset keeps those and moves what a game with walking and driving is known for.
+    const auto openWorld = presetKeyBindings(KeyPreset::OpenWorld);
+    EXPECT_EQ(at(openWorld, PadControl::Cross), key::Space);
+    EXPECT_EQ(at(openWorld, PadControl::L1), key::Tab);
+    EXPECT_EQ(at(openWorld, PadControl::Options), 'P');
+
+    // A layout says which preset it is, until one key changes.
+    EXPECT_EQ(presetOf(standard), KeyPreset::Standard);
+    EXPECT_EQ(presetOf(openWorld), KeyPreset::OpenWorld);
+    auto changed = standard;
+    changed[static_cast<std::size_t>(PadControl::Triangle)] = 'G';
+    EXPECT_FALSE(presetOf(changed).has_value());
+    EXPECT_FALSE(presetOf(firstKeyBindings()).has_value());
 }
 
 TEST(KeyboardMouse, DoesNothingWhileSwitchedOff) {
@@ -96,8 +116,8 @@ TEST(KeyboardMouse, KeysPressButtonsAndTriggers) {
     mapper.key(key::Space, true);
     mapper.key(key::MouseLeft, true);
     ControllerState state = mapper.state(now);
-    EXPECT_TRUE(state.pressed(Button::Square));
-    EXPECT_FALSE(state.pressed(Button::Cross));
+    EXPECT_TRUE(state.pressed(Button::Cross));
+    EXPECT_FALSE(state.pressed(Button::Square));
     EXPECT_EQ(state.r2, 255);
     EXPECT_EQ(state.l2, 0);
 
@@ -105,7 +125,7 @@ TEST(KeyboardMouse, KeysPressButtonsAndTriggers) {
     mapper.key(key::MouseLeft, false);
     mapper.key(key::MouseRight, true);
     state = mapper.state(now);
-    EXPECT_FALSE(state.pressed(Button::Square));
+    EXPECT_FALSE(state.pressed(Button::Cross));
     EXPECT_EQ(state.r2, 0);
     EXPECT_EQ(state.l2, 255);
 

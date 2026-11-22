@@ -2,6 +2,7 @@
 
 #include <span>
 #include <string>
+#include <vector>
 #include <string_view>
 #include <unordered_map>
 
@@ -40,17 +41,34 @@ private:
 };
 
 /// Per-frame state shared by all widgets.
+/// A check of the drawing itself, for the tool that renders every screen:
+/// whatever is drawn partly outside the area its window may draw in gets
+/// noted. That is how the rounded corners of a button went missing on one
+/// side: the button stood sixteen pixels left of its column, the column cut
+/// it off, and it showed only while the pointer was on it.
+struct ClipAudit {
+    bool enabled = false;
+    std::vector<std::string> findings;
+};
+
 struct Context {
     Fonts fonts;
     float scale = 1.0f;
     const Strings* text = nullptr;
     Animator animator;
+    ClipAudit audit;
 };
 
 Context& context();
 
 /// Converts a length given for 100 % scaling to pixels.
 float px(float value);
+
+/// A filled rectangle. Every surface of the interface is drawn through this, so the check above sees it,
+/// also while it is fully transparent (a button nobody points at).
+void fill(ImDrawList* draw, ImVec2 a, ImVec2 b, ImU32 color, float rounding = 0.0f, ImDrawFlags flags = 0);
+/// Notes the rectangle if the current window cuts part of it off. Does nothing unless the check is on.
+void auditClip(ImDrawList* draw, ImVec2 a, ImVec2 b, const char* what);
 
 void space(float height);
 

@@ -256,6 +256,56 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
 }
 )";
 
+// A cut in one part of the picture only. The menu of a game replaces a page
+// by another from one picture to the next while everything around it stays;
+// a subtitle is replaced by the next. For the picture as a whole that is no
+// cut, so a picture was computed, and in the replaced part the search finds
+// shifts between writing and other writing that fit by accident: scraps of
+// both pages for the length of one picture.
+//
+// Looked at per part, about forty pixels wide, in the way cuts are found:
+// the fine structure fits neither along the shift nor in place. That alone
+// would not do. Where a scene moves, a good share of the parts fit badly
+// (things appear from behind others, the search goes wrong), and showing a
+// real picture there would tear a moving scene into pieces of two moments.
+// So the part must also have stood still until now. What stood for a third
+// of a second and is then something else, without having moved there, was
+// replaced.
+const char kReplacedShader[] = VELOPLAY_FLOW_CONSTANTS R"(
+Texture2D source : register(t0);
+Texture2D lumaA : register(t1);
+Texture2D lumaB : register(t2);
+Texture2D stoodBefore : register(t3); // the count of standing still as it was before this pair of pictures
+SamplerState linearSampler : register(s0);
+SamplerState pointSampler : register(s1);
+
+float structure(Texture2D luma, float2 at) {
+    return luma.SampleLevel(linearSampler, at, 0).r - luma.SampleLevel(linearSampler, at, mip).r;
+}
+
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float alongShift = 0.0;
+    float inPlace = 0.0;
+    float amount = 0.0;
+    float stood = 0.0;
+    [loop] for (int j = 0; j < 8; ++j) {
+        [loop] for (int i = 0; i < 8; ++i) {
+            float2 at = uv + (float2(i, j) - 3.5) / (8.0 * cells);
+            float2 shift = source.SampleLevel(linearSampler, at, 0).xy / frameSize;
+            float a = structure(lumaA, at - phase * shift);
+            float b = structure(lumaB, at + (1.0 - phase) * shift);
+            alongShift += abs(a - b);
+            amount += 0.5 * (abs(a) + abs(b));
+            inPlace += abs(structure(lumaA, at) - structure(lumaB, at));
+            stood += stoodBefore.SampleLevel(pointSampler, at, 0).r;
+        }
+    }
+    float differs = min(alongShift, inPlace) / 64.0;
+    float fitsNothing = smoothstep(0.5, 0.8, differs / (amount / 64.0 + 0.0001)) * smoothstep(0.008, 0.016, differs);
+    return float4(fitsNothing * smoothstep(0.60, 0.85, stood / 64.0), 0.0, 0.0, 1.0);
+}
+)";
+
 // Keeps count, per pixel, of how long it has stood still, and of how much
 // of an edge it is. A pixel that did not change from one picture to the next
 // gains a little; one that changed a lot starts over; a small change, as the
@@ -304,6 +354,7 @@ Texture2D frameB : register(t1);
 Texture2D flow : register(t2);
 Texture2D misfit : register(t3);  // one value: the share of the picture whose structure fits nothing
 Texture2D standing : register(t4); // per pixel: how long unchanged, how much of an edge
+Texture2D replaced : register(t5); // per part: it had stood and now fits nothing (a page of a menu was replaced)
 SamplerState linearSampler : register(s0);
 SamplerState pointSampler : register(s1);
 
@@ -369,7 +420,18 @@ float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
     // "nothing moved here" from "something passed through here"; only having
     // stood still over several pictures can.
     float3 plain = lerp(frameA.SampleLevel(linearSampler, uv, 0).rgb, frameB.SampleLevel(linearSampler, uv, 0).rgb, phase);
-    return float4(lerp(lerp(a, b, phase), plain, max(doubt, hold)), 1.0);
+    float3 computed = lerp(lerp(a, b, phase), plain, max(doubt, hold));
+    // A part that was replaced shows the nearer real picture, as the whole
+    // picture does across a cut. Looked up half a part to each side as well:
+    // a part that lies half on the replaced page does not say so itself.
+    float2 halfPart = 0.5 / cells;
+    float gone = replaced.SampleLevel(linearSampler, uv, 0).r;
+    gone = max(gone, max(max(replaced.SampleLevel(linearSampler, uv + halfPart, 0).r,
+                             replaced.SampleLevel(linearSampler, uv - halfPart, 0).r),
+                         max(replaced.SampleLevel(linearSampler, uv + float2(halfPart.x, -halfPart.y), 0).r,
+                             replaced.SampleLevel(linearSampler, uv + float2(-halfPart.x, halfPart.y), 0).r)));
+    float3 nearer = phase < 0.5 ? frameA.SampleLevel(pointSampler, uv, 0).rgb : frameB.SampleLevel(pointSampler, uv, 0).rgb;
+    return float4(lerp(computed, nearer, smoothstep(0.35, 0.65, gone)), 1.0);
 }
 )";
 
@@ -477,6 +539,7 @@ bool FlowFrameGenerator::create(ID3D11Device* device, ID3D11DeviceContext* conte
     std::string extraError;
     if (!makePixelShader(device, kReduceShader, sizeof(kReduceShader) - 1, reduceShader_, extraError)) reduceShader_.Reset();
     if (!makePixelShader(device, kStillShader, sizeof(kStillShader) - 1, stillShader_, extraError)) stillShader_.Reset();
+    if (!makePixelShader(device, kReplacedShader, sizeof(kReplacedShader) - 1, replacedShader_, extraError)) replacedShader_.Reset();
 
     // The card's own motion search is an extra on top. Without it, or
     // without the two shaders that use its result, the built-in search does the work.
@@ -577,6 +640,8 @@ bool FlowFrameGenerator::ensureSize(int width, int height) {
         misfitCoarse_ = Level{};
         misfit_ = Level{};
     }
+    // Parts of about forty pixels: small enough for a panel of a menu, large enough for sixty-four samples to say something.
+    if (!makeVectors(replaced_, std::clamp(width / 40, 8, 64), std::clamp(height / 40, 5, 36))) replaced_ = Level{};
     D3D11_TEXTURE2D_DESC standing{};
     standing.Width = static_cast<UINT>(width);
     standing.Height = static_cast<UINT>(height);
@@ -630,8 +695,8 @@ void FlowFrameGenerator::pass(ID3D11PixelShader* shader, ID3D11RenderTargetView*
     context_->Draw(3, 0);
 
     // Nothing stays bound: the next pass writes to what this one read.
-    ID3D11ShaderResourceView* none[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
-    context_->PSSetShaderResources(0, 5, none);
+    ID3D11ShaderResourceView* none[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+    context_->PSSetShaderResources(0, 6, none);
     ID3D11RenderTargetView* noTarget = nullptr;
     context_->OMSetRenderTargets(1, &noTarget, nullptr);
 }
@@ -800,11 +865,28 @@ bool FlowFrameGenerator::finish(int slotFrom, ID3D11ShaderResourceView* from, in
         pass(reduceShader_.Get(), misfit_.flowTarget.Get(), 1, 1, second, 1);
     }
 
+    // Which parts were replaced. Needs the count as it was before this pair, which is the other of the two textures.
+    const bool parts = counting && replacedShader_ && replaced_.flowView && !levels_.empty();
+    if (parts) {
+        constants.cells[0] = static_cast<float>(replaced_.flowWidth);
+        constants.cells[1] = static_cast<float>(replaced_.flowHeight);
+        constants.hasPrediction = 0.0f;
+        constants.mip = static_cast<float>(std::min<std::size_t>(3, levels_.size() - 1));
+        context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
+        ID3D11ShaderResourceView* views[4] = {flow, lumaView_[slotFrom].Get(), lumaView_[slotTo].Get(),
+                                              still_[1 - stillNow_].view.Get()};
+        pass(replacedShader_.Get(), replaced_.flowTarget.Get(), replaced_.flowWidth, replaced_.flowHeight, views, 4);
+    }
+
+    // The last pass looks half a part to each side; without parts the size does not matter.
+    constants.cells[0] = parts ? static_cast<float>(replaced_.flowWidth) : 1.0f;
+    constants.cells[1] = parts ? static_cast<float>(replaced_.flowHeight) : 1.0f;
     context_->UpdateSubresource(constants_.Get(), 0, nullptr, &constants, 0, 0);
-    // A view that is missing reads as zero: no cut, nothing held.
-    ID3D11ShaderResourceView* views[5] = {from, to, flow, judging ? misfit_.flowView.Get() : nullptr,
-                                          counting ? still_[stillNow_].view.Get() : nullptr};
-    pass(synthesisShader_.Get(), target, width_, height_, views, 5);
+    // A view that is missing reads as zero: no cut, nothing held, nothing replaced.
+    ID3D11ShaderResourceView* views[6] = {from, to, flow, judging ? misfit_.flowView.Get() : nullptr,
+                                          counting ? still_[stillNow_].view.Get() : nullptr,
+                                          parts ? replaced_.flowView.Get() : nullptr};
+    pass(synthesisShader_.Get(), target, width_, height_, views, 6);
     return true;
 }
 

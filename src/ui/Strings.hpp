@@ -106,6 +106,7 @@ struct Strings {
     const char* tabStream;
     const char* tabPicture;
     const char* tabController;
+    const char* tabKeyboard;
     const char* tabAdvanced;
     const char* inputIntro;  // heads the tab with what the console sends
     const char* outputIntro; // heads the tab with what the PC makes of it
@@ -325,7 +326,12 @@ struct Strings {
     const char* kbmLayoutHint;
     const char* kbmPressKey;     // shown on a control that waits for its key
     const char* kbmUnassigned;
-    const char* kbmReset;
+    const char* kbmPresetStandard;
+    const char* kbmPresetOpenWorld;
+    const char* kbmPresetOwn;
+    const char* kbmPresetStandardHint;
+    const char* kbmPresetOpenWorldHint;
+    const char* kbmPresetOwnHint;
     const char* padHints;
     const char* consolesTitle;
     const char* padTestTitle;

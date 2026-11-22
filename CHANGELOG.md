@@ -3,6 +3,54 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 0.18.0
+
+- **Menus of a game with frame generation.** When a game replaces one page of a menu by the next
+  while everything around it stays, the computed picture showed scraps of both pages for a
+  moment. VeloPlay now looks at the picture in parts: a part that stood still until now and
+  then fits the picture before neither moved nor in place was replaced, and shows the new page
+  at once. In the test scene the computed picture was 19.7 grey levels away from the new page
+  and is 0.97 away now. Not yet confirmed in a game.
+- **Mouse and keyboard: a page of its own and two presets.** The settings have a page "Mouse &
+  keys". The keys to start with now sit where PC games have them: Space is Cross (jump), Shift
+  is L3 (run), Ctrl is Circle, R is Square, F is Triangle, Q and E are L1 and R1. A second
+  preset, "Open world", is for games with walking and driving: Tab is L1 (often the weapon
+  wheel), Q is R1, C is R3, M is the touchpad, P is Options. One click applies a preset, for all
+  games or for one. Until now running was on Cross and jumping on Square, as older games had
+  it; a layout nobody changed moves to the new start, a layout you made stays.
+- **Rounded corners cut off.** The button "Add console" lost its left side with the rounded
+  corners while the pointer was on it. Fixed, and the same for every button of that kind.
+- **Settings: the last row faded out wrongly.** Where the list of settings continues below the
+  visible part, the row at the edge was cut hard in the middle. It fades out now, as intended.
+- **A check for both.** The tool that renders every screen now notes every surface and every
+  text that an edge cuts off, also for buttons whose background shows only under the pointer.
+  A finding fails the build.
+
+**Deutsch**
+
+- **Menüs eines Spiels mit Zwischenbildern.** Ersetzt ein Spiel eine Menüseite durch die
+  nächste, während drumherum alles steht, zeigte das berechnete Bild für einen Moment Fetzen
+  beider Seiten. VeloPlay sieht sich das Bild jetzt in Teilen an: Ein Teil, der bis eben
+  stillstand und dann weder verschoben noch an Ort und Stelle zum vorigen Bild passt, wurde
+  ersetzt und zeigt sofort die neue Seite. In der Testszene lag das berechnete Bild 19,7
+  Graustufen von der neuen Seite entfernt, jetzt 0,97. Im Spiel noch nicht bestätigt.
+- **Maus und Tastatur: eine eigene Seite und zwei Vorlagen.** Die Einstellungen haben eine Seite
+  „Maus & Tastatur“. Die Tasten liegen zu Beginn dort, wo PC-Spiele sie haben: Leertaste ist
+  Kreuz (springen), Umschalt ist L3 (sprinten), Strg ist Kreis, R ist Quadrat, F ist Dreieck, Q
+  und E sind L1 und R1. Eine zweite Vorlage, „Offene Welt“, ist für Spiele, in denen du läufst
+  und fährst: Tab ist L1 (oft das Waffenrad), Q ist R1, C ist R3, M das Touchpad, P ist Options.
+  Ein Klick setzt eine Vorlage, für alle Spiele oder für eines. Bisher lag Sprinten auf Kreuz
+  und Springen auf Quadrat, wie ältere Spiele es hatten; eine Belegung, die nie geändert wurde,
+  wechselt zur neuen, eine eigene bleibt.
+- **Abgeschnittene runde Ecken.** Dem Knopf „Konsole hinzufügen“ fehlte die linke Seite mit den
+  runden Ecken, solange der Mauszeiger darauf stand. Behoben, auch bei allen Knöpfen dieser Art.
+- **Einstellungen: die letzte Zeile blendete falsch aus.** Wo die Liste der Einstellungen
+  unterhalb des sichtbaren Teils weitergeht, war die Zeile am Rand mittendrin hart
+  abgeschnitten. Jetzt blendet sie weich aus, wie gedacht.
+- **Eine Prüfung für beides.** Das Werkzeug, das jeden Bildschirm rendert, merkt sich jetzt jede
+  Fläche und jeden Text, den ein Rand abschneidet, auch bei Knöpfen, deren Hintergrund erst
+  unter dem Mauszeiger erscheint. Ein Fund lässt den Build scheitern.
+
 ## 0.17.1
 
 - **Flicker on coloured things in computed pictures.** In a cutscene a blue nozzle flickered

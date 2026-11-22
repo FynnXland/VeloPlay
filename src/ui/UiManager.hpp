@@ -17,7 +17,7 @@ class UiManager {
 public:
     enum class Sheet { None, Pairing, Settings, Connection };
     enum class PairingStep { Console, Account, Pin, Progress };
-    enum class SettingsTab { Stream, Picture, Controller, Advanced };
+    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Advanced };
 
     explicit UiManager(IUiActions& actions);
 

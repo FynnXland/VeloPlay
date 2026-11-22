@@ -104,7 +104,7 @@ void sanitize(AppConfig& config) {
 }
 
 // Raised when defaults change in a way that old files have to follow.
-constexpr int kSettingsVersion = 4;
+constexpr int kSettingsVersion = 5;
 
 bool applyProfile(AppConfig& config, std::string_view profileId) {
     if (profileId == kProfileAuto) {
@@ -360,6 +360,19 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     // before start with that once; the values they hold stay stored and come
     // back when "automatic" is switched off.
     if (version < 4) config.activeProfile = std::string(kProfileAuto);
+
+    // Up to 0.17 the keys started out with run on Cross and jump on Square.
+    // Games of today have jump on Cross and run on the left stick, and the
+    // layout to start with follows them since 0.18. A file that still holds
+    // the old start exactly was never changed and moves along; a layout
+    // somebody made stays.
+    if (version < 5) {
+        input::KeyboardMouseSettings& keyboard = config.controller.keyboardMouse;
+        if (keyboard.keys == input::firstKeyBindings()) keyboard.keys = input::defaultKeyBindings();
+        for (input::GameKeyLayout& game : keyboard.games) {
+            if (game.keys == input::firstKeyBindings()) game.keys = input::defaultKeyBindings();
+        }
+    }
 
     sanitize(config);
     return config;

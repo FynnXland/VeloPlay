@@ -805,6 +805,206 @@ Generated generateBetween(Surface& surface, render::VideoRenderer& renderer, con
     return result;
 }
 
+/// The menu of a game: a backdrop that stands, and on it a panel with lines
+/// of writing, one of them marked. `page` decides the writing and the marked
+/// line. From one page to the next the panel's content is simply replaced.
+struct MenuFrame {
+    PatternFrame picture;
+
+    static bool inPanel(int x, int y, int width, int height) {
+        return x >= width * 20 / 100 && x < width * 80 / 100 && y >= height * 20 / 100 && y < height * 75 / 100;
+    }
+
+    MenuFrame(int width, int height, int page) : picture(width, height, 0, 0) {
+        const int left = width * 20 / 100;
+        const int top = height * 20 / 100;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                auto& value = picture.luma[static_cast<std::size_t>(y * width + x)];
+                if (!inPanel(x, y, width, height)) {
+                    value = static_cast<std::uint8_t>(16 + (value - 16) * 6 / 10); // the game behind it, dimmed
+                    continue;
+                }
+                const int row = (y - top) / 10;
+                const int inRow = (y - top) % 10;
+                const int letter = (x - left) / 4;
+                const int inLetter = (x - left) % 4;
+                int shade = row == 1 + page * 2 ? 112 : 46; // the marked line
+                const bool word = cell(letter / 6, row, page * 7 + 1) > 0.3;
+                if (word && inRow >= 3 && inRow < 7 && inLetter < 3 &&
+                    cell(letter * 4 + inLetter, row * 4 + inRow, page * 7 + 2) > 0.35) {
+                    shade = 215;
+                }
+                value = static_cast<std::uint8_t>(shade);
+            }
+        }
+    }
+};
+
+/// What the picture computed across a change of page looks like: how far the
+/// panel is from the new page, how far the two pages are apart there, and how
+/// far everything around the panel is from what it was (it did not change).
+struct PageSwitch {
+    double panelFromNew = 0.0;
+    double panelApart = 0.0;
+    double restFromOld = 0.0;
+};
+PageSwitch switchMenuPage(Surface& surface, render::VideoRenderer& renderer, int width, int height) {
+    const auto show = [&](const media::VideoFrame& frame) {
+        renderer.clear();
+        EXPECT_TRUE(renderer.submit(frame));
+        surface.begin();
+        renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height));
+        return surface.read();
+    };
+    MenuFrame oldPage(width, height, 0);
+    MenuFrame newPage(width, height, 1);
+    const std::vector<int> a = show(oldPage.picture.frame);
+    const std::vector<int> b = show(newPage.picture.frame);
+    renderer.clear();
+
+    // The menu has been open for a moment before the page changes.
+    constexpr int kPictures = 14;
+    std::uint64_t before = 0;
+    std::vector<int> between;
+    for (int i = 0; i < kPictures; ++i) {
+        const bool last = i == kPictures - 1;
+        EXPECT_TRUE(renderer.submit(last ? newPage.picture.frame : oldPage.picture.frame));
+        if (i > 0) {
+            render::VideoRenderer::Output output;
+            output.choice.valid = true;
+            output.choice.base = before;
+            output.choice.next = renderer.newestId();
+            output.choice.step = 1;
+            output.choice.steps = 2;
+            surface.begin();
+            renderer.draw(static_cast<UINT>(width), static_cast<UINT>(height), output);
+            EXPECT_TRUE(renderer.lastDrawWasGenerated());
+            if (last) between = surface.read();
+        }
+        before = renderer.newestId();
+    }
+
+    PageSwitch result;
+    double panel = 0.0, apart = 0.0, rest = 0.0;
+    int panelCount = 0, restCount = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t at = static_cast<std::size_t>(y * width + x);
+            if (MenuFrame::inPanel(x, y, width, height)) {
+                panel += std::abs(between[at] - b[at]);
+                apart += std::abs(a[at] - b[at]);
+                ++panelCount;
+            } else {
+                rest += std::abs(between[at] - a[at]);
+                ++restCount;
+            }
+        }
+    }
+    result.panelFromNew = panel / panelCount;
+    result.panelApart = apart / panelCount;
+    result.restFromOld = rest / restCount;
+    return result;
+}
+
+// In the menu of a game a page is replaced by another from one picture to
+// the next (a user's report: small faults in menus while switching).
+TEST(FrameGeneration, ShowsTheNewPageWhenAMenuSwitches) {
+    constexpr int kWidth = 320;
+    constexpr int kHeight = 180;
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+    PageSwitch result[2];
+    for (int care = 0; care < 2; ++care) {
+        render::VideoRenderer renderer;
+        std::string error;
+        ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+        renderer.holdStillParts(care == 1);
+        result[care] = switchMenuPage(surface, renderer, kWidth, kHeight);
+    }
+    std::printf("menu page switch: pages %.1f grey levels apart in the panel; computed picture %.2f from the new page "
+                "without care, %.2f with it; around the panel off by %.2f and %.2f\n",
+                result[1].panelApart, result[0].panelFromNew, result[1].panelFromNew, result[0].restFromOld,
+                result[1].restFromOld);
+    EXPECT_GT(result[1].panelApart, 10.0);
+    // On the RTX 4070 the panel was 19.7 from the new page before parts that are replaced got their care, 0.97 after.
+    EXPECT_LT(result[1].panelFromNew, 3.0);
+    EXPECT_LT(result[1].restFromOld, 0.5);
+}
+
+/// A scene that stands, and a patch with structure of its own crossing it.
+struct PassingFrame {
+    PatternFrame picture;
+
+    PassingFrame(int width, int height, double position) : picture(width, height, 0, 0) {
+        for (int y = height / 2 - 24; y < height / 2 + 24; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const double inPatch = x + 0.5 - position;
+                if (inPatch < 0.0 || inPatch >= 48.0) continue;
+                const double value = 0.15 + 0.7 * (0.6 * noise(inPatch + 3000.0, y + 7000.5, 24.0, 1) +
+                                                   0.4 * noise(inPatch + 3000.0, y + 7000.5, 7.0, 2));
+                picture.luma[static_cast<std::size_t>(y * width + x)] = static_cast<std::uint8_t>(std::lround(16.0 + 219.0 * value));
+            }
+        }
+    }
+};
+
+// The care for parts that are replaced asks whether a part had stood still.
+// A wall that stands while something walks past it has stood still too, and
+// there nothing was replaced: the thing has to be moved, not shown where it
+// will be. With the care and without it, the same picture has to come out.
+TEST(FrameGeneration, DoesNotTearWhatMovesAcrossAStandingScene) {
+    constexpr int kWidth = 256;
+    constexpr int kHeight = 144;
+    constexpr int kPictures = 16;
+    constexpr double kStep = 6.0;
+    Surface surface;
+    ASSERT_TRUE(surface.create(kWidth, kHeight));
+
+    std::vector<int> wanted;
+    {
+        render::VideoRenderer reference;
+        std::string error;
+        ASSERT_TRUE(reference.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        PassingFrame expected(kWidth, kHeight, 40.0 + kStep * (kPictures - 1.5));
+        ASSERT_TRUE(reference.submit(expected.picture.frame));
+        surface.begin();
+        reference.draw(kWidth, kHeight);
+        wanted = surface.read();
+    }
+    double off[2] = {0.0, 0.0};
+    for (int care = 0; care < 2; ++care) {
+        render::VideoRenderer renderer;
+        std::string error;
+        ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+        renderer.holdStillParts(care == 1);
+        std::uint64_t before = 0;
+        std::vector<int> between;
+        for (int i = 0; i < kPictures; ++i) {
+            PassingFrame picture(kWidth, kHeight, 40.0 + kStep * i);
+            ASSERT_TRUE(renderer.submit(picture.picture.frame));
+            if (i > 0) {
+                render::VideoRenderer::Output output;
+                output.choice.valid = true;
+                output.choice.base = before;
+                output.choice.next = renderer.newestId();
+                output.choice.step = 1;
+                output.choice.steps = 2;
+                surface.begin();
+                renderer.draw(kWidth, kHeight, output);
+                ASSERT_TRUE(renderer.lastDrawWasGenerated());
+                if (i == kPictures - 1) between = surface.read();
+            }
+            before = renderer.newestId();
+        }
+        off[care] = meanDifference(between, wanted, kWidth, kHeight, 0);
+    }
+    std::printf("a patch crossing a standing scene: off by %.2f grey levels without care, %.2f with it\n", off[0], off[1]);
+    EXPECT_LT(off[1], off[0] + 0.15);
+    EXPECT_LT(off[1], 2.0);
+}
+
 // The nozzle at the petrol station (a user's report): blue in front of grey
 // of the same brightness flickered badly in computed pictures.
 TEST(FrameGeneration, MovesColourThatBrightnessDoesNotShow) {
@@ -1159,6 +1359,33 @@ TEST(OnTheGraphicsCard, FindsMotionWithNvidiasEngineWhereThereIsOne) {
         std::printf("motion search, blue on grey%s: NVIDIA %.3f, built-in %.3f, plain mix %.3f\n",
                     hand ? " with hand" : "", card.tintError, own.tintError, card.tintMixError);
         EXPECT_LT(card.tintError, card.tintMixError * 0.6) << (hand ? "with hand" : "alone");
+    }
+}
+
+// The same change of page as on the software renderer, with the card's motion search and without.
+TEST(OnTheGraphicsCard, SwitchesAMenuPage) {
+    constexpr int kWidth = 640;
+    constexpr int kHeight = 360;
+    Surface surface;
+    if (!surface.create(kWidth, kHeight, true)) GTEST_SKIP() << "no graphics card in this machine";
+    for (int card = 1; card >= 0; --card) {
+        PageSwitch result[2];
+        bool usedCard = false;
+        for (int care = 0; care < 2; ++care) {
+            render::VideoRenderer renderer;
+            std::string error;
+            ASSERT_TRUE(renderer.create(surface.device.Get(), surface.context.Get(), error)) << error;
+            ASSERT_TRUE(renderer.frameGenerationAvailable()) << renderer.frameGeneratorError();
+            renderer.allowCardMotion(card == 1);
+            renderer.holdStillParts(care == 1);
+            usedCard = renderer.usesCardMotion();
+            result[care] = switchMenuPage(surface, renderer, kWidth, kHeight);
+        }
+        if (card == 1 && !usedCard) continue; // no search of the card's own: the round below says it all
+        std::printf("motion search, menu page (%s): apart %.1f, from new page %.2f plain, %.2f with care, rest %.2f\n",
+                    usedCard ? "NVIDIA" : "built-in", result[1].panelApart, result[0].panelFromNew,
+                    result[1].panelFromNew, result[1].restFromOld);
+        EXPECT_LT(result[1].panelFromNew, 3.0) << (usedCard ? "NVIDIA" : "built-in");
     }
 }
 

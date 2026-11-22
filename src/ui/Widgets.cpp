@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
 namespace veloplay::ui {
@@ -52,6 +54,37 @@ Context& context() {
 
 float px(float value) { return value * context().scale; }
 
+void auditClip(ImDrawList* draw, ImVec2 a, ImVec2 b, const char* what) {
+    ClipAudit& audit = context().audit;
+    if (!audit.enabled || b.x <= a.x || b.y <= a.y) return;
+    const ImVec2 clipMin = draw->GetClipRectMin();
+    const ImVec2 clipMax = draw->GetClipRectMax();
+    // Entirely out of sight: scrolled away. Nothing shows and nothing is wrong.
+    if (b.x <= clipMin.x || a.x >= clipMax.x || b.y <= clipMin.y || a.y >= clipMax.y) return;
+    // In a list that scrolls, the row at the upper or lower edge is cut on purpose.
+    bool scrolls = false;
+    for (const ImGuiWindow* window = ImGui::GetCurrentWindowRead(); window; window = window->ParentWindow) {
+        if (window->ScrollMax.y > 0.0f) scrolls = true;
+    }
+    const float tolerance = 0.75f;
+    const float left = clipMin.x - a.x;
+    const float right = b.x - clipMax.x;
+    const float top = scrolls ? 0.0f : clipMin.y - a.y;
+    const float bottom = scrolls ? 0.0f : b.y - clipMax.y;
+    if (left <= tolerance && right <= tolerance && top <= tolerance && bottom <= tolerance) return;
+    char line[256];
+    std::snprintf(line, sizeof(line), "%s in window '%s' at %.0f,%.0f size %.0f x %.0f is cut off:%s%s%s%s", what,
+                  ImGui::GetCurrentWindowRead()->Name, a.x, a.y, b.x - a.x, b.y - a.y,
+                  left > tolerance ? " left" : "", right > tolerance ? " right" : "", top > tolerance ? " top" : "",
+                  bottom > tolerance ? " bottom" : "");
+    if (std::find(audit.findings.begin(), audit.findings.end(), line) == audit.findings.end()) audit.findings.emplace_back(line);
+}
+
+void fill(ImDrawList* draw, ImVec2 a, ImVec2 b, ImU32 color, float rounding, ImDrawFlags flags) {
+    auditClip(draw, a, b, "a surface");
+    draw->AddRectFilled(a, b, color, rounding, flags);
+}
+
 void space(float height) { ImGui::Dummy(ImVec2(0.0f, px(height))); }
 
 // ---- text ----------------------------------------------------------------
@@ -93,6 +126,11 @@ ImVec2 measure(TextStyle style, std::string_view text) {
 void drawText(ImDrawList* draw, ImVec2 position, TextStyle style, const ImVec4& color, std::string_view text,
               float alpha) {
     pushText(style);
+    if (context().audit.enabled && alpha > 0.0f) {
+        const ImVec2 size = ImGui::CalcTextSize(text.data(), text.data() + text.size());
+        const std::string what = "the text '" + std::string(text.substr(0, 40)) + "'";
+        auditClip(draw, position, ImVec2(position.x + size.x, position.y + size.y), what.c_str());
+    }
     draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), position, toU32(color, alpha), text.data(),
                   text.data() + text.size());
     popText();
@@ -158,7 +196,7 @@ bool button(const char* label, ButtonKind kind, ImVec2 size, bool enabled) {
     const ImVec2 a(min.x + inset.x, min.y + inset.y);
     const ImVec2 b(min.x + size.x - inset.x, min.y + size.y - inset.y);
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(a, b, toU32(fill, alpha), px(8.0f));
+    ui::fill(draw, a, b, toU32(fill, alpha), px(8.0f));
 
     const ImVec2 textSize = measure(TextStyle::Strong, text);
     drawText(draw, ImVec2(min.x + (size.x - textSize.x) * 0.5f, min.y + (size.y - textSize.y) * 0.5f),
@@ -167,8 +205,19 @@ bool button(const char* label, ButtonKind kind, ImVec2 size, bool enabled) {
 }
 
 bool edgeButton(const char* label, ButtonKind kind) {
+    // The button stands left of its column by its own padding, so that its text lines up with the text
+    // above it. Where the column is a window of its own, that part lies outside of what the window draws:
+    // the button's left side with its rounded corners was missing whenever the pointer was on it.
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() - px(16.0f));
-    return button(label, kind);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImVec2 clipMin = draw->GetClipRectMin();
+    const ImVec2 clipMax = draw->GetClipRectMax();
+    const float left = ImGui::GetCursorScreenPos().x;
+    const bool widen = left < clipMin.x;
+    if (widen) ImGui::PushClipRect(ImVec2(left, clipMin.y), clipMax, false);
+    const bool clicked = button(label, kind);
+    if (widen) ImGui::PopClipRect();
+    return clicked;
 }
 
 bool moreButton(const char* id) {
@@ -179,7 +228,7 @@ bool moreButton(const char* id) {
     const float hover = context().animator.to(ImGui::GetItemID(), ImGui::IsItemHovered() ? 1.0f : 0.0f, 0.16f);
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.controlHover, 0.75f * hover), px(8.0f));
+    fill(draw, min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.controlHover, 0.75f * hover), px(8.0f));
     const ImVec4 ink = mix(p.textTertiary, p.text, hover);
     for (int i = -1; i <= 1; ++i) {
         draw->AddCircleFilled(ImVec2(min.x + size.x * 0.5f + static_cast<float>(i) * px(6.0f), min.y + size.y * 0.5f),
@@ -206,13 +255,13 @@ int segmented(const char* id, std::span<const char* const> labels, int selected,
     ImGui::PushID(id);
     const ImVec2 min = ImGui::GetCursorScreenPos();
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + total, min.y + height), toU32(p.control), px(9.0f));
+    fill(draw, min, ImVec2(min.x + total, min.y + height), toU32(p.control), px(9.0f));
 
     // The thumb slides to the chosen segment instead of jumping.
     const float thumbX = animator.to(ImGui::GetID("thumb"), static_cast<float>(selected), 0.24f);
     if (selected >= 0) {
         const float x = min.x + pad + thumbX * segment;
-        draw->AddRectFilled(ImVec2(x, min.y + pad), ImVec2(x + segment, min.y + height - pad), toU32(p.accent), px(7.0f));
+        fill(draw, ImVec2(x, min.y + pad), ImVec2(x + segment, min.y + height - pad), toU32(p.accent), px(7.0f));
     }
 
     int result = selected;
@@ -259,7 +308,7 @@ bool toggleRow(const char* label, bool* value, bool enabled) {
 
     const ImVec2 track(px(42.0f), px(24.0f));
     const ImVec2 trackMin(min.x + width - track.x, min.y + (rowHeight - track.y) * 0.5f);
-    draw->AddRectFilled(trackMin, ImVec2(trackMin.x + track.x, trackMin.y + track.y),
+    fill(draw, trackMin, ImVec2(trackMin.x + track.x, trackMin.y + track.y),
                         toU32(mix(p.controlHover, p.accent, on), alpha), track.y * 0.5f);
     const float knob = track.y * 0.5f - px(3.0f);
     const float knobX = trackMin.x + track.y * 0.5f + on * (track.x - track.y);
@@ -334,8 +383,8 @@ bool sliderRow(const char* label, float* value, float min, float max, std::strin
     const float t = max > min ? clamp01((*value - min) / (max - min)) : 0.0f;
     const float knobX = a.x + 2.0f + grab * 0.5f + t * (b.x - a.x - 4.0f - grab);
     const float half = px(2.0f);
-    draw->AddRectFilled(ImVec2(a.x, y - half), ImVec2(b.x, y + half), toU32(p.control), half);
-    draw->AddRectFilled(ImVec2(a.x, y - half), ImVec2(knobX, y + half), toU32(p.accent), half);
+    fill(draw, ImVec2(a.x, y - half), ImVec2(b.x, y + half), toU32(p.control), half);
+    fill(draw, ImVec2(a.x, y - half), ImVec2(knobX, y + half), toU32(p.accent), half);
     draw->AddCircleFilled(ImVec2(knobX, y), px(8.0f) + px(1.0f) * active, toU32(p.onAccent), 28);
     ImGui::PopID();
     return changed;
@@ -388,7 +437,7 @@ void drawLogo(ImDrawList* draw, ImVec2 min, float size) {
 
     // The icon file has a slight gradient on the tile. At the size the mark
     // has inside the client it cannot be seen, so one colour does.
-    draw->AddRectFilled(min, ImVec2(min.x + size, min.y + size), IM_COL32(0x1b, 0x1f, 0x26, 255), kTileRadius * size);
+    fill(draw, min, ImVec2(min.x + size, min.y + size), IM_COL32(0x1b, 0x1f, 0x26, 255), kTileRadius * size);
 
     const float top = 0.5f - kHeight * 0.5f;
     for (const auto& layer : kLayers) {

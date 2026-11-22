@@ -56,7 +56,55 @@ bool isReservedKey(int code) {
     return code == key::Escape || code == key::F1 || code == key::F8 || code == key::F9 || code == key::F11;
 }
 
-std::array<int, kPadControlCount> defaultKeyBindings() {
+std::array<int, kPadControlCount> presetKeyBindings(KeyPreset preset) {
+    std::array<int, kPadControlCount> keys{};
+    const auto set = [&](PadControl control, int code) { keys[index(control)] = code; };
+    // Walking and looking.
+    set(PadControl::LeftStickUp, 'W');
+    set(PadControl::LeftStickLeft, 'A');
+    set(PadControl::LeftStickDown, 'S');
+    set(PadControl::LeftStickRight, 'D');
+    // Shooting and aiming, which is also accelerating and braking in a car.
+    set(PadControl::R2, key::MouseLeft);
+    set(PadControl::L2, key::MouseRight);
+    // What nearly every game of the last years has on the same button.
+    set(PadControl::Cross, key::Space); // jump, confirm; the handbrake in a car
+    set(PadControl::L3, key::Shift);    // run
+    set(PadControl::Circle, key::Ctrl); // duck, back
+    set(PadControl::Square, 'R');       // reload
+    set(PadControl::Triangle, 'F');     // use, get in and out
+    set(PadControl::DpadUp, key::Up);
+    set(PadControl::DpadDown, key::Down);
+    set(PadControl::DpadLeft, key::Left);
+    set(PadControl::DpadRight, key::Right);
+    set(PadControl::Create, 'O');
+    set(PadControl::Ps, key::Home);
+    if (preset == KeyPreset::OpenWorld) {
+        set(PadControl::L1, key::Tab);  // weapon wheel
+        set(PadControl::R1, 'Q');       // take cover
+        set(PadControl::R3, 'C');       // look back
+        set(PadControl::Touchpad, 'M'); // map
+        set(PadControl::Options, 'P');  // pause
+    } else {
+        set(PadControl::L1, 'Q');
+        set(PadControl::R1, 'E');
+        set(PadControl::R3, key::MouseMiddle);
+        set(PadControl::Touchpad, key::Tab);
+        set(PadControl::Options, key::Enter);
+    }
+    return keys;
+}
+
+std::optional<KeyPreset> presetOf(const std::array<int, kPadControlCount>& keys) {
+    for (const KeyPreset preset : {KeyPreset::Standard, KeyPreset::OpenWorld}) {
+        if (keys == presetKeyBindings(preset)) return preset;
+    }
+    return std::nullopt;
+}
+
+std::array<int, kPadControlCount> defaultKeyBindings() { return presetKeyBindings(KeyPreset::Standard); }
+
+std::array<int, kPadControlCount> firstKeyBindings() {
     std::array<int, kPadControlCount> keys{};
     const auto set = [&](PadControl control, int code) { keys[index(control)] = code; };
     // Walking and looking.

@@ -143,6 +143,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> reduceShader_;
     Level misfitCoarse_; // eight by eight
     Level misfit_;       // one by one
+    // A page of a menu that is replaced: per part of the picture, whether it had stood and now fits nothing.
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> replacedShader_;
+    Level replaced_;
     // Standing still: per pixel how long it has been unchanged and how much of an edge it is.
     struct Still {
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;

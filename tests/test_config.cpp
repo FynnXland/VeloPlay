@@ -373,6 +373,38 @@ TEST(Config, KeepsWhatAutomaticLearnedAboutAConsole) {
     EXPECT_EQ(effectiveStream(*again, "001122334455").bitrateKbps, 22'500);
 }
 
+TEST(Config, MovesKeysNobodyChangedToTheNewStart) {
+    test::FakeProtector protector;
+    // A file from 0.17 that holds the keys that version started with.
+    AppConfig before;
+    before.controller.keyboardMouse.enabled = true;
+    before.controller.keyboardMouse.keys = input::firstKeyBindings();
+    input::GameKeyLayout game;
+    game.titleId = "PPSA01325";
+    game.keys = input::firstKeyBindings();
+    game.keys[static_cast<std::size_t>(input::PadControl::Triangle)] = 'G'; // somebody chose this
+    before.controller.keyboardMouse.games.push_back(game);
+    auto text = serializeConfig(before, protector);
+    ASSERT_TRUE(text.ok());
+    const std::string marker = "\"settings_version\": 5";
+    const std::size_t at = text->find(marker);
+    ASSERT_NE(at, std::string::npos) << *text;
+    std::string old = *text;
+    old.replace(at, marker.size(), "\"settings_version\": 4");
+
+    const auto moved = parseConfig(old, protector);
+    ASSERT_TRUE(moved.ok());
+    EXPECT_EQ(moved->controller.keyboardMouse.keys, input::defaultKeyBindings());
+    // A layout somebody made stays as it is.
+    ASSERT_EQ(moved->controller.keyboardMouse.games.size(), 1u);
+    EXPECT_EQ(moved->controller.keyboardMouse.games[0].keys, game.keys);
+
+    // And a file of today that holds the old keys on purpose keeps them.
+    const auto kept = parseConfig(*text, protector);
+    ASSERT_TRUE(kept.ok());
+    EXPECT_EQ(kept->controller.keyboardMouse.keys, input::firstKeyBindings());
+}
+
 TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
     test::FakeProtector protector;
     AppConfig config;
@@ -384,7 +416,7 @@ TEST(Config, KeepsTheLayoutForMouseAndKeyboard) {
     kbm.enabled = true;
     kbm.mouseSensitivity = 1.75f;
     kbm.invertY = true;
-    kbm.keys[static_cast<std::size_t>(input::PadControl::Triangle)] = 'E';
+    kbm.keys[static_cast<std::size_t>(input::PadControl::Triangle)] = 'G';
     kbm.keys[static_cast<std::size_t>(input::PadControl::DpadRight)] = input::key::WheelUp;
     kbm.keys[static_cast<std::size_t>(input::PadControl::Create)] = input::key::None;
     const auto text = serializeConfig(config, protector);

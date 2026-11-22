@@ -92,6 +92,7 @@ constexpr Strings kGerman = {
     .tabStream = "Eingang",
     .tabPicture = "Ausgabe",
     .tabController = "Controller",
+    .tabKeyboard = "Maus & Tastatur",
     .tabAdvanced = "Erweitert",
     .inputIntro = "Das schickt die PS5. VeloPlay fordert diese Werte beim Verbinden von der Konsole an. Änderungen "
                   "gelten ab der nächsten Verbindung.",
@@ -343,7 +344,15 @@ constexpr Strings kGerman = {
                      "ab. Esc, F1, F8, F9 und F11 gehören VeloPlay.",
     .kbmPressKey = "Taste drücken",
     .kbmUnassigned = "frei",
-    .kbmReset = "Standardbelegung",
+    .kbmPresetStandard = "Standard",
+    .kbmPresetOpenWorld = "Offene Welt",
+    .kbmPresetOwn = "Eigene",
+    .kbmPresetStandardHint = "Wie am PC üblich: Leertaste ist Kreuz, Umschalt L3, Strg Kreis, R Quadrat, F Dreieck. Q und E "
+                             "sind L1 und R1, Tab ist das Touchpad, Enter ist Options.",
+    .kbmPresetOpenWorldHint = "Für Spiele, in denen du läufst und fährst. Wie Standard, aber Tab ist L1 (oft das "
+                              "Waffenrad), Q ist R1, C ist R3, M das Touchpad und P ist Options. Gas und Bremse liegen "
+                              "auf den Maustasten.",
+    .kbmPresetOwnHint = "Du hast Tasten selbst belegt. Ein Klick auf eine Vorlage ersetzt sie.",
     .padHints = "Mit dem Controller: Steuerkreuz oder linker Stick bewegt die Markierung, Kreuz wählt aus, Kreis geht "
                 "zurück, Options öffnet die Einstellungen, L1 und R1 blättern darin.",
     .consolesTitle = "Konsolen",
@@ -486,6 +495,7 @@ constexpr Strings kEnglish = {
     .tabStream = "Input",
     .tabPicture = "Output",
     .tabController = "Controller",
+    .tabKeyboard = "Mouse & keys",
     .tabAdvanced = "Advanced",
     .inputIntro = "What the PS5 sends. VeloPlay asks the console for these values when it connects. Changes apply "
                   "from the next connection.",
@@ -732,7 +742,15 @@ constexpr Strings kEnglish = {
                      "Esc, F1, F8, F9 and F11 belong to VeloPlay.",
     .kbmPressKey = "Press a key",
     .kbmUnassigned = "free",
-    .kbmReset = "Default layout",
+    .kbmPresetStandard = "Standard",
+    .kbmPresetOpenWorld = "Open world",
+    .kbmPresetOwn = "Your own",
+    .kbmPresetStandardHint = "As usual on a PC: Space is Cross, Shift is L3, Ctrl is Circle, R is Square, F is Triangle. "
+                             "Q and E are L1 and R1, Tab is the touchpad, Enter is Options.",
+    .kbmPresetOpenWorldHint = "For games in which you walk and drive. Like Standard, but Tab is L1 (often the weapon "
+                              "wheel), Q is R1, C is R3, M is the touchpad and P is Options. Accelerating and braking "
+                              "are on the mouse buttons.",
+    .kbmPresetOwnHint = "You chose keys yourself. A click on a preset replaces them.",
     .padHints = "With the controller: the directional pad or the left stick moves the mark, Cross selects, Circle goes "
                 "back, Options opens the settings, L1 and R1 turn their pages.",
     .consolesTitle = "Consoles",

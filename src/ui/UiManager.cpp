@@ -144,7 +144,7 @@ void flowStrip(const Strings& t, const UiModel& model, const AppConfig& config, 
     const auto box = [&](float x, const char* caption, const std::string& value, bool active) {
         const ImVec2 min(origin.x + x, origin.y);
         const ImVec2 max(min.x + boxWidth, min.y + height);
-        draw->AddRectFilled(min, max, toU32(p.control), px(10.0f));
+        fill(draw, min, max, toU32(p.control), px(10.0f));
         if (active) draw->AddRect(min, max, toU32(p.accent), px(10.0f), 0, px(1.5f));
         draw->PushClipRect(min, ImVec2(max.x - pad * 0.5f, max.y), true);
         drawText(draw, ImVec2(min.x + pad, min.y + pad), TextStyle::Caption, active ? p.textSecondary : p.textTertiary,
@@ -206,7 +206,7 @@ int banner(const ImVec4& tone, const std::string& message, std::initializer_list
 
     const ImVec2 min = ImGui::GetCursorScreenPos();
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.surface), px(14.0f));
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.surface), px(14.0f));
     // The dot sits on the first line of text, however many lines follow.
     statusDot(draw, ImVec2(min.x + pad + px(5.0f), min.y + textY + lineHeight * 0.5f + px(1.0f)), tone, false);
 
@@ -214,8 +214,8 @@ int banner(const ImVec4& tone, const std::string& message, std::initializer_list
         const float inset = px(14.0f);
         const float y = min.y + height - px(3.0f);
         const float full = width - 2.0f * inset;
-        draw->AddRectFilled(ImVec2(min.x + inset, y), ImVec2(min.x + inset + full, y + px(3.0f)), toU32(p.control), px(1.5f));
-        draw->AddRectFilled(ImVec2(min.x + inset, y),
+        fill(draw, ImVec2(min.x + inset, y), ImVec2(min.x + inset + full, y + px(3.0f)), toU32(p.control), px(1.5f));
+        fill(draw, ImVec2(min.x + inset, y),
                             ImVec2(min.x + inset + full * std::clamp(progress, 0.0f, 1.0f), y + px(3.0f)),
                             toU32(p.accentHover), px(1.5f));
     }
@@ -433,7 +433,7 @@ void UiManager::draw(const UiModel& model) {
             const ImVec2 min(viewport->Pos.x + (viewport->Size.x - size.x) * 0.5f - px(12.0f),
                              viewport->Pos.y + viewport->Size.y - size.y - px(36.0f));
             ImDrawList* draw = ImGui::GetForegroundDrawList();
-            draw->AddRectFilled(min, ImVec2(min.x + size.x + px(24.0f), min.y + size.y + px(12.0f)),
+            fill(draw, min, ImVec2(min.x + size.x + px(24.0f), min.y + size.y + px(12.0f)),
                                 toU32(p.background, 0.80f), px(10.0f));
             drawText(draw, ImVec2(min.x + px(12.0f), min.y + px(6.0f)), TextStyle::Caption, p.text, text_->streamKeys);
         }
@@ -702,7 +702,7 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
 
     const ImVec2 min = ImGui::GetCursorScreenPos();
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.surface), px(14.0f));
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.surface), px(14.0f));
 
     const float nameY = min.y + (baseHeight - blockHeight) * 0.5f;
     statusDot(draw, ImVec2(min.x + pad + px(5.0f), nameY + nameSize.y * 0.5f + px(1.0f)), statusColor(console),
@@ -913,7 +913,7 @@ void UiManager::drawPairing(const UiModel& model) {
             const float hover = context().animator.to(ImGui::GetItemID(), ImGui::IsItemHovered() ? 1.0f : 0.0f, 0.16f);
             const float picked = context().animator.to(ImGui::GetItemID() + 1, chosen ? 1.0f : 0.0f, 0.18f);
             ImDrawList* draw = ImGui::GetWindowDrawList();
-            draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(mix(p.control, p.controlHover, hover)),
+            fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(mix(p.control, p.controlHover, hover)),
                                 px(10.0f));
             if (picked > 0.01f) {
                 draw->AddRect(min, ImVec2(min.x + width, min.y + height), toU32(p.accentHover, picked), px(10.0f), 0,
@@ -1151,7 +1151,7 @@ void UiManager::drawConnection(const UiModel& model) {
         const float height = px(64.0f);
         const ImVec2 min = ImGui::GetCursorScreenPos();
         ImDrawList* draw = ImGui::GetWindowDrawList();
-        draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.control, 0.5f), px(8.0f));
+        fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.control, 0.5f), px(8.0f));
 
         constexpr int kBars = 60;
         const float gap = px(2.0f);
@@ -1166,10 +1166,10 @@ void UiManager::drawConnection(const UiModel& model) {
             const float value = stats.history[static_cast<std::size_t>(i)];
             const float bottom = min.y + height - inset;
             if (value < 0.0f) {
-                draw->AddRectFilled(ImVec2(x, bottom - px(5.0f)), ImVec2(x + barWidth, bottom), toU32(p.danger), px(1.0f));
+                fill(draw, ImVec2(x, bottom - px(5.0f)), ImVec2(x + barWidth, bottom), toU32(p.danger), px(1.0f));
             } else {
                 const float h = std::max(px(2.0f), usable * std::min(1.0f, value / scale));
-                draw->AddRectFilled(ImVec2(x, bottom - h), ImVec2(x + barWidth, bottom), toU32(p.accentHover), px(1.0f));
+                fill(draw, ImVec2(x, bottom - h), ImVec2(x + barWidth, bottom), toU32(p.accentHover), px(1.0f));
             }
         }
         ImGui::Dummy(ImVec2(width, height));
@@ -1285,7 +1285,7 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
         const float width = padX * 2.0f + dot + gap + size.x;
         const float height = padY * 2.0f + size.y;
         const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, y - (1.0f - shown) * px(6.0f));
-        draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
+        fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
         draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                               toU32(p.standby, shown));
         ImVec4 ink = p.text;
@@ -1329,7 +1329,7 @@ void UiManager::drawUpscalingNote(const UiModel& model) {
     const float height = padY * 2.0f + titleSize.y + (remark ? px(4.0f) + remarkSize.y : 0.0f);
     const float shown = static_cast<float>(std::clamp(upscalingNoteFor_ / 0.25, 0.0, 1.0));
     const ImVec2 min(viewport->Pos.x + (viewport->Size.x - width) * 0.5f, viewport->Pos.y + viewport->Size.y - height - px(72.0f));
-    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), px(12.0f));
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), px(12.0f));
     ImVec4 ink = p.text;
     ink.w *= shown;
     drawText(draw, ImVec2(min.x + (width - titleSize.x) * 0.5f, min.y + padY), TextStyle::Body, ink, title.c_str());
@@ -1390,14 +1390,14 @@ void UiManager::drawKeyOverlay(const UiModel& model) {
     const ImVec2 min(viewport->Pos.x + std::floor((viewport->Size.x - size.x) * 0.5f),
                      viewport->Pos.y + std::floor((viewport->Size.y - size.y) * 0.5f) + (1.0f - shown) * px(8.0f));
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, shown), px(14.0f));
+    fill(draw, min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background, shown), px(14.0f));
     drawText(draw, ImVec2(min.x + pad, min.y + pad), TextStyle::Strong, p.text, title, shown);
     const float top = min.y + pad + titleHeight + px(12.0f);
     const auto column = [&](const std::vector<Row>& list, float x) {
         for (std::size_t i = 0; i < list.size(); ++i) {
             const ImVec2 chipMin(x, top + static_cast<float>(i) * rowHeight);
             const ImVec2 chipMax(x + chipWidth, chipMin.y + rowHeight - px(4.0f));
-            draw->AddRectFilled(chipMin, chipMax, toU32(p.control, shown), px(6.0f));
+            fill(draw, chipMin, chipMax, toU32(p.control, shown), px(6.0f));
             const ImVec2 keySize = measure(TextStyle::Caption, list[i].key);
             draw->PushClipRect(chipMin, chipMax, true);
             drawText(draw, ImVec2(chipMin.x + std::max(px(6.0f), (chipWidth - keySize.x) * 0.5f),
@@ -1432,7 +1432,7 @@ void UiManager::drawMicrophoneBadge(const UiModel& model) {
     const float width = padX * 2.0f + dot + px(8.0f) + size.x;
     const float height = padY * 2.0f + size.y;
     const ImVec2 min(viewport->Pos.x + viewport->Size.x - width - px(16.0f), viewport->Pos.y + px(16.0f));
-    draw->AddRectFilled(min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
     draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                           toU32(model.microphoneMissing ? p.standby : p.danger, shown));
     drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, text, shown);
@@ -1465,7 +1465,7 @@ void UiManager::drawWindowBar(const UiModel& model) {
                      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const ImVec2 min = viewport->Pos;
-    draw->AddRectFilled(min, ImVec2(min.x + viewport->Size.x, min.y + height), toU32(p.background));
+    fill(draw, min, ImVec2(min.x + viewport->Size.x, min.y + height), toU32(p.background));
 
     const float mark = px(18.0f);
     drawLogo(draw, ImVec2(min.x + px(12.0f), min.y + (height - mark) * 0.5f), mark);
@@ -1493,7 +1493,7 @@ void UiManager::drawWindowBar(const UiModel& model) {
         ImGui::PopID();
         const bool closing = action == WindowAction::Close;
         if (lit > 0.01f) {
-            draw->AddRectFilled(at, ImVec2(at.x + buttonWidth, at.y + height), toU32(closing ? p.danger : p.controlHover, lit));
+            fill(draw, at, ImVec2(at.x + buttonWidth, at.y + height), toU32(closing ? p.danger : p.controlHover, lit));
         }
         // The signs are the ones every window on this system has, drawn with thin lines.
         const ImU32 ink = toU32(closing ? mix(p.text, p.onAccent, lit) : p.text);
@@ -1507,8 +1507,8 @@ void UiManager::drawWindowBar(const UiModel& model) {
                     // Two sheets, one behind the other: back to the size before.
                     const float o = std::floor(px(2.0f));
                     draw->AddRect(ImVec2(c.x - r + o, c.y - r), ImVec2(c.x + r, c.y + r - o), ink, 0.0f, 0, line);
-                    draw->AddRectFilled(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.background));
-                    if (lit > 0.01f) draw->AddRectFilled(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.controlHover, lit));
+                    fill(draw, ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.background));
+                    if (lit > 0.01f) fill(draw, ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), toU32(p.controlHover, lit));
                     draw->AddRect(ImVec2(c.x - r, c.y - r + o), ImVec2(c.x + r - o, c.y + r), ink, 0.0f, 0, line);
                 } else {
                     draw->AddRect(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), ink, 0.0f, 0, line);
@@ -1580,7 +1580,7 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
         const ImVec2 min(viewport->Pos.x + px(16.0f), viewport->Pos.y + px(16.0f));
         const ImVec2 max(min.x + padX * 2.0f + dot + px(8.0f) + textSize.x, min.y + padY * 2.0f + textSize.y);
         ImDrawList* draw = ImGui::GetForegroundDrawList();
-        draw->AddRectFilled(min, max, toU32(p.background), (max.y - min.y) * 0.5f);
+        fill(draw, min, max, toU32(p.background), (max.y - min.y) * 0.5f);
         draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, (min.y + max.y) * 0.5f), dot * 0.5f,
                               toU32(rough ? p.standby : p.ready));
         drawText(draw, ImVec2(min.x + padX + dot + px(8.0f), min.y + padY), TextStyle::Caption, p.text, line);
@@ -1648,7 +1648,7 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     // Solid: a see-through ground let the picture behind it show, and where computed pictures
     // alternate with real ones that read as a flicker under the figures.
-    draw->AddRectFilled(min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background), px(12.0f));
+    fill(draw, min, ImVec2(min.x + size.x, min.y + size.y), toU32(p.background), px(12.0f));
 
     float y = min.y + pad;
     for (const auto& [name, value] : rows) {
@@ -1664,7 +1664,7 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
     y += px(8.0f);
     drawText(draw, ImVec2(min.x + pad, y), TextStyle::Caption, p.textSecondary, t.hudFrameTimes);
     y += lineHeight + px(4.0f);
-    draw->AddRectFilled(ImVec2(min.x + pad, y), ImVec2(min.x + pad + inner, y + graphHeight), toU32(p.control, 0.6f), px(6.0f));
+    fill(draw, ImVec2(min.x + pad, y), ImVec2(min.x + pad + inner, y + graphHeight), toU32(p.control, 0.6f), px(6.0f));
     if (!stats.frameTimes.empty()) {
         const float target = stats.outputFps > 1.0f ? 1000.0f / stats.outputFps : 16.7f;
         const float scale = target * 2.0f; // the ideal frame time sits at half height
@@ -1676,7 +1676,7 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
             const float h = std::max(px(1.0f), graphHeight * std::min(1.0f, value / scale));
             const bool late = value > target * 1.5f;
             const float x = min.x + pad + static_cast<float>(i) * barWidth;
-            draw->AddRectFilled(ImVec2(x, y + graphHeight - h), ImVec2(x + std::max(1.0f, barWidth - 1.0f), y + graphHeight),
+            fill(draw, ImVec2(x, y + graphHeight - h), ImVec2(x + std::max(1.0f, barWidth - 1.0f), y + graphHeight),
                                 toU32(late ? p.standby : p.accentHover));
         }
     }
@@ -1753,7 +1753,8 @@ void UiManager::drawPauseMenu(const UiModel& model) {
          format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0), number(stats.packetLossPercent, 1)}),
          rough ? p.standby : p.ready, SettingsTab::Stream},
         {t.pauseTileControl, controlValue, controlDetail,
-         !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready, SettingsTab::Controller},
+         !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready,
+         keys && !model.controllerConnected ? SettingsTab::Keyboard : SettingsTab::Controller},
     }};
     const float gap = px(12.0f);
     const float tileWidth = std::floor((width - 2.0f * gap) / 3.0f);
@@ -1773,7 +1774,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         const float lit = animator.to(ImGui::GetID("lit"), held ? 1.0f : hovered ? 0.6f : 0.0f, 0.12f, 0.0f);
         ImGui::PopID();
         if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-        draw->AddRectFilled(min, max, toU32(mix(p.control, p.controlHover, lit)), px(12.0f));
+        fill(draw, min, max, toU32(mix(p.control, p.controlHover, lit)), px(12.0f));
         draw->AddCircleFilled(ImVec2(min.x + pad + px(4.0f), min.y + pad + px(7.0f)), px(4.0f), toU32(tile.dot));
         drawText(draw, ImVec2(min.x + pad + px(16.0f), min.y + pad), TextStyle::Caption, p.textSecondary, tile.name);
         // Long names (a controller's, say) end at the tile's edge instead of running into the next one.
@@ -1861,7 +1862,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
     if (keys) {
         ImGui::SameLine(0.0f, px(8.0f));
         if (button(t.pauseLayout, ButtonKind::Secondary)) {
-            showSettingsInGame(SettingsTab::Controller);
+            showSettingsInGame(SettingsTab::Keyboard);
             scrollSettingsTo(1.0f);
         }
     }
@@ -2048,12 +2049,12 @@ void UiManager::drawSettings(const UiModel& model) {
 
     label(TextStyle::Title, t.settings);
     space(14.0f);
-    const std::array<const char*, 4> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabAdvanced};
+    const std::array<const char*, 5> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabKeyboard, t.tabAdvanced};
     settingsTab_ = static_cast<SettingsTab>(
         segmented("tabs", tabs, static_cast<int>(settingsTab_), ImGui::GetContentRegionAvail().x));
     // On a controller the shoulder buttons turn the pages, as they do on the console.
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 4);
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 3) % 4);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 5);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 4) % 5);
     space(18.0f);
 
     // A fixed height keeps the sheet from jumping when the tab changes. The
@@ -2072,24 +2073,31 @@ void UiManager::drawSettings(const UiModel& model) {
         case SettingsTab::Stream: drawStreamTab(model, config); break;
         case SettingsTab::Picture: drawPictureTab(model, config); break;
         case SettingsTab::Controller: drawControllerTab(model, config); break;
+        case SettingsTab::Keyboard: drawKeyboardMouse(model, config); break;
         case SettingsTab::Advanced: drawAdvancedTab(model, config); break;
     }
     space(4.0f);
     ImGui::EndChild();
     ImGui::EndChild();
 
-    // Content that continues beyond the visible part fades out instead of being cut.
+    // Content that continues beyond the visible part fades out instead of being cut. The fade is a
+    // window of its own, made after the list: drawn into the sheet itself it lay underneath the list,
+    // which is a window too, and rows were cut hard in the middle.
     const ImU32 solid = toU32(palette().surfaceRaised);
     const ImU32 clear = toU32(palette().surfaceRaised, 0.0f);
     const float fade = px(24.0f);
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    if (scrollY > 1.0f) {
-        draw->AddRectFilledMultiColor(bodyMin, ImVec2(bodyMin.x + contentWidth, bodyMin.y + fade), solid, solid, clear, clear);
-    }
-    if (scrollY < scrollMax - 1.0f) {
-        draw->AddRectFilledMultiColor(ImVec2(bodyMin.x, bodyMin.y + bodyHeight - fade),
-                                      ImVec2(bodyMin.x + contentWidth, bodyMin.y + bodyHeight), clear, clear, solid, solid);
-    }
+    const ImVec2 afterBody = ImGui::GetCursorScreenPos();
+    const auto fadeOver = [&](const char* id, float top, ImU32 upper, ImU32 lower) {
+        ImGui::SetCursorScreenPos(ImVec2(bodyMin.x, top));
+        ImGui::BeginChild(id, ImVec2(contentWidth, fade), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoScrollbar);
+        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(ImVec2(bodyMin.x, top), ImVec2(bodyMin.x + contentWidth, top + fade),
+                                                           upper, upper, lower, lower);
+        ImGui::EndChild();
+    };
+    if (scrollY > 1.0f) fadeOver("fade-top", bodyMin.y, solid, clear);
+    if (scrollY < scrollMax - 1.0f) fadeOver("fade-bottom", bodyMin.y + bodyHeight - fade, clear, solid);
+    ImGui::SetCursorScreenPos(afterBody);
 
     space(18.0f);
     alignRight(buttonSize(t.done).x);
@@ -2263,8 +2271,6 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     space(2.0f);
     toggleRow(t.adaptiveTriggers, &config.controller.adaptiveTriggers);
     hint(t.adaptiveTriggersHint);
-
-    drawKeyboardMouse(model, config);
 }
 
 namespace {
@@ -2355,23 +2361,23 @@ void drawGamepad(ImDrawList* draw, ImVec2 origin, float scale, const std::array<
     const ImVec4 ink = p.textTertiary;
 
     // Triggers and shoulder buttons sit behind the body.
-    draw->AddRectFilled(at(70, 6), at(128, 40), mix(part, glow(PadControl::L2)), 10.0f * scale);
-    draw->AddRectFilled(at(292, 6), at(350, 40), mix(part, glow(PadControl::R2)), 10.0f * scale);
-    draw->AddRectFilled(at(56, 30), at(140, 52), mix(part, glow(PadControl::L1)), 8.0f * scale);
-    draw->AddRectFilled(at(280, 30), at(364, 52), mix(part, glow(PadControl::R1)), 8.0f * scale);
+    fill(draw, at(70, 6), at(128, 40), mix(part, glow(PadControl::L2)), 10.0f * scale);
+    fill(draw, at(292, 6), at(350, 40), mix(part, glow(PadControl::R2)), 10.0f * scale);
+    fill(draw, at(56, 30), at(140, 52), mix(part, glow(PadControl::L1)), 8.0f * scale);
+    fill(draw, at(280, 30), at(364, 52), mix(part, glow(PadControl::R1)), 8.0f * scale);
     // The body with its two grips.
-    draw->AddRectFilled(at(40, 44), at(380, 170), body, 44.0f * scale);
+    fill(draw, at(40, 44), at(380, 170), body, 44.0f * scale);
     draw->AddCircleFilled(at(82, 172), 46.0f * scale, body, 48);
     draw->AddCircleFilled(at(338, 172), 46.0f * scale, body, 48);
 
-    draw->AddRectFilled(at(152, 50), at(268, 104), mix(part, glow(PadControl::Touchpad)), 10.0f * scale);
-    draw->AddRectFilled(at(132, 58), at(144, 76), mix(part, glow(PadControl::Create)), 5.0f * scale);
-    draw->AddRectFilled(at(276, 58), at(288, 76), mix(part, glow(PadControl::Options)), 5.0f * scale);
+    fill(draw, at(152, 50), at(268, 104), mix(part, glow(PadControl::Touchpad)), 10.0f * scale);
+    fill(draw, at(132, 58), at(144, 76), mix(part, glow(PadControl::Create)), 5.0f * scale);
+    fill(draw, at(276, 58), at(288, 76), mix(part, glow(PadControl::Options)), 5.0f * scale);
     draw->AddCircleFilled(at(210, 136), 9.0f * scale, mix(part, glow(PadControl::Ps)), 24);
 
     // Directional buttons.
     const auto dpad = [&](PadControl control, float x, float y) {
-        draw->AddRectFilled(at(x - 9, y - 9), at(x + 9, y + 9), mix(part, glow(control)), 4.0f * scale);
+        fill(draw, at(x - 9, y - 9), at(x + 9, y + 9), mix(part, glow(control)), 4.0f * scale);
     };
     dpad(PadControl::DpadUp, 92, 80);
     dpad(PadControl::DpadDown, 92, 118);
@@ -2507,7 +2513,9 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     input::KeyboardMouseSettings& settings = config.controller.keyboardMouse;
     Animator& animator = context().animator;
 
-    sectionTitle(t.kbmTitle);
+    // A page of its own since 0.18.0. Under the controller's settings it made that page three screens long,
+    // and what belongs to the controller and what to the keyboard was hard to tell apart.
+    // No heading: the page's own name on the tab says it.
     toggleRow(t.kbmEnable, &settings.enabled);
     paragraph(TextStyle::Caption, t.kbmHint, p.textSecondary);
     if (!settings.enabled) {
@@ -2554,7 +2562,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             ImGui::PopID();
             const bool chosen = editedGameId_ == id;
             const ImVec2 max(at.x + chipWidth, at.y + chipHeight);
-            chips->AddRectFilled(at, max, toU32(chosen ? p.accent : over ? p.controlHover : p.control), chipHeight * 0.5f);
+            fill(chips, at, max, toU32(chosen ? p.accent : over ? p.controlHover : p.control), chipHeight * 0.5f);
             drawText(chips, ImVec2(at.x + px(14.0f), at.y + (chipHeight - size.y) * 0.5f), TextStyle::Body,
                      chosen ? p.onAccent : p.text, name);
             if (clicked && !chosen) {
@@ -2592,7 +2600,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     } else if (!editedGameId_.empty()) {
         const input::GameKeyLayout* chosen = input::gameLayout(settings, editedGameId_);
         const std::string name = chosen && !chosen->name.empty() ? chosen->name : editedGameId_;
-        if (button(format(t.kbmRemoveGame, {name}).c_str(), ButtonKind::Quiet)) {
+        if (edgeButton(format(t.kbmRemoveGame, {name}).c_str(), ButtonKind::Quiet)) {
             std::erase_if(settings.games, [&](const input::GameKeyLayout& game) { return game.titleId == editedGameId_; });
             editedGameId_.clear();
             stopWaiting();
@@ -2616,6 +2624,20 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     toggleRow(t.kbmInvertY, &invertY);
 
     sectionTitle(t.kbmLayout);
+    // Where to start from. The third field only says that the keys are neither of the two.
+    {
+        const std::optional<input::KeyPreset> preset = input::presetOf(keys);
+        const int shown = preset ? static_cast<int>(*preset) : 2;
+        const std::array<const char*, 3> presets = {t.kbmPresetStandard, t.kbmPresetOpenWorld, t.kbmPresetOwn};
+        const int chosen = segmented("kbm-preset", presets, shown);
+        if (chosen != shown && chosen < 2) {
+            keys = input::presetKeyBindings(static_cast<input::KeyPreset>(chosen));
+            stopWaiting();
+        }
+        hint(!preset ? t.kbmPresetOwnHint
+                     : *preset == input::KeyPreset::OpenWorld ? t.kbmPresetOpenWorldHint : t.kbmPresetStandardHint);
+    }
+    space(10.0f);
     paragraph(TextStyle::Caption, t.kbmLayoutHint, p.textSecondary);
     space(12.0f);
 
@@ -2715,7 +2737,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
             const ImVec2 chipMin(min.x + columnWidth - chipWidth, min.y);
             const ImVec2 chipMax(min.x + columnWidth, min.y + rowHeight - px(4.0f));
             const float lit = animator.to(ImGui::GetID("kbm-chip") + static_cast<ImGuiID>(index), waiting ? 1.0f : over ? 0.35f : 0.0f, 0.18f, 0.0f);
-            draw->AddRectFilled(chipMin, chipMax, toU32(p.control), px(7.0f));
+            fill(draw, chipMin, chipMax, toU32(p.control), px(7.0f));
             if (lit > 0.02f) draw->AddRect(chipMin, chipMax, toU32(p.accent, lit), px(7.0f), 0, px(1.5f));
             const int code = keys[static_cast<std::size_t>(index)];
             const std::string text = waiting ? std::string(t.kbmPressKey) : keyLabel(t, code);
@@ -2746,14 +2768,7 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
                  p.textSecondary, t.kbmMouseLooks);
     }
 
-    space(10.0f);
-    if (button(t.kbmReset, ButtonKind::Quiet)) {
-        keys = input::defaultKeyBindings();
-        if (bindingControl_ >= 0) {
-            bindingControl_ = -1;
-            actions_.endKeyCapture();
-        }
-    }
+    space(4.0f);
 }
 
 void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
