@@ -177,6 +177,12 @@ struct Strings {
     const char* discordShowHint;
     const char* discordGame;
     const char* pauseCaptureControl;
+    const char* look;
+    const char* lookVivid;
+    const char* lookCinema;
+    const char* lookHint;
+    const char* lookStrength;
+    const char* lookNote;
     const char* deband;
     const char* debandHint;
     const char* vsync;

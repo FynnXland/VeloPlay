@@ -648,7 +648,12 @@ void AppController::updateSession(Clock::time_point now) {
             const int current = session_->requested.bitrateKbps;
             spdlog::warn("No picture for {} ms at {} kbit/s; reconnecting", options_.stallTimeout.count(), current);
             session_->stalled = true;
+            // Stalls hours apart are no series: the session ends only when they follow each other.
+            if (session_->lastStall != Clock::time_point{} && now - session_->lastStall > std::chrono::minutes(2)) {
+                session_->stalls = 0;
+            }
             ++session_->stalls;
+            session_->lastStall = now;
             session_->bitrateKbps = std::max(kMinBitrateKbps, current / 2);
             session_->session->stop();
         }
@@ -850,7 +855,12 @@ void AppController::rememberLink(Clock::time_point now) {
     outcome.frames = stats.videoFrames;
     outcome.framesLost = stats.framesLost;
     outcome.stalled = session_->stalled;
+    outcome.markLoweredBefore = session_->markLowered;
     const LinkMemory learned = learn(console->link, outcome);
+    if (learned.ceilingKbps != console->link.ceilingKbps && learned.ceilingKbps > 0 &&
+        (console->link.ceilingKbps == 0 || learned.ceilingKbps < console->link.ceilingKbps)) {
+        session_->markLowered = true;
+    }
     if (learned == console->link) return;
     spdlog::info("Automatic bitrate for {}: {} kbit/s next time (this session {} kbit/s, {} of {} pictures lost{})",
                  console->name, learned.bitrateKbps, outcome.bitrateKbps, outcome.framesLost,
@@ -1473,7 +1483,7 @@ void AppController::updateRemoteStatus(Clock::time_point now) {
     status["consoles"] = std::move(consoles);
 
     std::lock_guard lock(remoteMutex_);
-    remoteStatusJson_ = status.dump();
+    remoteStatusJson_ = status.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void AppController::saveNow() {

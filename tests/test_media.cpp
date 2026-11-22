@@ -305,6 +305,40 @@ TEST(AudioBuffer, DropsOldAudioInsteadOfFallingBehind) {
     EXPECT_GE(out[0], 5);
 }
 
+// After a burst more sound waits than the reserve asks for, and nothing brought it back: the sound
+// stayed up to 80 ms behind the picture. And a reserve changed while playing (the picture held back
+// longer) has to be followed without a gap.
+TEST(AudioBuffer, FindsBackToItsReserveWithoutAGap) {
+    media::AudioBuffer buffer(48000, 2, 80ms, 300ms);
+    std::vector<std::int16_t> packet(480 * 2, 300);
+    std::vector<std::int16_t> out(480 * 2);
+    for (int i = 0; i < 20; ++i) buffer.push(packet); // 200 ms at once, below the limit
+    // Steady from here on: one packet in, one block out, every 10 ms.
+    const auto runFor = [&](int blocks) {
+        for (int i = 0; i < blocks; ++i) {
+            buffer.push(packet);
+            EXPECT_EQ(buffer.pop(out), 480u);
+        }
+    };
+    // (buffered() is read after a block went out, so it shows the reserve less that block.)
+    runFor(3000); // 30 seconds
+    EXPECT_LE(buffer.buffered(), 80ms);
+    EXPECT_GE(buffer.buffered(), 80ms - 20ms);
+    EXPECT_EQ(buffer.underruns(), 0u);
+    EXPECT_GT(buffer.nudgedFrames(), 0u);
+
+    // The picture waits 30 ms longer: the sound follows within seconds, without running dry.
+    buffer.setTarget(110ms, 330ms);
+    runFor(1500);
+    EXPECT_GE(buffer.buffered(), 110ms - 18ms);
+    EXPECT_EQ(buffer.underruns(), 0u);
+    // And back down.
+    buffer.setTarget(80ms, 300ms);
+    runFor(1500);
+    EXPECT_LE(buffer.buffered(), 80ms);
+    EXPECT_EQ(buffer.underruns(), 0u);
+}
+
 TEST(Haptics, UpsamplesOntoTheActuatorChannels) {
     media::HapticsUpsampler upsampler;
     std::vector<std::int16_t> packet(30 * 2);
@@ -805,16 +839,19 @@ TEST(FramePacer, PutsTheGeneratedPictureFirstAndTheRealOneHalfAPeriodLater) {
 
     // The second arrives one period later. Right then the picture between
     // the two is due ...
+    // (Everything a reserve later: see KeepsSixtyWhenPicturesFromWiFiComeALittleLate.)
     pacer.onFrame(2, start + period);
-    choice = pacer.choose(start + period);
+    const auto r = pacer.reserve();
+    EXPECT_GT(r, Clock::duration::zero());
+    choice = pacer.choose(start + period + r);
     EXPECT_EQ(choice.base, 1u);
     EXPECT_EQ(choice.next, 2u);
     EXPECT_EQ(choice.step, 1);
     EXPECT_EQ(choice.steps, 2);
-    choice = pacer.choose(start + period + 10ms);
+    choice = pacer.choose(start + period + r + 10ms);
     EXPECT_EQ(choice.step, 1);
     // ... and half a period later the second picture itself.
-    choice = pacer.choose(start + period + 17ms);
+    choice = pacer.choose(start + period + r + 17ms);
     EXPECT_EQ(choice.base, 2u);
     EXPECT_EQ(choice.step, 0);
     // It stays until the third arrives, however late that is.
@@ -832,7 +869,7 @@ TEST(FramePacer, WalksThroughAllStepsAtHigherFactors) {
     const Clock::time_point start{};
     pacer.onFrame(10, start);
     pacer.onFrame(11, start + period);
-    const Clock::time_point arrival = start + period;
+    const Clock::time_point arrival = start + period + pacer.reserve();
     EXPECT_EQ(pacer.choose(arrival + 1ms).step, 1);
     EXPECT_EQ(pacer.choose(arrival + 11ms).step, 2);
     EXPECT_EQ(pacer.choose(arrival + 21ms).step, 3);
@@ -851,20 +888,21 @@ TEST(FramePacer, GivesAPictureThatArrivesRightBehindAnotherItsOwnTime) {
     pacer.onFrame(2, start + period);
     // The third comes 2 ms after the second: Wi-Fi delivered both together.
     pacer.onFrame(3, start + period + 2ms);
+    const auto r = pacer.reserve();
     // Picture 1 is gone, so nothing older than picture 2 is shown any more ...
-    media::FrameChoice choice = pacer.choose(start + period + 3ms);
+    media::FrameChoice choice = pacer.choose(start + period + r + 3ms);
     ASSERT_TRUE(choice.valid);
     EXPECT_EQ(choice.base, 2u);
     EXPECT_EQ(choice.step, 0);
     // ... but picture 3 is not squeezed in 2 ms later. It gets nearly a whole
     // period, with the picture between the two halfway.
-    choice = pacer.choose(start + period + 2ms + 17ms);
+    choice = pacer.choose(start + period + r + 2ms + 17ms);
     EXPECT_EQ(choice.base, 2u);
-    choice = pacer.choose(start + 2 * period + 4ms);
+    choice = pacer.choose(start + 2 * period + r + 4ms);
     EXPECT_EQ(choice.base, 2u);
     EXPECT_EQ(choice.next, 3u);
     EXPECT_EQ(choice.step, 1);
-    choice = pacer.choose(start + 2 * period + 20ms);
+    choice = pacer.choose(start + 2 * period + r + 20ms);
     EXPECT_EQ(choice.base, 3u);
     EXPECT_EQ(choice.step, 0);
 
@@ -910,6 +948,79 @@ TEST(FramePacer, EvensOutPicturesThatArriveUnevenly) {
     EXPECT_EQ(pacer.newestDue(), later + pacer.addedDelay());
 }
 
+namespace {
+
+/// A game at 30 fps on a 60 Hz screen, its pictures decoded when Wi-Fi brings them: mostly on
+/// time, now and then a few milliseconds late. Each refresh takes over what is decoded by then
+/// and shows what the pacer chooses. Counts the refreshes, after the first two seconds, that show
+/// nothing new: those are the dips below 60 the user sees.
+struct JitterRun {
+    int repeats = 0;
+    int refreshes = 0;
+    double addedMs = 0.0;
+};
+
+JitterRun runWithJitter(int lateEvery, std::chrono::microseconds late, int seconds = 12) {
+    using namespace std::chrono;
+    using Clock = media::FramePacer::Clock;
+    const auto refresh = 16'667us;
+    const auto period = 33'333us;
+    media::FramePacer pacer;
+    pacer.configure(2, period);
+    const Clock::time_point start{};
+    // When each picture is decoded: a small wobble always, and every `lateEvery`th one late.
+    std::vector<Clock::time_point> decoded;
+    for (int n = 0; n < seconds * 30 + 2; ++n) {
+        auto at = start + n * period + microseconds((n * 7919) % 1201 - 600);
+        if (lateEvery > 0 && n % lateEvery == lateEvery / 2) at += late;
+        decoded.push_back(at);
+    }
+    JitterRun run;
+    std::size_t next = 0;
+    media::FrameChoice last{};
+    for (int k = 0; k < seconds * 60; ++k) {
+        const Clock::time_point now = start + k * refresh + microseconds((k * 104729) % 401 - 200);
+        while (next < decoded.size() && decoded[next] <= now) {
+            pacer.onFrame(next + 1, decoded[next]);
+            ++next;
+        }
+        const media::FrameChoice choice = pacer.choose(now, refresh / 2);
+        if (k >= 120) {
+            ++run.refreshes;
+            if (choice == last) ++run.repeats;
+        }
+        last = choice;
+    }
+    run.addedMs = duration<double, std::milli>(pacer.addedDelay()).count();
+    return run;
+}
+
+} // namespace
+
+// The user saw "Bildschirm" fall below 60 now and then. One picture of the console a few
+// milliseconds late was enough: the computed picture before it could not be made in time.
+TEST(FramePacer, KeepsSixtyWhenPicturesFromWiFiComeALittleLate) {
+    using namespace std::chrono_literals;
+    // Every tenth picture 7 ms late: a reserve absorbs it, at most a few refreshes repeat
+    // while the reserve finds its size.
+    const JitterRun late = runWithJitter(10, 7ms);
+    EXPECT_LE(late.repeats, 4) << "of " << late.refreshes;
+    // What it costs, on top of the half period: half a refresh (a picture may go out that much
+    // early) and a little over the 7 ms.
+    EXPECT_GT(late.addedMs, 16.7 + 8.3 + 6.0);
+    EXPECT_LT(late.addedMs, 16.7 + 8.3 + 11.0);
+
+    // Pictures on time, but just after a refresh each: before the reserve every second computed
+    // picture was lost (96 of 600 refreshes repeated). Half a refresh and the wobble cover it.
+    const JitterRun steady = runWithJitter(0, 0ms);
+    EXPECT_EQ(steady.repeats, 0);
+    EXPECT_LT(steady.addedMs, 16.7 + 8.4 + 1.5);
+
+    // Far too late (a real stall) is not chased: the reserve stays within its bound.
+    const JitterRun stall = runWithJitter(25, 40ms);
+    EXPECT_LT(stall.addedMs, 16.7 + 8.4 + 10.1);
+}
+
 TEST(FramePacer, KeepsItsRhythmWhenStepsFallRightOnTheRefreshes) {
     using Clock = media::FramePacer::Clock;
     // A 30 fps stream on a 60 Hz screen: the pictures are taken over at a
@@ -947,8 +1058,8 @@ TEST(FramePacer, KeepsItsRhythmWhenStepsFallRightOnTheRefreshes) {
             EXPECT_EQ(real, 45);
             EXPECT_EQ(computed, 45);
         } else {
-            // What 0.6.0 did: clearly fewer than one new picture per refresh.
-            EXPECT_LT(shown, 85);
+            // What 0.6.0 did without slack lost pictures; the reserve now covers that as well.
+            EXPECT_EQ(shown, 90);
         }
     }
 }

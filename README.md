@@ -39,6 +39,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Notices a game that runs at 30 fps and computes the frames in between, on NVIDIA cards with
   the card's own motion search
 - Scales the picture up to the window and sharpens it, on NVIDIA cards with RTX Video if you like, and smooths the colour steps a low bitrate leaves in skies
+- Gives the picture a style if you like: vivid or cinematic, switched with F7 in the game
 - Passes your controller's input to the console and brings vibration, adaptive triggers and
   DualSense haptics back
 - Lets you play with mouse and keyboard, with presets and a layout of its own per game
@@ -49,6 +50,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Saves screenshots of the game with F12 and records videos with sound with F10
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Sets the picture up again by itself when the graphics driver restarts, instead of closing
+  (not yet tried with a real driver restart)
 - Measures the connection to a console and suggests stream settings that fit it
 - Shows the picture of a capture card the same way (beta)
 - Lets you steer with a steering wheel and pedals (beta)

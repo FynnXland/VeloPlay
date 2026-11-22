@@ -3,6 +3,47 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.10.0
+
+- **Fewer dips below 60.** With pictures in between, a computed picture was lost whenever the next
+  picture from the console arrived a moment after a refresh of the screen, or a few milliseconds
+  late over Wi-Fi. That is why the display dropped below 60 now and then. VeloPlay now waits a
+  small reserve that measures itself: about 9 ms on a steady connection, up to 10 ms more when
+  Wi-Fi is uneven. The sound waits along with it.
+- **Picture styles.** Settings > Output and the menu in the game have **Vivid** (livelier colours,
+  a little more contrast) and **Cinematic** (a film look with cool shadows, warm lights and slightly
+  darker corners), with a strength slider. **F7** switches between them while you play. Photos and
+  videos carry the style. Off by default.
+- **Sound stays in step.** After a gap in Wi-Fi the sound could stay up to 80 ms behind the
+  picture; it now finds back to its reserve by itself, without a gap you would hear.
+- **Settings are safer.** A settings file that cannot be read is kept aside instead of being
+  replaced, and every save keeps a copy of the file before it. Pairings whose keys cannot be read
+  for a moment are no longer thrown away.
+- **The picture no longer stays black** if the graphics card cannot decode the stream; the
+  processor takes over.
+- **Automatic bitrate finds back up** after a bad Wi-Fi evening instead of staying low for good.
+
+**Deutsch**
+
+- **Seltener unter 60.** Mit Zwischenbildern ging ein berechnetes Bild verloren, wenn das nächste
+  Bild der PS5 einen Moment nach einem Bildwechsel des Bildschirms ankam oder über das WLAN ein
+  paar Millisekunden zu spät. Deshalb fiel die Anzeige ab und zu unter 60. VeloPlay wartet jetzt
+  eine kleine Reserve, die sich selbst misst: etwa 9 ms bei ruhiger Verbindung, bis zu 10 ms mehr,
+  wenn das WLAN unruhig ist. Der Ton wartet mit.
+- **Bildstile.** Unter Einstellungen > Ausgabe und im Menü im Spiel gibt es **Lebendig**
+  (kräftigere Farben, etwas mehr Kontrast) und **Kino** (ein Filmlook mit kühlen Schatten, warmen
+  Lichtern und etwas dunkleren Ecken), mit einem Regler für die Stärke. **F7** wechselt im Spiel.
+  Fotos und Videos bekommen den Stil mit. Voreingestellt aus.
+- **Der Ton bleibt im Takt.** Nach einer Lücke im WLAN konnte der Ton bis zu 80 ms hinter dem Bild
+  bleiben; jetzt findet er von selbst zu seiner Reserve zurück, ohne hörbare Lücke.
+- **Einstellungen sind sicherer.** Eine Einstellungsdatei, die sich nicht lesen lässt, wird
+  beiseitegelegt statt ersetzt, und jedes Speichern behält eine Kopie der Datei davor. Kopplungen,
+  deren Schlüssel sich gerade nicht lesen lassen, gehen nicht mehr verloren.
+- **Das Bild bleibt nicht mehr schwarz,** wenn die Grafikkarte den Stream nicht entpacken kann;
+  dann übernimmt der Prozessor.
+- **Die automatische Datenrate findet wieder nach oben,** statt nach einem schlechten WLAN-Abend
+  dauerhaft niedrig zu bleiben.
+
 ## 1.9.0
 
 - **Full screen keeps the whole picture.** When the pointer rests on the bottom edge, the Windows

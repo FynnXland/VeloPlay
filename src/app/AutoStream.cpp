@@ -38,8 +38,10 @@ LinkMemory learn(const LinkMemory& memory, const SessionOutcome& outcome) {
 
     const auto lower = [&](double factor) {
         // The trouble began somewhere below the rate that failed.
-        const int ceiling = std::max(kMinBitrateKbps, rounded(used * 0.9));
-        next.ceilingKbps = next.ceilingKbps > 0 ? std::min(next.ceilingKbps, ceiling) : ceiling;
+        if (!outcome.markLoweredBefore) {
+            const int ceiling = std::max(kMinBitrateKbps, rounded(used * 0.9));
+            next.ceilingKbps = next.ceilingKbps > 0 ? std::min(next.ceilingKbps, ceiling) : ceiling;
+        }
         next.bitrateKbps = std::max(kMinBitrateKbps, rounded(used * factor));
     };
 
@@ -54,6 +56,12 @@ LinkMemory learn(const LinkMemory& memory, const SessionOutcome& outcome) {
     if (loss > kLossTooHigh) {
         lower(0.75);
     } else if (loss < kLossFine) {
+        // Clean at the mark itself: the trouble back then may have been the evening, not the link.
+        // The mark moves up a tenth, and goes once it reaches the most automatic asks for.
+        if (next.ceilingKbps > 0 && used >= next.ceilingKbps * 9 / 10) {
+            next.ceilingKbps = rounded(next.ceilingKbps * 1.1);
+            if (next.ceilingKbps >= kAutoMaxBitrateKbps) next.ceilingKbps = 0;
+        }
         int raised = std::min(kAutoMaxBitrateKbps, rounded(used * 1.25));
         if (next.ceilingKbps > 0) raised = std::min(raised, next.ceilingKbps);
         next.bitrateKbps = std::max(used, raised);

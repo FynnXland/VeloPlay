@@ -788,6 +788,55 @@ TEST(VideoRenderer, SmoothsBandingAndLeavesDetailAlone) {
     EXPECT_EQ(shown(flat, false), shown(flat, true));
 }
 
+// Picture styles: off leaves the picture exactly as it is; vivid makes a dull colour more
+// colourful and keeps black and white; cinematic darkens the corners and warms the lights.
+TEST(VideoRenderer, GivesThePictureAStyleAndLeavesItAloneWithout) {
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    render::VideoRenderer renderer;
+    std::string error;
+    ASSERT_TRUE(renderer.create(canvas.device.Get(), canvas.context.Get(), error)) << error;
+    // A dull, light brown-grey, filling the target (square picture, square target).
+    SolidFrame dull(64, 64, 150, 118, 138, false);
+    ASSERT_TRUE(renderer.submit(dull.frame));
+    const auto drawWith = [&](int look, float strength) {
+        render::VideoRenderer::Output output;
+        output.look = look;
+        output.lookStrength = strength;
+        canvas.begin();
+        renderer.draw(kTarget, kTarget, output);
+        return std::make_pair(canvas.pixel(32, 32), canvas.pixel(1, 1));
+    };
+    const auto spread = [](const std::array<int, 4>& c) { return std::max({c[0], c[1], c[2]}) - std::min({c[0], c[1], c[2]}); };
+
+    const auto [plainCentre, plainCorner] = drawWith(0, 1.0f);
+    EXPECT_FALSE(renderer.styled());
+    const auto [vividCentre, vividCorner] = drawWith(1, 1.0f);
+    EXPECT_TRUE(renderer.styled());
+    EXPECT_GT(spread(vividCentre), spread(plainCentre) + 3) << "vivid makes the dull colour more colourful";
+    const auto [cinemaCentre, cinemaCorner] = drawWith(2, 1.0f);
+    EXPECT_LT(cinemaCorner[0] + cinemaCorner[1] + cinemaCorner[2], cinemaCentre[0] + cinemaCentre[1] + cinemaCentre[2] - 15)
+        << "the corners get darker";
+    EXPECT_GT(cinemaCentre[0] - cinemaCentre[2], plainCentre[0] - plainCentre[2]) << "the light parts get warmer";
+    // Strength 0 is the picture as it comes.
+    const auto [noneCentre, noneCorner] = drawWith(2, 0.0f);
+    for (int i = 0; i < 3; ++i) EXPECT_NEAR(noneCentre[i], plainCentre[i], 1);
+
+    // Black and white stay where they are.
+    SolidFrame white(64, 64, 235, 128, 128, false);
+    ASSERT_TRUE(renderer.submit(white.frame));
+    for (const int look : {1, 2}) {
+        const auto [centre, corner] = drawWith(look, 1.0f);
+        EXPECT_GE(centre[1], 250) << "look " << look;
+    }
+    SolidFrame black(64, 64, 16, 128, 128, false);
+    ASSERT_TRUE(renderer.submit(black.frame));
+    for (const int look : {1, 2}) {
+        const auto [centre, corner] = drawWith(look, 1.0f);
+        EXPECT_LE(centre[1], 6) << "look " << look;
+    }
+}
+
 TEST(VideoRenderer, KeepsItsOwnMethodWhereAmdFrcIsMissing) {
     // On the software renderer, and on any card without AMD's driver, AMD FRC cannot start. Asking for it must
     // leave frame generation as it was, say why, and not try again every frame.

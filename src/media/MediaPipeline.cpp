@@ -8,6 +8,13 @@ MediaPipeline::MediaPipeline(Options options) : options_(options) {}
 
 MediaPipeline::~MediaPipeline() { end(); }
 
+void MediaPipeline::setAudioDelay(std::chrono::milliseconds delay) {
+    const int ms = static_cast<int>(delay.count());
+    const int before = audioDelayMs_.exchange(ms);
+    // Only whole steps are handed on; the pacer's reserve moves in fractions of a millisecond.
+    if (before != ms && options_.audio) options_.audio->setDelay(delay);
+}
+
 void MediaPipeline::begin(const StreamSettings& stream) {
     end();
     codec_ = stream.codec;
@@ -126,6 +133,10 @@ void MediaPipeline::decodeLoop() {
     double slowestNow = 0.0;
     double slowestBefore = 0.0;
     std::chrono::steady_clock::time_point slowestSince{};
+    // A graphics card that cannot decode this stream (an old driver, a card without HEVC) is left
+    // for the processor: a black picture until the end would be the alternative.
+    bool onProcessor = false;
+    int failuresInARow = 0;
     while (true) {
         std::vector<std::uint8_t> unit;
         std::chrono::steady_clock::time_point received{};
@@ -144,19 +155,28 @@ void MediaPipeline::decodeLoop() {
                 generation = deviceGeneration_;
                 video_.reset();
                 failedForGood = false;
+                onProcessor = false;
+                failuresInARow = 0;
             }
         }
         if (failedForGood) continue;
 
         if (!video_) {
             std::lock_guard lock(deviceMutex_);
-            auto created = VideoDecoder::create({codec_, options_.d3d11Device});
+            void* device = onProcessor ? nullptr : options_.d3d11Device;
+            auto created = VideoDecoder::create({codec_, device});
+            if (!created && device) {
+                spdlog::warn("Video decoder on the graphics card: {}; decoding on the processor", created.error().message);
+                onProcessor = true;
+                created = VideoDecoder::create({codec_, nullptr});
+            }
             if (!created) {
                 spdlog::error("Video decoder: {}", created.error().message);
                 failedForGood = true;
                 continue;
             }
             video_ = std::move(*created);
+            failuresInARow = 0;
         }
 
         const auto started = std::chrono::steady_clock::now();
@@ -178,8 +198,17 @@ void MediaPipeline::decodeLoop() {
                 spdlog::warn("Video frame could not be decoded: {}", decoded.error().message);
             }
             pictureLost_.store(true);
+            // Seconds of nothing but failures on the graphics card, whole pictures from the console
+            // included: the processor tries from the next whole picture on.
+            if (++failuresInARow >= kFailuresBeforeProcessor && video_->hardware() && !onProcessor) {
+                spdlog::warn("Video decoder: {} pictures in a row failed on the graphics card; decoding on the processor",
+                             failuresInARow);
+                onProcessor = true;
+                video_.reset();
+            }
             continue;
         }
+        failuresInARow = 0;
         if (decoded->has_value()) {
             if (stats_.decodedFrames == 0) {
                 spdlog::info("First picture: {}x{}, {}", (*decoded)->width, (*decoded)->height, video_->description());

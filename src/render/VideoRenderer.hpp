@@ -37,6 +37,8 @@ public:
                                    // also for a picture that keeps its size
         float sharpness = 0.0f;    // 0 = leave as it is, 1 = strongest
         bool deband = false;       // smooth the steps a low bitrate leaves in flat gradients
+        int look = 0;              // picture style: 0 as it comes, 1 vivid, 2 cinematic (see kLooks)
+        float lookStrength = 1.0f; // 0 = as it comes, 1 = the full style
     };
 
     bool create(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error);
@@ -111,6 +113,8 @@ public:
     [[nodiscard]] const char* scalerName() const { return scalerName_; }
     /// Whether the last draw smoothed banding.
     [[nodiscard]] bool debanded() const { return debanded_.used; }
+    /// True if the last draw() gave the picture a style.
+    [[nodiscard]] bool styled() const { return styled_.used; }
     /// Size of the picture on screen at the last draw(), in pixels; 0 before the first.
     [[nodiscard]] int shownWidth() const { return shownWidth_; }
     [[nodiscard]] int shownHeight() const { return shownHeight_; }
@@ -176,6 +180,12 @@ private:
         Target target;     // the picture with its banding smoothed, at the stream's size
         bool used = false; // the last draw went through it
     } debanded_;
+    struct {
+        Target target;     // the picture in its style, at the stream's size
+        bool used = false;
+    } styled_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> lookShader_;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> lookConstants_;
     std::unique_ptr<IFrameGenerator> generator_;
     bool amdFrcTried_ = false;
     std::string amdFrcError_;

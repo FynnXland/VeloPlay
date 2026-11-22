@@ -94,9 +94,16 @@ void CadenceDetector::judge(std::uint64_t picture, double before, double here, d
     }
 }
 
-void FramePacer::configure(int factor, Clock::duration period) {
+void FramePacer::configure(int factor, Clock::duration period, Clock::duration refresh) {
     factor = std::clamp(factor, 1, 4);
+    refresh_ = refresh;
     if (factor == factor_ && period == period_) return;
+    // Lateness is measured against the period; at another rate the old figures say nothing.
+    if (period != period_) {
+        latenessCount_ = 0;
+        latenessNext_ = 0;
+        lastArrival_ = {};
+    }
     factor_ = factor;
     period_ = period;
 }
@@ -104,13 +111,55 @@ void FramePacer::configure(int factor, Clock::duration period) {
 void FramePacer::reset() {
     previous_ = {};
     current_ = {};
+    latenessCount_ = 0;
+    latenessNext_ = 0;
+    lastArrival_ = {};
+    reserve_ = {};
 }
 
 FramePacer::Clock::duration FramePacer::addedDelay() const {
-    return period_ * (factor_ - 1) / factor_;
+    return period_ * (factor_ - 1) / factor_ + reserve();
+}
+
+void FramePacer::measureLateness(Clock::time_point arrival) {
+    using Ms = std::chrono::duration<float, std::milli>;
+    // Up to 10 ms for pictures that come late: a picture later than that is a stall, not
+    // unevenness, and waiting for it would cost every picture that much.
+    constexpr float kMostForLateness = 10.0f;
+    constexpr float kLeastForLateness = 1.0f; // the loop's own wobble, always
+    if (lastArrival_ != Clock::time_point{}) {
+        const float late = Ms(arrival - lastArrival_ - period_).count();
+        // A picture right behind a late one comes early; that is no lateness. A long gap is a stall.
+        if (late < Ms(2 * period_).count()) {
+            lateness_[latenessNext_] = std::max(late, 0.0f);
+            latenessNext_ = (latenessNext_ + 1) % lateness_.size();
+            latenessCount_ = std::min(latenessCount_ + 1, lateness_.size());
+        }
+    }
+    lastArrival_ = arrival;
+
+    // Nearly all of them: the 98th of a hundred, so a rare late picture is covered too.
+    float covered = kLeastForLateness;
+    if (latenessCount_ >= 16) {
+        std::array<float, 256> sorted{};
+        std::copy_n(lateness_.begin(), latenessCount_, sorted.begin());
+        const std::size_t rank = latenessCount_ - 1 - latenessCount_ / 50;
+        std::nth_element(sorted.begin(), sorted.begin() + static_cast<std::ptrdiff_t>(rank),
+                         sorted.begin() + static_cast<std::ptrdiff_t>(latenessCount_));
+        covered = std::clamp(sorted[rank], kLeastForLateness, kMostForLateness);
+    }
+    // Half a refresh, the most choose() lets a picture go out early (60 Hz until it is measured).
+    const Clock::duration halfRefresh = std::min<Clock::duration>(
+        refresh_ > Clock::duration::zero() ? refresh_ / 2 : std::chrono::microseconds{8'333}, period_ / (2 * factor_));
+    const auto target = halfRefresh + std::chrono::duration_cast<Clock::duration>(Ms(covered));
+    // Up at once, so the next late picture is covered; down slowly, about 1.5 ms per second
+    // at 30 pictures, so the rhythm does not jump.
+    if (target >= reserve_) reserve_ = target;
+    else reserve_ = std::max(target, reserve_ - std::chrono::duration_cast<Clock::duration>(Ms(0.05f)));
 }
 
 void FramePacer::onFrame(std::uint64_t id, Clock::time_point arrival) {
+    if (factor_ > 1) measureLateness(arrival);
     Slot slot;
     slot.valid = true;
     slot.id = id;

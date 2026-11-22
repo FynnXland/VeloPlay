@@ -1,11 +1,14 @@
 #include "app/Config.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <optional>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include "net/Socket.hpp"
 
@@ -85,6 +88,8 @@ void sanitize(AppConfig& config) {
     config.graphics.frameGenerationFactor = std::clamp(config.graphics.frameGenerationFactor, 0, 4);
     config.graphics.superResolutionLevel = std::clamp(config.graphics.superResolutionLevel, 0, 2);
     config.graphics.sharpness = std::clamp(config.graphics.sharpness, 0.0f, 1.0f);
+    config.graphics.look = std::clamp(config.graphics.look, 0, 2);
+    config.graphics.lookStrength = std::clamp(config.graphics.lookStrength, 0.0f, 1.0f);
     config.network.statsCorner = std::clamp(config.network.statsCorner, 0, 3);
     config.controller.deadzone = std::clamp(config.controller.deadzone, 0.0f, 0.5f);
     input::sanitize(config.controller.keyboardMouse);
@@ -170,6 +175,8 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"super_resolution_level", config.graphics.superResolutionLevel},
         {"sharpness", config.graphics.sharpness},
         {"deband", config.graphics.deband},
+        {"look", config.graphics.look},
+        {"look_strength", config.graphics.lookStrength},
         {"amd_frc", config.graphics.amdFrc},
         {"vsync", config.graphics.vsync},
     };
@@ -261,11 +268,15 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             const auto credentials = protectCredentials(console, protector);
             if (!credentials) return credentials.error();
             entry["credentials"] = *credentials;
+        } else if (!console.sealedCredentials.empty()) {
+            entry["credentials"] = console.sealedCredentials;
         }
         consoles.push_back(std::move(entry));
     }
     root["consoles"] = std::move(consoles);
-    return root.dump(2);
+    // Names come from consoles and games as they sent them; broken UTF-8 there must not stop the
+    // settings from being saved (dump() would throw).
+    return root.dump(2, ' ', false, json::error_handler_t::replace);
 }
 
 Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector) {
@@ -293,6 +304,8 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(graphics, "super_resolution_level", config.graphics.superResolutionLevel);
     read(graphics, "sharpness", config.graphics.sharpness);
     read(graphics, "deband", config.graphics.deband);
+    read(graphics, "look", config.graphics.look);
+    read(graphics, "look_strength", config.graphics.lookStrength);
     read(graphics, "amd_frc", config.graphics.amdFrc);
     read(graphics, "vsync", config.graphics.vsync);
 
@@ -391,6 +404,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             std::string credentials;
             read(entry, "credentials", credentials);
             console.credentialsValid = unprotectCredentials(credentials, protector, console);
+            if (!console.credentialsValid) console.sealedCredentials = credentials;
             config.consoles.push_back(std::move(console));
         }
     }
@@ -450,11 +464,36 @@ Result<AppConfig> ConfigStore::load() {
         return config;
     }
 
-    std::ifstream file(path_, std::ios::binary);
-    if (!file) return Error{ErrorCode::Io, "cannot open " + path_.string()};
-    std::ostringstream content;
-    content << file.rdbuf();
-    return parseConfig(content.str(), protector_);
+    const auto readFile = [&](const std::filesystem::path& path) -> std::optional<std::string> {
+        std::ifstream file(path, std::ios::binary);
+        if (!file) return std::nullopt;
+        std::ostringstream content;
+        content << file.rdbuf();
+        return content.str();
+    };
+    const std::optional<std::string> text = readFile(path_);
+    if (!text) return Error{ErrorCode::Io, "cannot open " + path_.string()};
+    Result<AppConfig> parsed = parseConfig(*text, protector_);
+    if (parsed) return parsed;
+
+    // Unreadable (a hand edit gone wrong, an empty file after a power cut). Keep it where nothing
+    // overwrites it; whatever is saved next would otherwise replace it with the defaults.
+    const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                           std::chrono::system_clock::now().time_since_epoch()).count();
+    std::filesystem::path aside = path_;
+    aside.replace_filename(path_.stem().string() + ".broken-" + std::to_string(stamp) + path_.extension().string());
+    std::filesystem::rename(path_, aside, ec);
+    const std::string kept = ec ? std::string() : "; kept as " + aside.filename().string();
+    std::filesystem::path backup = path_;
+    backup += ".bak";
+    if (const std::optional<std::string> earlier = readFile(backup)) {
+        Result<AppConfig> restored = parseConfig(*earlier, protector_);
+        if (restored) {
+            spdlog::warn("Settings: {}{}; the copy from before the last save is used", parsed.error().message, kept);
+            return restored;
+        }
+    }
+    return Error{parsed.error().code, parsed.error().message + kept};
 }
 
 Result<void> ConfigStore::save(const AppConfig& config) {
@@ -475,6 +514,13 @@ Result<void> ConfigStore::save(const AppConfig& config) {
         file.flush();
         if (!file) return Error{ErrorCode::Io, "cannot write " + temporary.string()};
     }
+    // The file before this one stays as a copy, for load() to fall back on.
+    if (std::filesystem::exists(path_, ec) && std::filesystem::file_size(path_, ec) > 0 && !ec) {
+        std::filesystem::path backup = path_;
+        backup += ".bak";
+        std::filesystem::copy_file(path_, backup, std::filesystem::copy_options::overwrite_existing, ec);
+    }
+    ec.clear();
     std::filesystem::rename(temporary, path_, ec);
     if (ec) return Error{ErrorCode::Io, "cannot replace " + path_.string() + ": " + ec.message()};
     return {};

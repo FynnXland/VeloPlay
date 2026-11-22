@@ -98,6 +98,18 @@ void AudioBuffer::push(std::span<const std::int16_t> interleaved) {
     }
 }
 
+void AudioBuffer::setTarget(std::chrono::milliseconds target, std::chrono::milliseconds limit) {
+    std::lock_guard lock(mutex_);
+    targetFrames_ = static_cast<std::size_t>(sampleRate_) * static_cast<std::size_t>(std::max<std::int64_t>(target.count(), 0)) / 1000;
+    limitFrames_ = std::max(static_cast<std::size_t>(sampleRate_) * static_cast<std::size_t>(std::max<std::int64_t>(limit.count(), 0)) / 1000,
+                            targetFrames_ + 1);
+}
+
+std::uint64_t AudioBuffer::nudgedFrames() const {
+    std::lock_guard lock(mutex_);
+    return nudged_;
+}
+
 std::size_t AudioBuffer::pop(std::span<std::int16_t> out) {
     std::lock_guard lock(mutex_);
     const std::size_t channels = static_cast<std::size_t>(channels_);
@@ -110,12 +122,34 @@ std::size_t AudioBuffer::pop(std::span<std::int16_t> out) {
             return 0;
         }
         filling_ = false;
+        level_ = static_cast<double>(available);
     }
 
-    const std::size_t real = std::min(wanted, available);
-    std::copy_n(samples_.begin() + static_cast<std::ptrdiff_t>(readIndex_), real * channels, out.begin());
+    // Steer towards the target: more than 6 ms off, on average over a few blocks,
+    // and one frame in kNudgeEvery is left out (too much waiting) or played twice (too little).
+    level_ = level_ * 0.9 + static_cast<double>(available) * 0.1;
+    const double tolerance = static_cast<double>(sampleRate_) * 0.006;
+    const int steer = level_ > static_cast<double>(targetFrames_) + tolerance   ? 1
+                      : level_ < static_cast<double>(targetFrames_) - tolerance ? -1
+                                                                                : 0;
+    const std::size_t end = samples_.size() / channels;
+    std::size_t from = readIndex_ / channels;
+    std::size_t real = 0;
+    while (real < wanted && from < end) {
+        std::copy_n(samples_.begin() + static_cast<std::ptrdiff_t>(from * channels), channels,
+                    out.begin() + static_cast<std::ptrdiff_t>(real * channels));
+        ++real;
+        std::size_t step = 1;
+        if (steer != 0 && ++nudgeCounter_ >= kNudgeEvery) {
+            nudgeCounter_ = 0;
+            if (steer > 0 && from + 2 < end) step = 2;    // one frame left out
+            else if (steer < 0) step = 0;                 // this frame again
+            if (step != 1) ++nudged_;
+        }
+        from += step;
+    }
     std::fill(out.begin() + static_cast<std::ptrdiff_t>(real * channels), out.end(), std::int16_t{0});
-    readIndex_ += real * channels;
+    readIndex_ = from * channels;
     if (real < wanted) {
         ++underruns_;
         filling_ = true;

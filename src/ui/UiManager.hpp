@@ -140,7 +140,8 @@ private:
     bool barPeek_ = false; // the bar is over the picture because the pointer went to the top edge
     float windowBarButtonsWidth_ = 0.0f;
     float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
-    double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down
+    double upscalingNoteFor_ = 0.0; // seconds the note after F8 or F7 stays; counts down
+    bool lookNote_ = false;         // the note is about the picture style (F7), not the upscaling (F8)
     double captureNoteFor_ = 0.0;   // the same for the note after a screenshot
     int captureNoteSeen_ = 0;       // the serial of the last note shown
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to

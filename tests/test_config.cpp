@@ -121,6 +121,8 @@ TEST(Config, RoundTripsEverything) {
     config.graphics.superResolutionLevel = 3;
     config.graphics.sharpness = 0.5f;
     config.graphics.deband = false;
+    config.graphics.look = 2;
+    config.graphics.lookStrength = 0.6f;
     config.graphics.amdFrc = true;
     config.discord.enabled = false;
     config.discord.showGame = false;
@@ -181,10 +183,10 @@ TEST(Config, UnreadableCredentialsKeepTheConsoleButFlagIt) {
     EXPECT_FALSE(loaded->consoles[0].credentialsValid);
     EXPECT_TRUE(loaded->consoles[0].registKey.empty());
 
-    // Saving again must not fail or invent credentials.
+    // Saving again must not fail or invent credentials; what was there is written back unchanged.
     const auto again = serializeConfig(*loaded, otherUser);
     ASSERT_TRUE(again);
-    EXPECT_FALSE(json::parse(*again)["consoles"][0].contains("credentials"));
+    EXPECT_EQ(json::parse(*again)["consoles"][0]["credentials"], json::parse(*text)["consoles"][0]["credentials"]);
 }
 
 TEST(Config, ToleratesMissingUnknownAndMistypedFields) {
@@ -229,6 +231,13 @@ TEST(Config, SanitizeClampsRanges) {
     EXPECT_EQ(config.graphics.superResolutionLevel, 2); // 2 is RTX Video, the highest there is
     EXPECT_EQ(config.graphics.sharpness, 1.0f);
     EXPECT_EQ(config.controller.deadzone, 0.5f);
+    // A picture style that does not exist is no style; the strength stays between none and all.
+    config.graphics.look = 5;
+    config.graphics.lookStrength = -0.5f;
+    sanitize(config);
+    EXPECT_EQ(config.graphics.look, 2);
+    EXPECT_EQ(config.graphics.lookStrength, 0.0f);
+    EXPECT_EQ(AppConfig{}.graphics.look, 0); // off until asked for
 }
 
 TEST(ConfigStore, MissingFileYieldsDefaults) {
@@ -266,11 +275,74 @@ TEST(ConfigStore, SavesAndLoadsWithoutLeavingTemporaryFiles) {
 TEST(ConfigStore, ReportsCorruptFile) {
     test::FakeProtector protector;
     const auto path = tempFile("corrupt.json");
+    std::filesystem::remove(std::filesystem::path(path) += ".bak");
     std::ofstream(path) << "{ this is not json";
     ConfigStore store(path, protector);
     const auto loaded = store.load();
     ASSERT_FALSE(loaded);
     EXPECT_EQ(loaded.error().code, ErrorCode::InvalidData);
+    // The broken file is kept aside, so the defaults saved next do not replace the user's pairings.
+    EXPECT_NE(loaded.error().message.find("kept as corrupt.broken-"), std::string::npos) << loaded.error().message;
+    EXPECT_FALSE(std::filesystem::exists(path));
+    bool keptAside = false;
+    for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::path(path).parent_path())) {
+        const std::string name = entry.path().filename().string();
+        if (name.rfind("corrupt.broken-", 0) == 0) {
+            keptAside = true;
+            std::filesystem::remove(entry.path());
+        }
+    }
+    EXPECT_TRUE(keptAside);
+}
+
+// A power cut while saving can leave an empty file. The copy from before the last save is taken then.
+TEST(ConfigStore, FallsBackOnTheCopyFromBeforeTheLastSave) {
+    test::FakeProtector protector;
+    const auto path = tempFile("backup.json");
+    ConfigStore store(path, protector);
+    AppConfig config;
+    config.consoles = {sampleConsole()};
+    sanitize(config);
+    ASSERT_TRUE(store.save(config));
+    ASSERT_TRUE(store.save(config)); // the first file becomes the copy
+    std::ofstream(path, std::ios::trunc).flush(); // empty, as after a power cut
+    const auto loaded = store.load();
+    ASSERT_TRUE(loaded) << loaded.error().message;
+    EXPECT_EQ(loaded->consoles.size(), 1u);
+    for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::path(path).parent_path())) {
+        if (entry.path().filename().string().rfind("backup.broken-", 0) == 0) std::filesystem::remove(entry.path());
+    }
+}
+
+// Keys that cannot be decrypted right now are written back as they were, not dropped.
+TEST(Config, KeepsKeysItCannotDecryptForLater) {
+    test::FakeProtector protector(0x11);
+    AppConfig config;
+    config.consoles = {sampleConsole()};
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    test::FakeProtector otherUser(0x22);
+    const auto loaded = parseConfig(*text, otherUser);
+    ASSERT_TRUE(loaded);
+    ASSERT_FALSE(loaded->consoles[0].credentialsValid);
+    const auto again = serializeConfig(*loaded, otherUser);
+    ASSERT_TRUE(again);
+    // Back with the right account, the pairing is still there.
+    const auto restored = parseConfig(*again, protector);
+    ASSERT_TRUE(restored);
+    EXPECT_TRUE(restored->consoles[0].credentialsValid);
+    EXPECT_EQ(restored->consoles[0].rpKey, config.consoles[0].rpKey);
+}
+
+// Names come from consoles as they sent them. Broken UTF-8 must not stop saving.
+TEST(Config, SavesNamesThatAreNoProperText) {
+    test::FakeProtector protector;
+    AppConfig config;
+    config.consoles = {sampleConsole()};
+    config.consoles[0].name = std::string("PS5 \xC3\x28");
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    EXPECT_TRUE(parseConfig(*text, protector));
 }
 
 TEST(RegisteredConsole, IsBuiltFromRegistrationResult) {
@@ -350,8 +422,14 @@ TEST(AutoStream, RaisesAfterACleanSessionAndLowersAfterTrouble) {
     // Clean again: up, but not past that mark.
     memory = learn(memory, {22'500, seconds(1200), 72'000, 0, false});
     EXPECT_EQ(memory.bitrateKbps, 27'000);
+    // Clean at the mark itself: the mark moves up a tenth, so a bad evening is not remembered for ever.
     memory = learn(memory, {27'000, seconds(1200), 72'000, 0, false});
-    EXPECT_EQ(memory.bitrateKbps, 27'000);
+    EXPECT_EQ(memory.ceilingKbps, 29'500);
+    EXPECT_EQ(memory.bitrateKbps, 29'500);
+    // Once it reaches the most automatic asks for, the mark is gone.
+    memory = learn(memory, {29'500, seconds(1200), 72'000, 0, false});
+    EXPECT_EQ(memory.ceilingKbps, 0);
+    EXPECT_EQ(memory.bitrateKbps, 30'000);
 
     // A little loss is neither good nor bad: stay.
     EXPECT_EQ(learn({20'000, 0}, {20'000, seconds(1200), 72'000, 100, false}).bitrateKbps, 20'000);
@@ -364,6 +442,25 @@ TEST(AutoStream, RaisesAfterACleanSessionAndLowersAfterTrouble) {
     EXPECT_EQ(stalled.ceilingKbps, 13'500);
     // Never below what the console accepts.
     EXPECT_EQ(learn({}, {5'000, seconds(5), 60, 0, true}).bitrateKbps, kMinBitrateKbps);
+}
+
+// A weak Wi-Fi evening with two stalls used to leave a console at 720p for good: each stall lowered
+// the mark again, and nothing raised it. Now the mark drops once per session.
+TEST(AutoStream, LowersTheMarkOncePerSessionAndFindsBackUp) {
+    using std::chrono::seconds;
+    SessionOutcome first{15'000, seconds(5), 60, 0, true};
+    LinkMemory memory = learn({}, first);
+    EXPECT_EQ(memory.ceilingKbps, 13'500);
+    SessionOutcome second{7'500, seconds(5), 60, 0, true};
+    second.markLoweredBefore = true;
+    memory = learn(memory, second);
+    EXPECT_EQ(memory.bitrateKbps, kMinBitrateKbps); // the rate goes down ...
+    EXPECT_EQ(memory.ceilingKbps, 13'500);          // ... the mark stays
+    // Clean evenings bring it back to full HD and up to the mark, and past it.
+    for (int evening = 0; evening < 6; ++evening) memory = learn(memory, {memory.bitrateKbps, seconds(1200), 72'000, 0, false});
+    EXPECT_GE(memory.bitrateKbps, 13'500);
+    EXPECT_GT(memory.ceilingKbps, 13'500);
+    EXPECT_EQ(automaticStream(memory).height, 1080);
 }
 
 TEST(Config, KeepsWhatAutomaticLearnedAboutAConsole) {

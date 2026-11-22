@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -112,8 +113,9 @@ class FramePacer {
 public:
     using Clock = std::chrono::steady_clock;
 
-    /// `factor` 1 switches generation off: every picture is shown when it arrives.
-    void configure(int factor, Clock::duration period);
+    /// `factor` 1 switches generation off: every picture is shown when it arrives. `refresh` is
+    /// the time between two refreshes of the screen, zero when not known yet.
+    void configure(int factor, Clock::duration period, Clock::duration refresh = Clock::duration::zero());
     void reset();
 
     /// A picture from the console is ready. Ids must grow.
@@ -143,6 +145,17 @@ public:
     /// has to wait this long as well to stay in step.
     [[nodiscard]] Clock::duration addedDelay() const;
 
+    /// The part of addedDelay() that waits for pictures that come late, beyond the half period.
+    ///
+    /// A computed picture needs the next real one, and is due the moment that one is decoded.
+    /// A screen shows pictures only at its refreshes, and choose() lets one go out up to half a
+    /// refresh early, so without a reserve the computed picture was lost whenever the real one
+    /// came a moment after a refresh, and again for every picture Wi-Fi brought a few
+    /// milliseconds late: the display dropped below 60 now and then. The reserve is half a
+    /// refresh plus how late pictures have come lately (nearly all of them, measured), so it is
+    /// small on a steady link.
+    [[nodiscard]] Clock::duration reserve() const { return factor_ > 1 ? reserve_ : Clock::duration::zero(); }
+
     [[nodiscard]] int factor() const { return factor_; }
 
 private:
@@ -152,10 +165,19 @@ private:
         Clock::time_point due{}; // when the picture itself goes to the screen
     };
 
+    void measureLateness(Clock::time_point arrival);
+
     int factor_ = 1;
     Clock::duration period_ = std::chrono::microseconds{33'333};
+    Clock::duration refresh_{};
     Slot previous_;
     Slot current_;
+    // How late pictures came, in milliseconds past one period after the one before: the newest few seconds.
+    std::array<float, 256> lateness_{};
+    std::size_t latenessCount_ = 0;
+    std::size_t latenessNext_ = 0;
+    Clock::time_point lastArrival_{};
+    Clock::duration reserve_{};
 };
 
 } // namespace veloplay::media

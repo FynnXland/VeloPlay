@@ -28,6 +28,7 @@ public:
     void write(std::span<const std::int16_t> interleaved) override;
     void stop() override;
     [[nodiscard]] bool running() const override { return running_.load(); }
+    void setDelay(std::chrono::milliseconds delay) override;
 
     /// Waits for the outcome of start(): true once the device plays, false if
     /// it could not be opened or the time ran out.

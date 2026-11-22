@@ -630,7 +630,11 @@ void Application::frame() {
         const bool available = videoRenderer_.frameGenerationAvailable();
         // Without pictures to compute in between, the repeats may as well be shown.
         skipRepeats_ = halved && available && wanted > 1;
-        pacer_.configure(available ? wanted : 1, std::chrono::microseconds(1'000'000 / (skipRepeats_ ? 30 : inputRate_.fps())));
+        // The refresh measured below: the pacer waits half of one for pictures, so none is lost to one coming
+        // a moment after a refresh.
+        pacer_.configure(available ? wanted : 1, std::chrono::microseconds(1'000'000 / (skipRepeats_ ? 30 : inputRate_.fps())),
+                         std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                             std::chrono::duration<double, std::milli>(refreshMs_)));
 
         // A console on Wi-Fi delivers in bursts with gaps of tens of milliseconds
         // between them; chiaki-ng keeps about 100 ms of sound for that reason.
@@ -737,6 +741,8 @@ void Application::frame() {
         }
         output.sharpness = config.graphics.sharpness;
         output.deband = config.graphics.deband;
+        output.look = config.graphics.look;
+        output.lookStrength = config.graphics.lookStrength;
         // A picture counts as shown when it differs from the one before, real or computed.
         if (output.choice.valid && !(output.choice == lastChoice_)) {
             freshPicture = true;
@@ -1059,10 +1065,11 @@ void Application::logStreamSummary(std::chrono::steady_clock::time_point now) {
     const media::MediaPipeline::Stats media = pipeline_ ? pipeline_->stats() : media::MediaPipeline::Stats{};
     spdlog::info("Stream: console {:.1f} fps, shown {:.1f} fps, {:.1f} Mbit/s, loss {:.1f} %, decoder {:.1f} ms "
                  "(slowest {:.1f} ms), {} decoded, {} dropped, {} failed, frame generation {}x, {:.0f} ms inside the PC, "
-                 "screen {:.0f} Hz{}{}",
+                 "{:.1f} ms waited for late pictures, screen {:.0f} Hz{}{}",
                  stream.streamFps, stream.outputFps, stream.bitrateMbps,
                  stream.packetLossPercent, media.decodeMs, media.decodeMaxMs, media.decodedFrames, media.droppedFrames,
-                 media.failedFrames, pacer_.factor(), insideMs_, displayHz_,
+                 media.failedFrames, pacer_.factor(), insideMs_,
+                 std::chrono::duration<double, std::milli>(pacer_.reserve()).count(), displayHz_,
                  cadence_.halved() ? ", game at 30 fps (every other picture repeats)" : "",
                  IsIconic(window_) ? ", window minimised" : "");
 }

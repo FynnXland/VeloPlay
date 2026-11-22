@@ -1431,15 +1431,28 @@ void UiManager::drawUpscalingNote(const UiModel& model) {
         level = level >= highest ? 0 : level + 1;
         actions_.configChanged();
         upscalingNoteFor_ = 4.0;
+        lookNote_ = false;
+    }
+    // F7 does the same for the picture style: off, vivid, cinematic. Seeing it on the running
+    // game is the only way to judge taste.
+    int& look = model.config->graphics.look;
+    if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
+        look = look >= 2 ? 0 : look + 1;
+        actions_.configChanged();
+        upscalingNoteFor_ = 4.0;
+        lookNote_ = true;
     }
     if (upscalingNoteFor_ <= 0.0) return;
     upscalingNoteFor_ -= static_cast<double>(ImGui::GetIO().DeltaTime);
 
     // The first line says what was chosen, the second what happens if that is something else.
     const char* chosen = level <= 0 ? t.off : (level >= 2 && model.rtxVideoAvailable ? "RTX Video" : "Lanczos");
-    const std::string title = format(t.upscalingNote, {chosen});
+    const char* style = look == 1 ? t.lookVivid : look == 2 ? t.lookCinema : t.off;
+    const std::string title = lookNote_ ? format(t.lookNote, {style}) : format(t.upscalingNote, {chosen});
     const char* remark = nullptr;
-    if (level > 0 && model.stream->scaler.empty()) remark = t.upscalingNotEnlarged;
+    if (lookNote_) {
+        // nothing to add: the picture shows it
+    } else if (level > 0 && model.stream->scaler.empty()) remark = t.upscalingNotEnlarged;
     else if (level >= 2 && model.stream->scaler == "Lanczos") remark = t.upscalingRtxRefused;
 
     const Palette& p = palette();
@@ -1995,7 +2008,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         ImGui::EndGroup();
         space(16.0f);
 
-        // Second row: the display with its three steps on the left, the two switches on the right.
+        // Second row: the display with its three steps on the left, the picture style on the right.
         const ImVec2 row = ImGui::GetCursorScreenPos();
         ImGui::BeginGroup();
         label(TextStyle::Strong, t.pauseOverlay);
@@ -2006,19 +2019,40 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         config.network.statsOverlay = chosenDisplay != 0;
         if (chosenDisplay != 0) config.network.statsCompact = chosenDisplay == 1;
         ImGui::EndGroup();
-        const float rowBottom = ImGui::GetCursorScreenPos().y;
+        ImGui::SameLine(half);
+        ImGui::BeginGroup();
+        label(TextStyle::Strong, t.look);
+        space(8.0f);
+        {
+            const std::array<const char*, 3> looks = {t.off, t.lookVivid, t.lookCinema};
+            config.graphics.look = segmented("pause-look", looks, std::clamp(config.graphics.look, 0, 2), controlWidth);
+        }
+        ImGui::EndGroup();
+        space(16.0f);
 
-        ImGui::SetCursorScreenPos(ImVec2(row.x + half, row.y));
-        // Keys, mouse and microphone go to a console over the network; a capture card has no way back.
-        if (!session.capture) {
+        // Third row: the switches, side by side. Keys, mouse and microphone go to a console over the
+        // network; a capture card has no way back. AMD FRC only on an AMD card: anywhere else it could
+        // not do anything.
         const bool amdCard = model.gpuVendor == UiModel::GpuVendor::Amd;
-        const float rightHeight = 36.0f + (model.microphoneAvailable ? 48.0f : 0.0f) + (amdCard ? 48.0f : 0.0f);
-        ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(rightHeight)), ImGuiChildFlags_NavFlattened,
+        const ImVec2 switches = ImGui::GetCursorScreenPos();
+        float switchesBottom = switches.y;
+        if (!session.capture) {
+        ImGui::BeginChild("pause-left", ImVec2(controlWidth, px(amdCard ? 84.0f : 36.0f)), ImGuiChildFlags_NavFlattened,
                           ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
         pushExplicitSpacing();
         toggleRow(t.kbmTitle, &config.controller.keyboardMouse.enabled);
-        if (model.microphoneAvailable) {
+        if (amdCard) {
             space(8.0f);
+            toggleRow(t.amdFrcUse, &config.graphics.amdFrc);
+        }
+        popExplicitSpacing();
+        ImGui::EndChild();
+        switchesBottom = ImGui::GetCursorScreenPos().y;
+        if (model.microphoneAvailable) {
+            ImGui::SetCursorScreenPos(ImVec2(switches.x + half, switches.y));
+            ImGui::BeginChild("pause-right", ImVec2(controlWidth, px(36.0f)), ImGuiChildFlags_NavFlattened,
+                              ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+            pushExplicitSpacing();
             // What the microphone is doing stands in its label, so nobody has to guess.
             const char* state = !config.audio.microphone ? nullptr
                                 : model.microphoneLive   ? t.micLiveHint
@@ -2026,16 +2060,11 @@ void UiManager::drawPauseMenu(const UiModel& model) {
                                                           : nullptr;
             const std::string name = state ? std::string(t.micTitle) + "  ·  " + state : std::string(t.micTitle);
             toggleRow((name + "###pause-mic").c_str(), &config.audio.microphone);
+            popExplicitSpacing();
+            ImGui::EndChild();
         }
-        // Only on an AMD card: anywhere else it could not do anything.
-        if (amdCard) {
-            space(8.0f);
-            toggleRow(t.amdFrcUse, &config.graphics.amdFrc);
         }
-        popExplicitSpacing();
-        ImGui::EndChild();
-        }
-        ImGui::SetCursorScreenPos(ImVec2(row.x, std::max(rowBottom, ImGui::GetCursorScreenPos().y)));
+        ImGui::SetCursorScreenPos(ImVec2(row.x, std::max(switchesBottom, ImGui::GetCursorScreenPos().y)));
         ImGui::Dummy(ImVec2(1.0f, 1.0f));
         if (!(config == before)) actions_.configChanged();
         space(24.0f);
@@ -2479,6 +2508,22 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     space(14.0f);
     toggleRow(t.deband, &config.graphics.deband);
     paragraph(TextStyle::Caption, t.debandHint, palette().textSecondary);
+
+    space(18.0f);
+    label(TextStyle::Strong, t.look);
+    space(8.0f);
+    {
+        const std::array<const char*, 3> looks = {t.off, t.lookVivid, t.lookCinema};
+        config.graphics.look = segmented("look", looks, std::clamp(config.graphics.look, 0, 2));
+    }
+    hint(t.lookHint);
+    if (config.graphics.look != 0) {
+        space(10.0f);
+        float strength = config.graphics.lookStrength * 100.0f;
+        if (sliderRow(t.lookStrength, &strength, 0.0f, 100.0f, std::to_string(static_cast<int>(std::lround(strength))) + " %")) {
+            config.graphics.lookStrength = std::round(strength) / 100.0f;
+        }
+    }
 
     space(14.0f);
     toggleRow(t.vsync, &config.graphics.vsync);

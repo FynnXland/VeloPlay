@@ -28,6 +28,9 @@ public:
     virtual void stop() = 0;
     /// True while the device is open and playing.
     [[nodiscard]] virtual bool running() const = 0;
+    /// A new reserve while playing, for example when the picture is held back longer. The sound
+    /// moves to it gently, without a gap. Outputs that cannot do that ignore it.
+    virtual void setDelay(std::chrono::milliseconds delay) { (void)delay; }
 };
 
 // The microphone's sound travels to the console in a fixed shape: 48 kHz,
@@ -116,14 +119,27 @@ public:
     [[nodiscard]] std::chrono::milliseconds buffered() const;
     [[nodiscard]] std::uint64_t underruns() const;
     [[nodiscard]] std::uint64_t droppedFrames() const;
+
+    /// Moves the reserve while playing. The level follows by leaving out or repeating single
+    /// frames, one in kNudgeEvery, so neither a gap nor a jump can be heard. The same keeps the
+    /// level at its target when the clocks of console and sound card differ a little, or when a
+    /// burst after a gap in Wi-Fi has left more sound waiting than wanted.
+    void setTarget(std::chrono::milliseconds target, std::chrono::milliseconds limit);
+    /// Frames left out or repeated so far to stay at the target.
+    [[nodiscard]] std::uint64_t nudgedFrames() const;
     [[nodiscard]] int channels() const { return channels_; }
     [[nodiscard]] int sampleRate() const { return sampleRate_; }
 
 private:
+    static constexpr std::size_t kNudgeEvery = 200; // 0.5 %: 5 ms of reserve gained or lost per second
+
     const int sampleRate_;
     const int channels_;
-    const std::size_t targetFrames_;
-    const std::size_t limitFrames_;
+    std::size_t targetFrames_;
+    std::size_t limitFrames_;
+    double level_ = 0.0;            // frames waiting, smoothed over a few blocks
+    std::size_t nudgeCounter_ = 0;
+    std::uint64_t nudged_ = 0;
 
     mutable std::mutex mutex_;
     std::vector<std::int16_t> samples_;

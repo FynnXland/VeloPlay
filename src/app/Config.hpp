@@ -40,6 +40,8 @@ struct GraphicsSettings {
     int superResolutionLevel = 1;
     float sharpness = 0.2f;        // 0.0 .. 1.0
     bool deband = true;            // smooth the steps a low bitrate leaves in skies and gradients
+    int look = 0;                  // picture style: 0 = as it comes, 1 = vivid, 2 = cinematic
+    float lookStrength = 1.0f;     // 0.0 .. 1.0, how much of the style
     bool amdFrc = false;           // AMD's frame rate conversion for 2x, on AMD cards; beta
     bool vsync = true;
 
@@ -119,6 +121,10 @@ struct RegisteredConsole {
     /// False when the stored keys could not be decrypted, for example after the
     /// file was copied to another PC. The console then needs to be paired again.
     bool credentialsValid = true;
+    /// The stored keys as they were in the file when they could not be decrypted. Written back
+    /// unchanged: a failure that passes (another Windows account for a moment, a profile that was
+    /// not loaded yet) must not cost the pairing.
+    std::string sealedCredentials;
 
     static RegisteredConsole from(const protocol::RegisteredHost& host, std::string_view address);
 
@@ -171,10 +177,13 @@ class ConfigStore {
 public:
     ConfigStore(std::filesystem::path path, ISecretProtector& protector);
 
-    /// A missing file yields the defaults.
+    /// A missing file yields the defaults. A file that cannot be read is moved aside (name in the
+    /// error), so that the next save does not write the defaults over the user's pairings and keys;
+    /// the copy save() keeps of the file before it (`.bak`) is taken instead if it reads.
     Result<AppConfig> load();
 
-    /// Writes to a temporary file first, then renames it over the old one.
+    /// Writes to a temporary file first, then renames it over the old one, after keeping the old one
+    /// as `.bak`. A power cut can leave an empty file behind; load() then takes the copy.
     Result<void> save(const AppConfig& config);
 
     [[nodiscard]] const std::filesystem::path& path() const { return path_; }

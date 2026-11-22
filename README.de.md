@@ -39,6 +39,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
   mit deren eigener Bewegungssuche
 - Skaliert das Bild auf das Fenster hoch und schärft es, auf NVIDIA-Karten auf Wunsch mit RTX Video,
   und glättet die Farbstufen, die eine niedrige Datenrate in Himmeln hinterlässt
+- Gibt dem Bild auf Wunsch einen Stil: Lebendig oder Kino, im Spiel mit F7 umschaltbar
 - Gibt die Eingaben deines Controllers an die Konsole weiter und bringt Vibration, adaptive
   Trigger und Haptik des DualSense zurück
 - Lässt dich mit Maus und Tastatur spielen, mit Vorlagen und eigener Belegung pro Spiel
@@ -49,6 +50,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Speichert mit F12 Fotos vom Spiel und nimmt mit F10 Videos mit Ton auf
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Baut das Bild selbst wieder auf, wenn der Grafiktreiber neu startet, statt sich zu beenden
+  (an einem echten Neustart des Treibers noch nicht ausprobiert)
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Zeigt das Bild einer Capture-Card genauso (Beta)
 - Lässt dich mit Lenkrad und Pedalen lenken (Beta)

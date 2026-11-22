@@ -215,7 +215,9 @@ private:
         std::uint64_t videoFrames = 0; // as last seen, to notice a stream that stands still
         Clock::time_point lastPicture{};
         bool stalled = false;          // we stopped it because no picture came
-        int stalls = 0;
+        int stalls = 0;                // since the last two minutes without one
+        Clock::time_point lastStall{};
+        bool markLowered = false;      // automatic lowered its mark for this console once already
         bool restart = false;          // we stopped it to connect again with new settings
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now

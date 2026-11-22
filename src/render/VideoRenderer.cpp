@@ -192,6 +192,57 @@ struct Constants {
     float rows[3][4];
 };
 
+// Picture styles. Colour grading in the picture's own (gamma) values, after the pictures in
+// between and before enlarging, so real and computed pictures look alike and every scaler gets
+// the styled picture. Black and white stay where they are; nothing here needs the scene.
+const char kLookShader[] = R"(
+cbuffer Look : register(b0) {
+    float4 shadowTint;    // added in the dark parts, fading out towards the bright ones
+    float4 highlightTint; // added in the bright parts
+    float contrast;       // 0 = none, 1 = a full S-curve
+    float saturation;     // added to every colour's distance from grey
+    float vibrance;       // added on top, the more the duller a colour is
+    float vignette;       // how much darker the corners get
+    float strength;       // mix between the picture as it comes (0) and the style (1)
+    float3 unused;
+};
+Texture2D source : register(t0);
+float4 main(float4 position : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+    float3 original = source.Load(int3(int2(position.xy), 0)).rgb;
+    float3 c = original;
+    // An S-curve: midtones spread, black and white stay.
+    c = lerp(c, c * c * (3.0 - 2.0 * c), contrast);
+    float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
+    float chroma = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+    c = lerp(luma.xxx, c, 1.0 + saturation + vibrance * (1.0 - saturate(chroma * 2.0)));
+    float dark = (1.0 - luma) * (1.0 - luma);
+    c += shadowTint.rgb * dark + highlightTint.rgb * luma * luma;
+    float2 fromCentre = uv - 0.5;
+    c *= 1.0 - vignette * smoothstep(0.12, 0.5, dot(fromCentre, fromCentre));
+    return float4(lerp(original, saturate(c), strength), 1.0);
+}
+)";
+
+struct LookConstants {
+    float shadowTint[4];
+    float highlightTint[4];
+    float contrast;
+    float saturation;
+    float vibrance;
+    float vignette;
+    float strength;
+    float unused[3];
+};
+
+/// The styles, by number as the settings keep them. 0 is the picture as it comes and has no entry.
+/// Vivid lifts dull colours and the contrast a little; cinematic gives a film look: a firmer curve,
+/// cool shadows, warm lights, slightly calmer colours and darker corners (kept gentle, the corners
+/// hold a game's map and figures).
+constexpr LookConstants kLooks[] = {
+    {{0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, 0.12f, 0.04f, 0.30f, 0.0f, 1.0f, {}},
+    {{-0.016f, 0.004f, 0.030f, 0.0f}, {0.034f, 0.012f, -0.024f, 0.0f}, 0.22f, -0.08f, 0.10f, 0.14f, 1.0f, {}},
+};
+
 struct OutputConstants {
     float sourceSize[2];
     float origin[2];
@@ -235,7 +286,8 @@ bool VideoRenderer::create(ID3D11Device* device, ID3D11DeviceContext* context, s
         !makePixelShader(device, kSoftShader, sizeof(kSoftShader) - 1, softShader_, error) ||
         !makePixelShader(device, kLanczosShader, sizeof(kLanczosShader) - 1, lanczosShader_, error) ||
         !makePixelShader(device, kSharpenShader, sizeof(kSharpenShader) - 1, sharpenShader_, error) ||
-        !makePixelShader(device, kDebandShader, sizeof(kDebandShader) - 1, debandShader_, error)) {
+        !makePixelShader(device, kDebandShader, sizeof(kDebandShader) - 1, debandShader_, error) ||
+        !makePixelShader(device, kLookShader, sizeof(kLookShader) - 1, lookShader_, error)) {
         return false;
     }
 
@@ -261,12 +313,16 @@ bool VideoRenderer::create(ID3D11Device* device, ID3D11DeviceContext* context, s
     point.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
     D3D11_BUFFER_DESC outputBuffer = buffer;
     outputBuffer.ByteWidth = sizeof(OutputConstants);
+    D3D11_BUFFER_DESC lookBuffer = buffer;
+    lookBuffer.ByteWidth = sizeof(LookConstants);
+    static_assert(sizeof(LookConstants) % 16 == 0, "constant buffers come in steps of 16 bytes");
 
     if (FAILED(device_->CreateSamplerState(&sampler, sampler_.GetAddressOf())) ||
         FAILED(device_->CreateSamplerState(&point, pointSampler_.GetAddressOf())) ||
         FAILED(device_->CreateRasterizerState(&rasterizer, rasterizer_.GetAddressOf())) ||
         FAILED(device_->CreateBuffer(&buffer, nullptr, colorConstants_.GetAddressOf())) ||
-        FAILED(device_->CreateBuffer(&outputBuffer, nullptr, outputConstants_.GetAddressOf()))) {
+        FAILED(device_->CreateBuffer(&outputBuffer, nullptr, outputConstants_.GetAddressOf())) ||
+        FAILED(device_->CreateBuffer(&lookBuffer, nullptr, lookConstants_.GetAddressOf()))) {
         error = "render states could not be created";
         return false;
     }
@@ -650,6 +706,24 @@ void VideoRenderer::draw(UINT targetWidth, UINT targetHeight, const Output& outp
         picture = debanded_.target.view.Get();
         debanded_.used = true;
         // Unbound before anything reads it: RTX Video hands this very texture to the video processor.
+        ID3D11RenderTargetView* noTarget = nullptr;
+        context_->OMSetRenderTargets(1, &noTarget, nullptr);
+    }
+    styled_.used = false;
+    const int look = output.look;
+    const float lookStrength = std::clamp(output.lookStrength, 0.0f, 1.0f);
+    if (look >= 1 && look <= static_cast<int>(std::size(kLooks)) && lookStrength > 0.0f && picture &&
+        ensureTarget(styled_.target, width_, height_)) {
+        LookConstants style = kLooks[look - 1];
+        style.strength = lookStrength;
+        D3D11_VIEWPORT whole{};
+        whole.Width = static_cast<float>(width_);
+        whole.Height = static_cast<float>(height_);
+        whole.MaxDepth = 1.0f;
+        context_->UpdateSubresource(lookConstants_.Get(), 0, nullptr, &style, 0, 0);
+        pass(lookShader_.Get(), styled_.target.target.Get(), whole, &picture, 1, lookConstants_.Get());
+        picture = styled_.target.view.Get();
+        styled_.used = true;
         ID3D11RenderTargetView* noTarget = nullptr;
         context_->OMSetRenderTargets(1, &noTarget, nullptr);
     }

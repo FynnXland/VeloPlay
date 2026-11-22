@@ -90,6 +90,11 @@ WasapiOutput::~WasapiOutput() {
     if (stopEvent_) CloseHandle(static_cast<HANDLE>(stopEvent_));
 }
 
+void WasapiOutput::setDelay(std::chrono::milliseconds delay) {
+    std::lock_guard lock(mutex_);
+    if (buffer_) buffer_->setTarget(delay, delay + kExtraBeforeDrop);
+}
+
 bool WasapiOutput::start(int sampleRate, int channels, std::chrono::milliseconds delay) {
     stop();
     if (!stopEvent_ || sampleRate <= 0 || channels <= 0) return false;

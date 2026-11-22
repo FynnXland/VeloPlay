@@ -87,9 +87,11 @@ public:
     explicit MediaPipeline(Options options);
     ~MediaPipeline() override;
 
-    /// Reserve of audio kept against late packets. Takes effect when the
-    /// sound output opens, that is at the start of the next session.
-    void setAudioDelay(std::chrono::milliseconds delay) { audioDelayMs_.store(static_cast<int>(delay.count())); }
+    /// Reserve of audio kept against late packets, plus however long the picture is held back.
+    /// Used when the sound output opens; a change while it plays is handed on, and the sound
+    /// moves to it gently (the picture waits longer once a game at 30 fps is recognised, and the
+    /// pacer's reserve for late pictures moves with the Wi-Fi).
+    void setAudioDelay(std::chrono::milliseconds delay);
 
     /// Off means haptics are not played here; the session then offers them as
     /// rumble, which the application ignores when vibration is switched off.
@@ -128,6 +130,8 @@ public:
 
 private:
     void decodeLoop();
+    /// Pictures in a row that fail on the graphics card before the processor takes over (a few seconds).
+    static constexpr int kFailuresBeforeProcessor = 180;
 
     Options options_; // d3d11Device under deviceMutex_
     std::atomic<int> audioDelayMs_{40};

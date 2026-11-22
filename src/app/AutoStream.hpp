@@ -29,6 +29,9 @@ struct SessionOutcome {
     std::uint64_t frames = 0;          // pictures that arrived
     std::uint64_t framesLost = 0;      // pictures that did not
     bool stalled = false;              // the stream stood still and was started again
+    /// The mark was already lowered once in this session (an evening with reconnects counts as one):
+    /// a second hitch lowers the rate, not the mark again, or one bad evening ends at 720p for good.
+    bool markLoweredBefore = false;
 };
 
 /// The settings "automatic" uses with a console it knows this much about.
@@ -41,7 +44,9 @@ struct SessionOutcome {
 
 /// What to remember after a session. A stream that stood still or lost
 /// pictures lowers the rate and marks where the trouble began. A clean
-/// session of some length raises it a step, up to that mark.
+/// session of some length raises it a step, up to that mark; one that ran
+/// at the mark without trouble moves the mark up a little, so a bad Wi-Fi
+/// evening is not remembered for ever.
 [[nodiscard]] LinkMemory learn(const LinkMemory& memory, const SessionOutcome& outcome);
 
 } // namespace veloplay
