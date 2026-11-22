@@ -19,6 +19,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <imgui_internal.h>
+
 #include "ui/UiManager.hpp"
 #include "ui/Widgets.hpp"
 
@@ -250,6 +252,16 @@ std::vector<Scene> scenes() {
              model.controllerState.leftY = -26000;
              model.controllerState.r2 = 128;
              ui.openSettings(UiManager::SettingsTab::Controller);
+         }},
+        {"37-console-menu",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             ui.showConsoleMenu(model.consoles.front().hostId, false);
+         }},
+        {"38-console-menu-question",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             ui.showConsoleMenu(model.consoles.front().hostId, true);
          }},
         {"30-settings-mouse-keyboard",
          [](UiModel& model, UiManager& ui) {
@@ -483,15 +495,19 @@ const char* firstExisting(std::initializer_list<const char*> candidates) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: ui_preview <output directory> [--scale 1.5] [--lang de|en]\n");
+        std::fprintf(stderr, "usage: ui_preview <output directory> [--scale 1.5] [--lang de|en] [--size 820x560]\n");
         return 2;
     }
     const std::filesystem::path output = argv[1];
     float scale = 1.0f;
     std::string language = "de";
+    int baseWidth = 1100;
+    int baseHeight = 720;
     for (int i = 2; i + 1 < argc; i += 2) {
         if (std::strcmp(argv[i], "--scale") == 0) scale = std::stof(argv[i + 1]);
         if (std::strcmp(argv[i], "--lang") == 0) language = argv[i + 1];
+        // The smallest window the client allows is 820 by 560: what fits there fits anywhere.
+        if (std::strcmp(argv[i], "--size") == 0) std::sscanf(argv[i + 1], "%dx%d", &baseWidth, &baseHeight);
     }
     std::filesystem::create_directories(output);
 
@@ -502,8 +518,8 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    const int width = static_cast<int>(1100 * scale);
-    const int height = static_cast<int>(720 * scale);
+    const int width = static_cast<int>(static_cast<float>(baseWidth) * scale);
+    const int height = static_cast<int>(static_cast<float>(baseHeight) * scale);
     GLFWwindow* window = glfwCreateWindow(width, height, "VeloPlay UI preview", nullptr, nullptr);
     if (!window) {
         std::fprintf(stderr, "Could not create an OpenGL window.\n");
@@ -579,6 +595,21 @@ int main(int argc, char** argv) {
             ++failures;
         }
 
+        // A menu or a sheet that reaches beyond the window: part of it cannot be seen or clicked.
+        for (const ImGuiWindow* open : ImGui::GetCurrentContext()->Windows) {
+            if (!open->WasActive || open->Hidden || (open->Flags & ImGuiWindowFlags_ChildWindow)) continue;
+            if (!(open->Flags & (ImGuiWindowFlags_Popup | ImGuiWindowFlags_Modal | ImGuiWindowFlags_Tooltip))) continue;
+            const ImVec2 min = open->Pos;
+            const ImVec2 max(open->Pos.x + open->Size.x, open->Pos.y + open->Size.y);
+            if (min.x >= -0.75f && min.y >= -0.75f && max.x <= static_cast<float>(width) + 0.75f &&
+                max.y <= static_cast<float>(height) + 0.75f) {
+                continue;
+            }
+            char line[200];
+            std::snprintf(line, sizeof(line), "the window '%s' at %.0f,%.0f size %.0f x %.0f reaches beyond the edge", open->Name,
+                          min.x, min.y, open->Size.x, open->Size.y);
+            ui::context().audit.findings.emplace_back(line);
+        }
         for (const std::string& finding : ui::context().audit.findings) {
             std::fprintf(stderr, "CUT OFF in %s (%s): %s\n", scene.name.c_str(), language.c_str(), finding.c_str());
             ++cutOff;

@@ -71,6 +71,10 @@ private:
     bool imguiReady_ = false;
     bool deviceLost_ = false;
     bool restartRequested_ = false;
+    bool successorStarted_ = false; // the instance that takes over after an update is already running
+    bool startedAfter_ = false;     // this instance was started by one before it and has to come to the front itself
+    void startSuccessor();
+    void waitForPredecessor();
 
     std::unique_ptr<ISecretProtector> protector_;
     std::unique_ptr<update::IHttpClient> http_;

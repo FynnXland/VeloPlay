@@ -123,7 +123,58 @@ Application::~Application() {
     UnregisterClassW(kWindowClass, GetModuleHandleW(nullptr));
 }
 
+void Application::startSuccessor() {
+    // After an update the program starts itself again. That used to happen at
+    // the very end, when this window was gone: by then Windows had brought
+    // some other program to the front, and a program started from the
+    // background may not push itself in front of it. The new window opened
+    // behind everything. So the new instance is started now, while this
+    // window is the one in front, and is allowed by name to take the front.
+    // It waits until this one has ended before it touches ports and files.
+    const std::filesystem::path exe = executablePath();
+    const std::filesystem::path folder = exe.parent_path();
+    const std::wstring arguments = L"--after " + std::to_wstring(GetCurrentProcessId());
+    SHELLEXECUTEINFOW start{};
+    start.cbSize = sizeof(start);
+    start.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+    start.lpVerb = L"open";
+    start.lpFile = exe.c_str();
+    start.lpParameters = arguments.c_str();
+    start.lpDirectory = folder.c_str();
+    start.nShow = SW_SHOWNORMAL;
+    if (!ShellExecuteExW(&start)) {
+        spdlog::warn("Restart: the new instance could not be started now ({}); trying again at the end", GetLastError());
+        return;
+    }
+    successorStarted_ = true;
+    if (start.hProcess) {
+        AllowSetForegroundWindow(GetProcessId(start.hProcess));
+        CloseHandle(start.hProcess);
+    }
+}
+
+void Application::waitForPredecessor() {
+    // "--after <process id>": started by an instance that is about to end.
+    int count = 0;
+    LPWSTR* arguments = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!arguments) return;
+    for (int i = 1; i < count; ++i) {
+        if (std::wstring_view(arguments[i]) != L"--after") continue;
+        startedAfter_ = true;
+        const DWORD id = i + 1 < count ? static_cast<DWORD>(wcstoul(arguments[i + 1], nullptr, 10)) : 0;
+        if (id == 0) break;
+        // It holds the log file, the settings and the ports until it has ended. If it never does, go on anyway.
+        if (const HANDLE before = OpenProcess(SYNCHRONIZE, FALSE, id)) {
+            WaitForSingleObject(before, 15'000);
+            CloseHandle(before);
+        }
+        break;
+    }
+    LocalFree(arguments);
+}
+
 int Application::run() {
+    waitForPredecessor();
     // The embedded browser needs this thread to be a single-threaded COM apartment.
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     (void)com;
@@ -214,6 +265,7 @@ int Application::run() {
     options.installDir = executablePath().parent_path();
     options.restart = [this] {
         restartRequested_ = true;
+        startSuccessor();
         PostMessageW(window_, WM_CLOSE, 0, 0);
     };
     controller_ = std::make_unique<AppController>(std::move(options));
@@ -254,6 +306,17 @@ int Application::run() {
     UpdateWindow(window_);
     // Full screen is how it starts, unless the user left it as a window the last time.
     if (controller_->config().window.fullscreen && !IsIconic(window_)) toggleFullscreen(false);
+    if (startedAfter_) {
+        // Started by the instance before it, after an update: the user is looking at where that one was.
+        SetForegroundWindow(window_);
+        const bool inFront = GetForegroundWindow() == window_;
+        if (!inFront) {
+            // Windows did not let it take the front. Above the other windows it can still be.
+            SetWindowPos(window_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SetWindowPos(window_, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        spdlog::info("Window: started after an update, {}", inFront ? "in front" : "placed above the other windows");
+    }
 
     // The second watch asks Windows itself. A window can count as "not
     // responding" while its loop runs (issue 3); the first watch cannot see that.
@@ -285,11 +348,13 @@ int Application::run() {
         std::filesystem::remove_all(loginDataDirectory_, ignored);
     }
     if (restartRequested_) {
-        // Shut everything down first so the new instance finds ports and files free.
+        // The new instance waits for this one to end; it finds ports and files free then.
         ui_.reset();
         controller_.reset();
-        const std::filesystem::path exe = executablePath();
-        ShellExecuteW(nullptr, L"open", exe.c_str(), nullptr, exe.parent_path().c_str(), SW_SHOWNORMAL);
+        if (!successorStarted_) {
+            const std::filesystem::path exe = executablePath();
+            ShellExecuteW(nullptr, L"open", exe.c_str(), L"--after 0", exe.parent_path().c_str(), SW_SHOWNORMAL);
+        }
         return 0;
     }
 

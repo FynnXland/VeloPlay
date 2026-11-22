@@ -8,15 +8,14 @@ monitor's resolution.
 
 [Deutsche Fassung](README.de.md)
 
-> **Status: preview 0.6.** VeloPlay finds your PS5, pairs with it, wakes it up, connects and shows
+> **Status: 1.0.** VeloPlay finds your PS5, pairs with it, wakes it up, connects and shows
 > picture and sound on the PC. Your controller drives the console, with vibration, adaptive
-> triggers and haptics. From a 30 fps stream it computes the frames in between and shows 60, and
-> it scales the picture up with a Lanczos filter and sharpens it.
+> triggers and haptics, or you play with mouse and keyboard. It notices when a game runs at 30
+> fps, computes the frames in between and shows 60.
 >
-> Finding the console, pairing, connecting, picture, sound and control are confirmed on a real
-> PS5. Frame generation and upscaling are new in 0.6 and have only been checked on a software
-> renderer so far. Known problems: input feels later than with the official app, and the window
-> sometimes stops responding after switching back to it with Alt+Tab. Feedback is welcome.
+> All of that is confirmed on a real PS5 with an RTX 4070 and a DualSense on a cable. Not tried
+> yet: the microphone in a party, signing in to PlayStation for the account ID, other graphics
+> cards and controllers. HDR is not built yet. Feedback is welcome.
 
 VeloPlay is an independent open source project. It is not made or endorsed by Sony.
 "PlayStation" and "PS5" are trademarks of Sony Interactive Entertainment.
@@ -30,33 +29,39 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 ## What it does today
 
 - Finds consoles on your network and shows whether they are on, in rest mode or unreachable
-- Pairs with a console in three guided steps
+- Pairs with a console in three guided steps, and can fetch your account ID by signing in to
+  PlayStation
 - Wakes a paired console from rest mode
 - Connects to the console and shows the picture in a window or full screen, with sound
+- Chooses resolution, frame rate and bitrate itself and learns per console what the connection
+  carries
 - Decodes the picture on the graphics card if it can, on the processor otherwise
-- Passes your controller's input to the console
-- Brings vibration, adaptive triggers and DualSense haptics back to the controller
-- Shows frame rate, bitrate, response time and packet loss on top of the picture if you like
+- Notices a game that runs at 30 fps and computes the frames in between, on NVIDIA cards with
+  the card's own motion search
+- Scales the picture up to the window and sharpens it, on NVIDIA cards with RTX Video if you like
+- Passes your controller's input to the console and brings vibration, adaptive triggers and
+  DualSense haptics back
+- Lets you play with mouse and keyboard, with presets and a layout of its own per game
+- Can be steered with the controller itself, and has a page to try the controller
+- Sends your microphone to the console for voice chat
+- Shows frame rate, bitrate, response time and packet loss on top of the picture if you like,
+  and says so when the connection stumbles
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Measures the connection to a console and suggests stream settings that fit it
 - Updates itself with one click when a new version is published
-- Detects controllers when you plug them in (DualSense, DualShock 4, Xbox and others)
 - Stores the console's keys encrypted with your Windows account
 - Offers a local interface for scripts ([docs/remote_control.md](docs/remote_control.md))
 - Speaks German and English
 
-## Why a 30 fps stream
+## How a 30 fps game gets to 60
 
-Many console games run at 30 fps. If the PS5 sends such a game as a 60 fps stream, every frame
-arrives twice. A frame generator then has to guess which frames are real, and each frame gets
-half the bitrate.
+Many console games run at 30 fps. VeloPlay asks the PS5 for a stream with 60 frames per second.
+A game that runs at 30 arrives in it with every frame twice. VeloPlay compares the frames,
+notices the pattern, leaves the repeats out and computes the frame in between itself. This costs
+about half a frame of extra delay, around 17 ms.
 
-VeloPlay asks the PS5 for 30 fps instead. Every frame in the stream is a real game frame, each
-one gets the full bitrate, and the PC computes the frame in between. This costs about half a
-frame of extra delay, around 17 ms at 30 fps.
-
-For games that run at 60 fps on the console, pick the 60 fps mode. The picture is then shown as
-it arrives.
+A game that runs at 60 fps on the console is shown as it arrives. Under Settings > Input you can
+switch the automatic choice off and ask for 30 or 60 fps yourself.
 
 ## Requirements
 
@@ -68,9 +73,9 @@ it arrives.
 - A PS5 on the same network. A cable to the router on both ends gives the best picture.
 - A PSN account that is signed in on the PS5
 
-An NVIDIA RTX card will add hardware-accelerated frame generation and RTX Video Super Resolution
-once those parts exist. VeloPlay is developed on an RTX 4070, but it is meant to run on AMD and
-Intel graphics too.
+On an NVIDIA RTX card the search for motion runs on the card's own hardware for it, and RTX
+Video Super Resolution is available. VeloPlay is developed on an RTX 4070 and is meant to run on
+AMD and Intel graphics too; nobody has tried it there yet.
 
 ## Setup
 
@@ -341,16 +346,15 @@ rules it follows (in German).
 
 ## Roadmap
 
-1. **Done:** discovery, pairing, wake-up, controller handling, settings, user interface,
-   connection check, self-update
-2. **Done, confirmed on a real PS5:** session handshake and receiving the stream, built on
-   chiaki-ng's protocol library, controller input to the console
-3. **Done:** hardware video decoding and audio (confirmed on real hardware), adaptive triggers and
-   haptics of the DualSense (still to be confirmed). Open: HDR
-4. **First part done, still to be tried on real hardware:** frame generation with a method that
-   runs on every Direct3D 11 card, Lanczos upscaling, sharpening. Next: NVIDIA's optical flow
-   hardware and RTX Video Super Resolution on top.
-5. In-stream display, error handling, releases
+Done and in 1.0: finding, pairing and waking the console, the stream with picture and sound,
+controller with triggers and haptics, mouse and keyboard, frame generation, upscaling, the menu
+in the game, self-update.
+
+Next:
+
+1. Recover by itself when the graphics driver restarts
+2. Play from outside the home network
+3. HDR
 
 ## Credits
 

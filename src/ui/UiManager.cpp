@@ -725,12 +725,16 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
     };
 
     const bool hasMenu = console.registered || !console.address.empty();
+    ImVec2 menuCorner(0.0f, 0.0f); // the lower right corner of the button the menu hangs from
     if (hasMenu) {
         place(px(36.0f));
-        if (moreButton("more")) {
-            forgetCandidate_.clear();
+        const bool asked = menuToShow_ == console.hostId;
+        if (moreButton("more") || asked) {
+            forgetCandidate_ = asked && menuToShowAsks_ ? console.hostId : std::string{};
+            menuToShow_.clear();
             ImGui::OpenPopup("console-menu");
         }
+        menuCorner = ImGui::GetItemRectMax();
     } else {
         right -= px(8.0f); // same right margin as rows that end in a menu button
     }
@@ -757,8 +761,20 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
     }
 
     // Row menu with the one destructive action, confirmed in place.
+    // It hangs from the right edge of its button and grows to the left. Left
+    // to itself it opened at the pointer and kept that place when the question
+    // replaced the two entries: the question is wider, and in a narrow window
+    // its "Cancel" lay beyond the right edge. Near the lower edge it opens
+    // upwards, judged by the height it had in the frame before.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(12.0f), px(12.0f)));
+    if (hasMenu) {
+        const ImGuiViewport* screen = ImGui::GetMainViewport();
+        const bool upwards = menuCorner.y + px(4.0f) + consoleMenuHeight_ > screen->Pos.y + screen->Size.y - px(8.0f);
+        ImGui::SetNextWindowPos(ImVec2(menuCorner.x, upwards ? menuCorner.y - px(40.0f) : menuCorner.y + px(4.0f)),
+                                ImGuiCond_Always, ImVec2(1.0f, upwards ? 1.0f : 0.0f));
+    }
     if (ImGui::BeginPopup("console-menu")) {
+        consoleMenuHeight_ = ImGui::GetWindowSize().y;
         if (forgetCandidate_ != console.hostId) {
             const float menuWidth = std::max(buttonSize(t.checkConnection).x, buttonSize(t.forget).x);
             if (!console.address.empty() && button(t.checkConnection, ButtonKind::Secondary, ImVec2(menuWidth, 0))) {

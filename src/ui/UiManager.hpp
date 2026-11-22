@@ -54,6 +54,12 @@ public:
     /// Scrolls the open settings to a place on their page, 0 = top, 1 = end.
     /// For pictures of what lies below the fold.
     void scrollSettingsTo(float share) { settingsScrollTo_ = share; }
+    /// Opens the menu of a console's row without a click, with the question
+    /// whether to remove the pairing if `asking`. For pictures of it.
+    void showConsoleMenu(std::string hostId, bool asking) {
+        menuToShow_ = std::move(hostId);
+        menuToShowAsks_ = asking;
+    }
     /// Opens the settings from that menu, over the running picture.
     void showSettingsInGame(SettingsTab tab) {
         pauseMenu_ = true;
@@ -114,6 +120,9 @@ private:
     int remotePortEdit_ = 0;
     bool remotePortActive_ = false;
     std::string forgetCandidate_;
+    float consoleMenuHeight_ = 0.0f;  // of the menu of a console's row, as it was in the frame before
+    std::string menuToShow_;          // a console whose menu is to open by itself (for pictures of it)
+    bool menuToShowAsks_ = false;
     bool adviceApplied_ = false;
     bool pauseMenu_ = false; // the menu over a running picture, opened with Esc
     bool pictureOwnsInput_ = false;

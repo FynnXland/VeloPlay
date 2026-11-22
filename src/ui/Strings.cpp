@@ -52,8 +52,8 @@ constexpr Strings kGerman = {
     .modeNativeHint = "Die PS5 sendet 60 Bilder pro Sekunde. Sie werden unverändert angezeigt.",
     .modeCustomHint = "Es gelten deine Werte aus den Einstellungen.",
 
-    .previewNote = "Vorschau {0}. Zwischenbilder und Hochskalierung sind neu und noch nicht an vielen Grafikkarten "
-                   "erprobt. Sieht etwas falsch aus, stell Zwischenbilder unter Einstellungen > Ausgabe auf Aus.",
+    .previewNote = "Version {0}. Erprobt mit einer RTX 4070. Sieht auf deiner Grafikkarte etwas falsch aus, stell "
+                   "die Zwischenbilder unter Einstellungen > Ausgabe auf Aus.",
 
     .pairingTitle = "Konsole koppeln",
     .stepOf = "Schritt {0} von 3",
@@ -456,8 +456,8 @@ constexpr Strings kEnglish = {
     .modeNativeHint = "The PS5 sends 60 frames per second. They are shown as they arrive.",
     .modeCustomHint = "Your own values from the settings apply.",
 
-    .previewNote = "Preview {0}. Frame generation and upscaling are new and have not been tried on many graphics "
-                   "cards yet. If something looks wrong, set frame generation to off under Settings > Output.",
+    .previewNote = "Version {0}. Tried with an RTX 4070. If something looks wrong on your graphics card, set frame "
+                   "generation to off under Settings > Output.",
 
     .pairingTitle = "Pair a console",
     .stepOf = "Step {0} of 3",

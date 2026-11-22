@@ -3,6 +3,46 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.0.0
+
+The first version that is called finished. Everything it does has been played on a real PS5:
+finding, pairing and waking the console, picture and sound, the controller with adaptive
+triggers and haptics, mouse and keyboard, frame generation for games at 30 fps, the menu in the
+game, updates. Still untried: the microphone in a party and signing in to PlayStation for the
+account ID. HDR is not built yet.
+
+Changed since 0.18.0:
+
+- **After an update VeloPlay comes back in front.** It used to restart behind the other windows.
+  The new instance is now started while the old window is still in front, and waits until the
+  old one has ended.
+- **The menu of a console opens to the left.** With "Remove pairing" the question replaced the
+  two entries, and in a narrow window its "Cancel" lay beyond the right edge. The menu now hangs
+  from the right edge of its button, and near the lower edge it opens upwards.
+- **Checked in the smallest window too.** Every screen is rendered once more at the smallest
+  size the window allows, and a menu or sheet that reaches beyond the window fails the build.
+
+**Deutsch**
+
+Die erste Version, die fertig heißt. Alles, was sie kann, wurde an einer echten PS5 gespielt:
+Konsole finden, koppeln und aufwecken, Bild und Ton, der Controller mit adaptiven Triggern und
+Haptik, Maus und Tastatur, Zwischenbilder für Spiele mit 30 fps, das Menü im Spiel, Updates.
+Noch nicht ausprobiert: das Mikrofon in einer Party und die Anmeldung bei PlayStation für die
+Account-ID. HDR ist noch nicht gebaut.
+
+Geändert seit 0.18.0:
+
+- **Nach einem Update kommt VeloPlay wieder nach vorn.** Bisher startete es hinter den anderen
+  Fenstern neu. Die neue Instanz startet jetzt, solange das alte Fenster noch vorn ist, und
+  wartet, bis die alte beendet ist.
+- **Das Menü einer Konsole öffnet sich nach links.** Bei „Kopplung entfernen“ ersetzte die
+  Rückfrage die beiden Einträge, und in einem schmalen Fenster lag ihr „Abbrechen“ jenseits des
+  rechten Rands. Das Menü hängt jetzt an der rechten Kante seines Knopfs, und nahe am unteren
+  Rand öffnet es sich nach oben.
+- **Auch im kleinsten Fenster geprüft.** Jeder Bildschirm wird zusätzlich in der kleinsten
+  Größe gerendert, die das Fenster zulässt, und ein Menü oder Blatt, das über das Fenster
+  hinausragt, lässt den Build scheitern.
+
 ## 0.18.0
 
 - **Menus of a game with frame generation.** When a game replaces one page of a menu by the next

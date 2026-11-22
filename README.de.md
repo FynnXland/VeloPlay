@@ -7,15 +7,14 @@ die mit 30 fps laufen, mit 60 fps auf dem Monitor sehen, sauber hochskaliert auf
 
 [English version](README.md)
 
-> **Stand: Vorschau 0.6.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf,
-> verbindet sich und zeigt Bild und Ton am PC. Dein Controller steuert die Konsole, mit Vibration,
-> adaptiven Triggern und Haptik. Aus einem Stream mit 30 fps berechnet es die Bilder dazwischen
-> und zeigt 60, skaliert das Bild mit einem Lanczos-Filter hoch und schärft es.
+> **Stand: 1.0.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
+> und zeigt Bild und Ton am PC. Dein Controller steuert die Konsole, mit Vibration, adaptiven
+> Triggern und Haptik, oder du spielst mit Maus und Tastatur. Läuft ein Spiel mit 30 fps, merkt
+> VeloPlay das, berechnet die Bilder dazwischen und zeigt 60.
 >
-> Suche, Kopplung, Verbindung, Bild, Ton und Steuerung sind an einer echten PS5 bestätigt.
-> Zwischenbilder und Hochskalierung sind neu in 0.6 und bisher nur auf einem Software-Renderer
-> geprüft. Bekannte Probleme: Eingaben fühlen sich später an als mit der offiziellen App, und das
-> Fenster reagiert manchmal nicht mehr, wenn man mit Alt+Tab zurückwechselt. Rückmeldungen sind
+> All das ist an einer echten PS5 bestätigt, mit einer RTX 4070 und einem DualSense am Kabel.
+> Noch nicht ausprobiert: das Mikrofon in einer Party, die Anmeldung bei PlayStation für die
+> Account-ID, andere Grafikkarten und Controller. HDR ist noch nicht gebaut. Rückmeldungen sind
 > willkommen.
 
 VeloPlay ist ein unabhängiges Open-Source-Projekt. Es stammt nicht von Sony und wird von Sony
@@ -30,33 +29,38 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 ## Was heute geht
 
 - Findet Konsolen im Netzwerk und zeigt, ob sie laufen, im Ruhemodus sind oder nicht erreichbar
-- Koppelt eine Konsole in drei geführten Schritten
+- Koppelt eine Konsole in drei geführten Schritten und holt deine Account-ID auf Wunsch über die
+  Anmeldung bei PlayStation
 - Weckt eine gekoppelte Konsole aus dem Ruhemodus
 - Verbindet sich mit der Konsole und zeigt das Bild im Fenster oder im Vollbild, mit Ton
+- Wählt Auflösung, Bildrate und Datenrate selbst und lernt pro Konsole, was die Verbindung trägt
 - Entpackt das Bild auf der Grafikkarte, wenn sie das kann, sonst auf dem Prozessor
-- Gibt die Eingaben deines Controllers an die Konsole weiter
-- Bringt Vibration, adaptive Trigger und Haptik des DualSense zurück an den Controller
-- Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild
+- Erkennt ein Spiel, das mit 30 fps läuft, und berechnet die Bilder dazwischen, auf NVIDIA-Karten
+  mit deren eigener Bewegungssuche
+- Skaliert das Bild auf das Fenster hoch und schärft es, auf NVIDIA-Karten auf Wunsch mit RTX Video
+- Gibt die Eingaben deines Controllers an die Konsole weiter und bringt Vibration, adaptive
+  Trigger und Haptik des DualSense zurück
+- Lässt dich mit Maus und Tastatur spielen, mit Vorlagen und eigener Belegung pro Spiel
+- Lässt sich selbst mit dem Controller bedienen und hat eine Seite, um den Controller zu testen
+- Sendet dein Mikrofon für den Sprachchat an die Konsole
+- Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild und sagt, wenn
+  die Verbindung hakt
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint
-- Erkennt Controller beim Einstecken (DualSense, DualShock 4, Xbox und andere)
 - Speichert die Schlüssel der Konsole verschlüsselt mit deinem Windows-Konto
 - Bietet eine lokale Schnittstelle für Skripte ([docs/remote_control.md](docs/remote_control.md), englisch)
 - Spricht Deutsch und Englisch
 
-## Warum ein Stream mit 30 fps
+## Wie aus 30 fps 60 werden
 
-Viele Konsolenspiele laufen mit 30 fps. Sendet die PS5 so ein Spiel als Stream mit 60 fps, kommt
-jedes Bild doppelt an. Eine Zwischenbildberechnung muss dann raten, welche Bilder echt sind, und
-jedes Bild bekommt nur die halbe Datenrate.
+Viele Konsolenspiele laufen mit 30 fps. VeloPlay fordert von der PS5 einen Stream mit 60 Bildern
+pro Sekunde an. Ein Spiel, das mit 30 läuft, kommt darin mit jedem Bild doppelt an. VeloPlay
+vergleicht die Bilder, erkennt das Muster, lässt die Wiederholungen weg und berechnet das Bild
+dazwischen selbst. Das kostet etwa ein halbes Bild zusätzliche Verzögerung, rund 17 ms.
 
-VeloPlay fordert stattdessen 30 fps an. Jedes Bild im Stream ist ein echtes Spielbild, jedes
-bekommt die volle Datenrate, und der PC berechnet das Bild dazwischen. Das kostet etwa ein halbes
-Bild zusätzliche Verzögerung, bei 30 fps rund 17 ms.
-
-Für Spiele, die auf der Konsole mit 60 fps laufen, wählst du den 60-fps-Modus. Das Bild wird dann
-so gezeigt, wie es ankommt.
+Ein Spiel, das auf der Konsole mit 60 fps läuft, wird gezeigt, wie es ankommt. Unter
+Einstellungen > Eingang kannst du die Automatik abschalten und selbst 30 oder 60 fps anfordern.
 
 ## Voraussetzungen
 
@@ -68,9 +72,9 @@ so gezeigt, wie es ankommt.
 - Eine PS5 im selben Netzwerk. Am besten hängen PC und Konsole per Kabel am Router.
 - Ein PSN-Konto, das auf der PS5 angemeldet ist
 
-Eine NVIDIA-RTX-Karte bringt später hardwarebeschleunigte Zwischenbilder und RTX Video Super
-Resolution, sobald diese Teile fertig sind. Entwickelt wird auf einer RTX 4070, laufen soll
-VeloPlay aber auch mit Grafik von AMD und Intel.
+Auf einer NVIDIA-RTX-Karte läuft die Bewegungssuche auf der dafür gebauten Hardware der Karte, und
+RTX Video Super Resolution steht zur Wahl. Entwickelt wird auf einer RTX 4070, laufen soll
+VeloPlay auch mit Grafik von AMD und Intel; dort hat es noch niemand ausprobiert.
 
 ## Einrichten
 
@@ -336,16 +340,15 @@ Codes und die Regeln, denen er folgt.
 
 ## Fahrplan
 
-1. **Erledigt:** Suche, Kopplung, Aufwecken, Controller, Einstellungen, Oberfläche,
-   Verbindungstest, Selbst-Update
-2. **Erledigt, an einer echten PS5 bestätigt:** Sitzungsaufbau und Empfang des Streams auf Basis
-   der Protokollbibliothek von chiaki-ng, Controller-Eingaben zur Konsole
-3. **Erledigt:** Videodekodierung auf der Grafikkarte und Ton (an echter Hardware bestätigt),
-   adaptive Trigger und Haptik des DualSense (noch zu bestätigen). Offen: HDR
-4. **Erster Teil erledigt, an echter Hardware noch zu erproben:** Zwischenbilder mit einem
-   Verfahren, das auf jeder Direct3D-11-Karte läuft, Hochskalieren mit Lanczos, Schärfen. Als
-   Nächstes: die Optical-Flow-Hardware von NVIDIA und RTX Video Super Resolution.
-5. Anzeige im Stream, Fehlerbehandlung, Veröffentlichungen
+Fertig und in 1.0: Konsole finden, koppeln und aufwecken, der Stream mit Bild und Ton,
+Controller mit Triggern und Haptik, Maus und Tastatur, Zwischenbilder, Hochskalieren, das Menü
+im Spiel, Selbst-Update.
+
+Als Nächstes:
+
+1. Sich selbst fangen, wenn der Grafiktreiber neu startet
+2. Von unterwegs spielen, außerhalb des Heimnetzes
+3. HDR
 
 ## Dank
 
