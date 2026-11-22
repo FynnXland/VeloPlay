@@ -99,6 +99,8 @@ struct DiscordSettings {
     /// While a game is streamed, Discord shows "Playing VeloPlay" with the game and the time. Discord has to run on this PC.
     bool enabled = true;
     bool showGame = true; // the game's name on the card; off: only that VeloPlay is in use
+    /// Shown at the top of the card when the console names no game (not every PS5 says what runs).
+    std::string gameName;
 
     friend bool operator==(const DiscordSettings&, const DiscordSettings&) = default;
 };

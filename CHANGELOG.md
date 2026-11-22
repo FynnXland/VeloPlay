@@ -3,6 +3,22 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.11.1
+
+- **Discord: the game at the top, nothing doubled.** "PS5" is no longer written on the card, the
+  picture says it. When the console names no game, the card shows no text under its title instead
+  of "VeloPlay via VeloPlay". Not every PS5 says which game runs: under Settings > Advanced >
+  Discord you can now enter the game yourself, and it goes to the top of the card. When the
+  console names a game, its name counts.
+
+**Deutsch**
+
+- **Discord: das Spiel oben, nichts doppelt.** „PS5“ steht nicht mehr als Text auf der Karte, das
+  Bild sagt es schon. Nennt die Konsole kein Spiel, steht unter dem Titel der Karte nichts mehr
+  statt „VeloPlay über VeloPlay“. Nicht jede PS5 sagt, welches Spiel läuft: Unter Einstellungen >
+  Erweitert > Discord kannst du das Spiel jetzt selbst eintragen, und es steht oben auf der Karte.
+  Nennt die Konsole ein Spiel, gilt ihres.
+
 ## 1.11.0
 
 - **VeloPlay notices an unsteady link and says what helps.** If the console's pictures are held

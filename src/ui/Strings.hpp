@@ -176,6 +176,9 @@ struct Strings {
     const char* discordShow;
     const char* discordShowHint;
     const char* discordGame;
+    const char* discordGameName;
+    const char* discordGameNamePlaceholder;
+    const char* discordGameNameHint;
     const char* pauseCaptureControl;
     const char* look;
     const char* lookVivid;

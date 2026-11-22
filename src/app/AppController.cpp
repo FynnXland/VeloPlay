@@ -28,6 +28,12 @@ constexpr milliseconds kRemoteStatusInterval{250};
 // A console that just woke up answers discovery a few seconds before it
 // accepts Remote Play, so the first tries after a wake-up may be refused.
 constexpr int kAttemptsAfterWake = 6;
+
+std::string trimmed(const std::string& text) {
+    const auto first = text.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return {};
+    return text.substr(first, text.find_last_not_of(" \t\r\n") - first + 1);
+}
 // A stream that broke is tried again this often before the user is told.
 constexpr int kReconnectAttempts = 3;
 // The console sends a rumble event per change, not per frame. chiaki-ng lets a
@@ -1164,13 +1170,15 @@ void AppController::updatePresence(Clock::time_point now) {
         activity.platformImage = discordPicture("capture");
         activity.platformText = t.captureCards;
     } else {
-        if (config_.discord.showGame) activity.game = sessionGameName_;
-        // Without a game named by the console the card names the console, not VeloPlay twice.
-        if (activity.game.empty()) activity.game = "PS5";
+        if (config_.discord.showGame) {
+            // The console's own word first; what the user entered where it names none.
+            activity.game = !sessionGameName_.empty() ? sessionGameName_ : trimmed(config_.discord.gameName);
+        }
         activity.platformImage = discordPicture("ps5");
         activity.platformText = "PS5";
     }
-    activity.state = t.presenceState;
+    // "via VeloPlay" only under a game: alone it read "VeloPlay via VeloPlay" under the card's title.
+    if (!activity.game.empty()) activity.state = t.presenceState;
     activity.appText = "VeloPlay";
     activity.appImage = discordPicture("veloplay");
     activity.buttonLabel = t.presenceButton;

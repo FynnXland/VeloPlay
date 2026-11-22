@@ -3317,6 +3317,11 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         paragraph(TextStyle::Caption, t.discordShowHint, p.textSecondary);
         space(6.0f);
         toggleRow(t.discordGame, &config.discord.showGame, config.discord.enabled);
+        if (config.discord.enabled && config.discord.showGame) {
+            space(8.0f);
+            textField(t.discordGameName, config.discord.gameName, t.discordGameNamePlaceholder, FieldState::Neutral,
+                      t.discordGameNameHint);
+        }
     }
 
     sectionTitle(t.jitter);

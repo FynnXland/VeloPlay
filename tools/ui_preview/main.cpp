@@ -407,6 +407,7 @@ std::vector<Scene> scenes() {
              model.config->manualHosts = {"10.0.20.5"};
              model.remoteApiRunning = true;
              model.discordAvailable = true;
+             model.config->discord.gameName = "Astro's Playroom";
              ui.openSettings(UiManager::SettingsTab::Advanced);
          }},
         {"15-update-available",

@@ -580,6 +580,48 @@ TEST(AppControllerSession, ShowsTheStreamInDiscordAndClearsItAfterwards) {
     EXPECT_FALSE(log->activities.back().contains("activity"));
 }
 
+TEST(AppControllerSession, PutsTheGameAtTheTopOfTheDiscordCardOrNothingAtAll) {
+    test::MockConsole console({});
+    console.setNamesGame(false); // not every PS5 says what runs
+    auto log = std::make_shared<DiscordLog>();
+    Harness h(console, "session_discord_game.json", true, 60s, 0us, nullptr, [&](AppController::Options& options) {
+        options.discordPipe = [log] { return std::unique_ptr<discord::IPipe>(std::make_unique<DiscordPipe>(log)); };
+        options.systemLanguage = "de";
+    });
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    ASSERT_TRUE(h.runUntil([&] { return !log->activities.empty(); }));
+    // No game: no text under the card's title, neither "PS5" (the picture says so) nor "via VeloPlay"
+    // (that read "VeloPlay via VeloPlay").
+    const nlohmann::json& bare = log->activities.back()["activity"];
+    EXPECT_FALSE(bare.contains("details"));
+    EXPECT_FALSE(bare.contains("state"));
+    EXPECT_EQ(bare["assets"]["large_image"], "https://raw.githubusercontent.com/FynnXland/VeloPlay/main/assets/discord/ps5.png");
+}
+
+TEST(AppControllerSession, PutsWhatTheUserEnteredAtTheTopOfTheDiscordCard) {
+    test::MockConsole console({});
+    console.setNamesGame(false);
+    auto log = std::make_shared<DiscordLog>();
+    Harness h(console, "session_discord_entered.json", true, 60s, 0us, nullptr, [&](AppController::Options& options) {
+        options.discordPipe = [log] { return std::unique_ptr<discord::IPipe>(std::make_unique<DiscordPipe>(log)); };
+        options.systemLanguage = "de";
+    });
+    ASSERT_TRUE(h.pair());
+    h.app->config().discord.gameName = "  Mein Spiel ";
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    ASSERT_TRUE(h.runUntil([&] { return !log->activities.empty(); }));
+    const nlohmann::json& named = log->activities.back()["activity"];
+    EXPECT_EQ(named["details"], "Mein Spiel");
+    EXPECT_EQ(named["state"], "über VeloPlay");
+    EXPECT_EQ(named["status_display_type"], 2);
+}
+
 TEST(AppControllerSession, ShowsNothingInDiscordWhenSwitchedOff) {
     test::MockConsole console({});
     auto log = std::make_shared<DiscordLog>();
