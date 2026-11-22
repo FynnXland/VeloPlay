@@ -1368,7 +1368,9 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
     const float gap = px(8.0f);
     float y = viewport->Pos.y + px(16.0f);
     for (const auto& [alert, text] : notes) {
-        const bool on = std::find(model.alerts.begin(), model.alerts.end(), alert) != model.alerts.end();
+        // Switched off in the settings: not shown, but still in the log and in the pause menu's tiles.
+        const bool wanted = !model.config || alertShown(model.config->notes, alert);
+        const bool on = wanted && std::find(model.alerts.begin(), model.alerts.end(), alert) != model.alerts.end();
         // No window is open here to take ids from; these only have to differ from each other.
         const ImGuiID id = static_cast<ImGuiID>(0x5A1E7000 + static_cast<int>(alert));
         const float shown = animator.to(id, on ? 1.0f : 0.0f, 0.22f, 0.0f);
@@ -3255,6 +3257,41 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     const int language = config.language == "de" ? 1 : config.language == "en" ? 2 : 0;
     const int chosenLanguage = segmented("language", languages, language);
     config.language = chosenLanguage == 1 ? "de" : chosenLanguage == 2 ? "en" : "auto";
+
+    sectionTitle(t.notesTitle);
+    toggleRow(t.notesShow, &config.notes.enabled);
+    paragraph(TextStyle::Caption, t.notesHint, p.textSecondary);
+    if (config.notes.enabled) {
+        space(4.0f);
+        if (edgeButton(notesExpanded_ ? t.notesChooseLess : t.notesChoose, ButtonKind::Link)) {
+            notesExpanded_ = !notesExpanded_;
+        }
+        if (notesExpanded_) {
+            // Each note by its own words, so it is clear what goes.
+            const std::array<std::pair<StreamAlert, const char*>, 8> kinds = {{
+                {StreamAlert::UnsteadyLink, t.alertUnsteadyLink},
+                {StreamAlert::ConnectionStalls, t.alertConnection},
+                {StreamAlert::PicturesLost, t.alertLost},
+                {StreamAlert::FewerPictures, t.alertFewer},
+                {StreamAlert::DecoderBehind, t.alertDecoder},
+                {StreamAlert::GraphicsRestored, t.alertGraphicsRestored},
+                {StreamAlert::NoController, t.alertNoController},
+                {StreamAlert::BatteryLow, t.alertBattery},
+            }};
+            for (const auto& [alert, label] : kinds) {
+                space(6.0f);
+                bool shown = alertShown(config.notes, alert);
+                ImGui::PushID(static_cast<int>(alert));
+                if (toggleRow(label, &shown)) {
+                    const std::string key(alertKey(alert));
+                    auto& hidden = config.notes.hidden;
+                    hidden.erase(std::remove(hidden.begin(), hidden.end(), key), hidden.end());
+                    if (!shown) hidden.push_back(key);
+                }
+                ImGui::PopID();
+            }
+        }
+    }
 
     if (model.updaterAvailable) {
         sectionTitle(t.updatesTitle);

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "app/Config.hpp"
+
 namespace veloplay {
 
 namespace {
@@ -141,6 +143,25 @@ std::vector<StreamAlert> StreamAlerts::active(Clock::time_point now) const {
         if (slots_[i].on && now < slots_[i].until) result.push_back(static_cast<StreamAlert>(i));
     }
     return result;
+}
+
+std::string_view alertKey(StreamAlert alert) {
+    switch (alert) {
+        case StreamAlert::NoController: return "no_controller";
+        case StreamAlert::ConnectionStalls: return "connection_stalls";
+        case StreamAlert::PicturesLost: return "pictures_lost";
+        case StreamAlert::DecoderBehind: return "decoder_behind";
+        case StreamAlert::FewerPictures: return "fewer_pictures";
+        case StreamAlert::BatteryLow: return "battery_low";
+        case StreamAlert::GraphicsRestored: return "graphics_restored";
+        case StreamAlert::UnsteadyLink: return "unsteady_link";
+    }
+    return "unknown";
+}
+
+bool alertShown(const NoteSettings& settings, StreamAlert alert) {
+    if (!settings.enabled) return false;
+    return std::find(settings.hidden.begin(), settings.hidden.end(), alertKey(alert)) == settings.hidden.end();
 }
 
 } // namespace veloplay

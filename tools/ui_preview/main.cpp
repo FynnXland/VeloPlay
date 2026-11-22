@@ -481,6 +481,24 @@ std::vector<Scene> scenes() {
              model.stream = playingStats();
              model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
          }},
+        {"53-settings-notes",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.config->notes.hidden = {"battery_low", "fewer_pictures"};
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.showNoteChoices();
+         }},
+        {"54-stream-notes-switched-off",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             // The battery note is switched off: only the Wi-Fi one shows.
+             model.config->notes.hidden = {"battery_low"};
+             model.alerts = {StreamAlert::BatteryLow, StreamAlert::UnsteadyLink};
+         }},
         {"52-stream-window-bar",
          [](UiModel& model, UiManager&) {
              withConsoles(model);

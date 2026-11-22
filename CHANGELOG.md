@@ -3,6 +3,24 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.12.0
+
+- **Switch off notes over the picture.** Settings > Advanced has a new part "Notes over the
+  picture": one switch for all of them, and "Choose one by one" lists every note with its own
+  switch. Notes you switch off still go to the log, and the pause menu still says when the link
+  is uneven.
+- **The Wi-Fi note says what helps on 5 GHz too:** "PS5 Wi-Fi unsteady: a cable or repeater can
+  help".
+
+**Deutsch**
+
+- **Hinweise über dem Bild abschalten.** Unter Einstellungen > Erweitert gibt es den neuen Teil
+  „Hinweise über dem Bild“: ein Schalter für alle, und „Einzeln wählen“ zeigt jeden Hinweis mit
+  eigenem Schalter. Abgeschaltete Hinweise stehen weiter im Protokoll, und das Menü im Spiel sagt
+  weiter, wenn die Verbindung unruhig ist.
+- **Der WLAN-Hinweis passt jetzt auch bei 5 GHz:** „WLAN der PS5 unruhig: Kabel oder Repeater kann
+  helfen“.
+
 ## 1.11.1
 
 - **Discord: the game at the top, nothing doubled.** "PS5" is no longer written on the card, the

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 // Short notes over the running picture: the connection stalls, pictures get
@@ -22,6 +24,19 @@ enum class StreamAlert {
     GraphicsRestored, // the graphics card had a hiccup and the picture was set up again
     UnsteadyLink,     // the console's pictures come unevenly for a while: its Wi-Fi, most likely
 };
+
+/// Every kind, in the order above.
+inline constexpr std::array<StreamAlert, 8> kAllStreamAlerts = {
+    StreamAlert::NoController,  StreamAlert::ConnectionStalls, StreamAlert::PicturesLost, StreamAlert::DecoderBehind,
+    StreamAlert::FewerPictures, StreamAlert::BatteryLow,       StreamAlert::GraphicsRestored, StreamAlert::UnsteadyLink,
+};
+
+/// The kind's name in the settings file; stays the same when the enum changes.
+std::string_view alertKey(StreamAlert alert);
+
+struct NoteSettings;
+/// Whether a note of this kind is shown over the picture. Hidden ones still go to the log.
+bool alertShown(const NoteSettings& settings, StreamAlert alert);
 
 /// What is known about the stream at one moment.
 struct StreamObservation {

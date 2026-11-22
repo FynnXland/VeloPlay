@@ -398,6 +398,11 @@ struct Strings {
     const char* alertBattery;
     const char* alertGraphicsRestored;
     const char* alertUnsteadyLink;
+    const char* notesTitle;
+    const char* notesShow;
+    const char* notesHint;
+    const char* notesChoose;
+    const char* notesChooseLess;
     const char* waitingForRelease; // the console has not let go of the session before
     // Playing with keyboard and mouse.
     const char* kbmTitle;

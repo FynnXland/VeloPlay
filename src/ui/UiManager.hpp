@@ -61,6 +61,8 @@ public:
         menuToShow_ = std::move(hostId);
         menuToShowAsks_ = asking;
     }
+    /// Lists the notes over the picture one by one in the settings, as the button there does. For pictures of it.
+    void showNoteChoices() { notesExpanded_ = true; }
     /// Opens the settings from that menu, over the running picture.
     void showSettingsInGame(SettingsTab tab) {
         pauseMenu_ = true;
@@ -146,6 +148,7 @@ private:
     int captureNoteSeen_ = 0;       // the serial of the last note shown
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to
     int bindingControl_ = -1; // the control that waits for its key in the settings, or -1
+    bool notesExpanded_ = false;    // the notes over the picture listed one by one in the settings
     std::string editedGameId_;      // the game whose key layout the settings show; empty = the one for all games
     bool editedGameChosen_ = false; // false until the settings picked the layout in use
     bool keyOverlay_ = false;       // the key layout is shown over the picture (F1)

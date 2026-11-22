@@ -95,6 +95,15 @@ struct WindowSettings {
     friend bool operator==(const WindowSettings&, const WindowSettings&) = default;
 };
 
+/// The notes over the picture during a stream (StreamAlerts). They go to the log either way.
+struct NoteSettings {
+    bool enabled = true;
+    /// The kinds switched off one by one, by their names in the file (alertKey).
+    std::vector<std::string> hidden;
+
+    friend bool operator==(const NoteSettings&, const NoteSettings&) = default;
+};
+
 struct DiscordSettings {
     /// While a game is streamed, Discord shows "Playing VeloPlay" with the game and the time. Discord has to run on this PC.
     bool enabled = true;
@@ -144,6 +153,7 @@ struct AppConfig {
     AudioSettings audio{};
     WindowSettings window{};
     UpdateSettings updates{};
+    NoteSettings notes{};
     DiscordSettings discord{};
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast

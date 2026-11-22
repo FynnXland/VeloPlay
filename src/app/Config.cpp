@@ -240,6 +240,10 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
     root["audio"] = {
         {"microphone", config.audio.microphone},
     };
+    root["notes"] = {
+        {"enabled", config.notes.enabled},
+        {"hidden", config.notes.hidden},
+    };
     root["discord"] = {
         {"enabled", config.discord.enabled},
         {"show_game", config.discord.showGame},
@@ -388,6 +392,8 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(section(root, "discord"), "enabled", config.discord.enabled);
     read(section(root, "discord"), "show_game", config.discord.showGame);
     read(section(root, "discord"), "game_name", config.discord.gameName);
+    read(section(root, "notes"), "enabled", config.notes.enabled);
+    read(section(root, "notes"), "hidden", config.notes.hidden);
     if (config.discord.gameName.size() > 128) config.discord.gameName.resize(128);
     read(section(root, "window"), "fullscreen", config.window.fullscreen);
 

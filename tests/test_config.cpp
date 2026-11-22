@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 
@@ -7,6 +8,7 @@
 
 #include "FakeProtector.hpp"
 #include "app/Config.hpp"
+#include "app/StreamAlerts.hpp"
 
 using namespace veloplay;
 using json = nlohmann::json;
@@ -343,6 +345,28 @@ TEST(Config, SavesNamesThatAreNoProperText) {
     const auto text = serializeConfig(config, protector);
     ASSERT_TRUE(text);
     EXPECT_TRUE(parseConfig(*text, protector));
+}
+
+TEST(Config, KeepsWhichNotesOverThePictureAreSwitchedOff) {
+    test::FakeProtector protector;
+    AppConfig config;
+    EXPECT_TRUE(config.notes.enabled);
+    for (const StreamAlert alert : kAllStreamAlerts) EXPECT_TRUE(alertShown(config.notes, alert));
+    config.notes.hidden = {std::string(alertKey(StreamAlert::BatteryLow))};
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back);
+    EXPECT_FALSE(alertShown(back->notes, StreamAlert::BatteryLow));
+    EXPECT_TRUE(alertShown(back->notes, StreamAlert::UnsteadyLink));
+    NoteSettings off = back->notes;
+    off.enabled = false; // all off at once
+    for (const StreamAlert alert : kAllStreamAlerts) EXPECT_FALSE(alertShown(off, alert));
+    // Every kind has a name of its own in the file.
+    std::vector<std::string_view> keys;
+    for (const StreamAlert alert : kAllStreamAlerts) keys.push_back(alertKey(alert));
+    std::sort(keys.begin(), keys.end());
+    EXPECT_EQ(std::adjacent_find(keys.begin(), keys.end()), keys.end());
 }
 
 TEST(RegisteredConsole, IsBuiltFromRegistrationResult) {
