@@ -43,6 +43,8 @@ public:
     [[nodiscard]] bool tearingSupported() const { return tearingSupported_; }
     [[nodiscard]] UINT width() const { return width_; }
     [[nodiscard]] UINT height() const { return height_; }
+    /// The texture drawn into this frame. Hold it only while drawing: a resize needs it released.
+    [[nodiscard]] Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer() const;
 
 private:
     bool createRenderTarget();

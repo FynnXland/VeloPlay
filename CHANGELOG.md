@@ -3,6 +3,26 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.2.0
+
+- **Screenshots with F12.** While a game is shown, F12 saves a picture of it as PNG in
+  Pictures\VeloPlay, without VeloPlay's display or notes on it. A short note at the lower right
+  says where it went. The settings have a new page **Capture** with the folder and a button to
+  open it. Clips and video recording are on that page as "coming with one of the next versions".
+- **The display goes into any corner.** Settings > Advanced: top left, top right, bottom left or
+  bottom right, so it covers nothing of the game, such as a health bar in the top left.
+
+**Deutsch**
+
+- **Fotos mit F12.** Solange ein Spiel läuft, speichert F12 ein Foto davon als PNG unter
+  Bilder\VeloPlay, ohne VeloPlays Anzeige oder Hinweise darauf. Ein kurzer Hinweis unten rechts
+  sagt, wohin. Die Einstellungen haben eine neue Seite **Aufnahme** mit dem Ordner und einem
+  Knopf, der ihn öffnet. Clips und Videoaufnahme stehen dort als „kommt mit einer der nächsten
+  Versionen“.
+- **Die Anzeige geht in jede Ecke.** Einstellungen > Erweitert: oben links, oben rechts, unten
+  links oder unten rechts, damit sie nichts vom Spiel verdeckt, etwa eine Lebensanzeige oben
+  links.
+
 ## 1.1.0
 
 - **Install VeloPlay on this PC.** Settings > Advanced has **Install on this PC**. It copies

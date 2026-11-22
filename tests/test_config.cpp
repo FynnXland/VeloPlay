@@ -373,6 +373,21 @@ TEST(Config, KeepsWhatAutomaticLearnedAboutAConsole) {
     EXPECT_EQ(effectiveStream(*again, "001122334455").bitrateKbps, 22'500);
 }
 
+TEST(Config, RemembersTheCornerOfTheDisplay) {
+    test::FakeProtector protector;
+    AppConfig config;
+    EXPECT_EQ(config.network.statsCorner, 0); // top left, where it always was
+    config.network.statsCorner = 3;
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text.ok());
+    const auto again = parseConfig(*text, protector);
+    ASSERT_TRUE(again.ok());
+    EXPECT_EQ(again->network.statsCorner, 3);
+    const auto odd = parseConfig(R"({"settings_version":5,"network":{"stats_corner":9}})", protector);
+    ASSERT_TRUE(odd.ok());
+    EXPECT_EQ(odd->network.statsCorner, 3);
+}
+
 TEST(Config, MovesKeysNobodyChangedToTheNewStart) {
     test::FakeProtector protector;
     // A file from 0.17 that holds the keys that version started with.

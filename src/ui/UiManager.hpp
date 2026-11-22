@@ -17,7 +17,7 @@ class UiManager {
 public:
     enum class Sheet { None, Pairing, Settings, Connection };
     enum class PairingStep { Console, Account, Pin, Progress };
-    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Advanced };
+    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Capture, Advanced };
 
     explicit UiManager(IUiActions& actions);
 
@@ -79,6 +79,10 @@ private:
     void drawStreamAlerts(const UiModel& model);
     void drawPauseMenu(const UiModel& model);
     void drawUpscalingNote(const UiModel& model);
+    void drawCaptureNote(const UiModel& model);
+    void drawCaptureTab(const UiModel& model);
+    /// Where the display goes for its size, in the corner the settings name.
+    [[nodiscard]] ImVec2 statsCornerAt(const UiModel& model, ImVec2 size) const;
     void drawKeyOverlay(const UiModel& model);
     void drawMicrophoneBadge(const UiModel& model);
     void drawWindowBar(const UiModel& model);
@@ -130,6 +134,8 @@ private:
     float windowBarButtonsWidth_ = 0.0f;
     float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
     double upscalingNoteFor_ = 0.0; // seconds the note after F8 stays; counts down
+    double captureNoteFor_ = 0.0;   // the same for the note after a screenshot
+    int captureNoteSeen_ = 0;       // the serial of the last note shown
     float settingsScrollTo_ = -1.0f; // negative: wherever the user scrolled to
     int bindingControl_ = -1; // the control that waits for its key in the settings, or -1
     std::string editedGameId_;      // the game whose key layout the settings show; empty = the one for all games

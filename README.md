@@ -44,8 +44,9 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Lets you play with mouse and keyboard, with presets and a layout of its own per game
 - Can be steered with the controller itself, and has a page to try the controller
 - Sends your microphone to the console for voice chat
-- Shows frame rate, bitrate, response time and packet loss on top of the picture if you like,
-  and says so when the connection stumbles
+- Shows frame rate, bitrate, response time and packet loss on top of the picture if you like, in
+  the corner you choose, and says so when the connection stumbles
+- Saves screenshots of the game with F12
 - Reconnects on its own after a drop and can put the PS5 into rest mode
 - Measures the connection to a console and suggests stream settings that fit it
 - Updates itself with one click when a new version is published, and installs itself on your PC
@@ -169,6 +170,7 @@ connecting.
 | F11 | Full screen on and off. VeloPlay starts in full screen and remembers if you prefer a window. In full screen, rest the pointer on the lower edge of the screen to bring the taskbar forward |
 | F9 | Steps through the display in the corner: off, a small one with the essentials, all figures |
 | F8 | Steps through the ways the picture is enlarged (off, Lanczos, RTX Video on NVIDIA cards), to compare them while playing |
+| F12 | Saves a screenshot of the game, without VeloPlay's display, as PNG in Pictures\VeloPlay |
 | F1 | With keys and mouse: shows your key layout over the picture, and hides it again |
 
 The display in the top left corner names how many frames per second arrive and are shown, the

@@ -264,6 +264,8 @@ void AppController::fillModel(UiModel& model) {
         model.install.target = install::utf8(options_.installer->target());
     }
     model.install.busy = installing_.valid();
+    model.captureNote = captureNote_;
+    if (options_.takeScreenshot) model.picturesFolder = install::utf8(options_.picturesFolder);
     model.install.error = installError_;
     if (updater_) model.update = updater_->status();
 
@@ -954,6 +956,24 @@ void AppController::installUpdate() {
 void AppController::restart() {
     if (configDirty_) saveNow();
     if (options_.restart) options_.restart();
+}
+
+void AppController::takeScreenshot() {
+    if (stateMachine_.state() != AppState::Streaming || !options_.takeScreenshot) return;
+    options_.takeScreenshot();
+}
+
+void AppController::openPicturesFolder() {
+    if (options_.openFolder && !options_.picturesFolder.empty()) options_.openFolder(options_.picturesFolder);
+}
+
+void AppController::captureFinished(bool saved, std::string where, std::string detail) {
+    if (saved) spdlog::info("Screenshot saved in {}", where);
+    else spdlog::warn("Screenshot not saved: {}", detail);
+    ++captureNote_.serial;
+    captureNote_.saved = saved;
+    captureNote_.where = std::move(where);
+    captureNote_.detail = std::move(detail);
 }
 
 void AppController::installProgram() {

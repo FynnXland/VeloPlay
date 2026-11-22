@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.1.0
+    VERSION 1.2.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -73,6 +73,7 @@ add_library(veloplay_core STATIC
     src/media/Audio.cpp
     src/media/MediaPipeline.cpp
     src/media/FramePacer.cpp
+    src/media/Snapshot.cpp
     src/input/DualSenseEffects.cpp
     src/session/ChiakiSession.cpp
     src/app/AutoStream.cpp
@@ -122,6 +123,7 @@ if(WIN32)
     add_library(veloplay_platform STATIC
         src/render/D3D11Device.cpp
         src/render/VideoRenderer.cpp
+        src/render/FrameGrabber.cpp
         src/render/FrameGenerator.cpp
         src/render/NvofMotion.cpp
         src/render/RtxVideoScaler.cpp

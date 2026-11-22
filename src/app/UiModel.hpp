@@ -160,6 +160,17 @@ struct UiModel {
     };
     InstallView install;
 
+    /// The outcome of the last screenshot. `serial` grows with each one, so the note shows once per picture.
+    struct CaptureNote {
+        int serial = 0;
+        bool saved = false;
+        std::string where;  // the folder, as the user knows it
+        std::string detail; // technical message when it failed
+    };
+    CaptureNote captureNote;
+    /// Where screenshots go, as text for the settings; empty where there are none.
+    std::string picturesFolder;
+
     /// False on builds that cannot update themselves (anything but Windows).
     bool updaterAvailable = false;
     update::UpdateStatus update;
@@ -242,6 +253,10 @@ public:
     virtual void restart() = 0;
     /// Installs the program on this PC and goes on in the installed one.
     virtual void installProgram() = 0;
+    /// Saves the picture as it is on screen, without VeloPlay's overlays. Only while a game is shown.
+    virtual void takeScreenshot() = 0;
+    /// Shows the folder with the screenshots in Explorer.
+    virtual void openPicturesFolder() = 0;
 
     /// Opens Sony's sign-in page; progress shows up in UiModel::accountLookup.
     virtual void startAccountLogin() = 0;

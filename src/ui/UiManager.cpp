@@ -446,6 +446,7 @@ void UiManager::draw(const UiModel& model) {
         if (presenting && !pauseMenu_ && !settingsInGame) {
             drawStreamAlerts(model);
             drawUpscalingNote(model);
+            drawCaptureNote(model);
             drawKeyOverlay(model);
             drawMicrophoneBadge(model);
         } else {
@@ -1311,6 +1312,50 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
     }
 }
 
+void UiManager::drawCaptureNote(const UiModel& model) {
+    const Strings& t = *text_;
+    if (ImGui::IsKeyPressed(ImGuiKey_F12, false)) actions_.takeScreenshot();
+    // A note that arrived while a menu was open is old news by the time it closes.
+    if (model.captureNote.serial != captureNoteSeen_) {
+        if (captureNoteSeen_ != 0 || model.captureNote.serial == 1) captureNoteFor_ = 3.0;
+        captureNoteSeen_ = model.captureNote.serial;
+    }
+    if (captureNoteFor_ <= 0.0) return;
+    captureNoteFor_ -= static_cast<double>(ImGui::GetIO().DeltaTime);
+
+    const bool saved = model.captureNote.saved;
+    const std::string title = saved ? format(t.captureSaved, {model.captureNote.where}) : std::string(t.captureFailed);
+    const std::string remark = saved ? std::string() : model.captureNote.detail;
+    const Palette& p = palette();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 titleSize = measure(TextStyle::Body, title);
+    const ImVec2 remarkSize = remark.empty() ? ImVec2(0.0f, 0.0f) : measure(TextStyle::Caption, remark);
+    const float padX = px(16.0f);
+    const float padY = px(10.0f);
+    const float dot = px(8.0f);
+    const float width = padX * 2.0f + dot + px(10.0f) + std::max(titleSize.x, remarkSize.x);
+    const float height = padY * 2.0f + titleSize.y + (remark.empty() ? 0.0f : px(4.0f) + remarkSize.y);
+    const float shown = static_cast<float>(std::clamp(captureNoteFor_ / 0.25, 0.0, 1.0));
+    // Bottom right, or bottom left when the display sits there: the microphone sits at the top,
+    // notes on the stream top centre, upscaling bottom centre.
+    const bool displayThere = model.config && model.config->network.statsOverlay && model.config->network.statsCorner == 3;
+    const ImVec2 min(displayThere ? viewport->Pos.x + px(24.0f) : viewport->Pos.x + viewport->Size.x - width - px(24.0f),
+                     viewport->Pos.y + viewport->Size.y - height - px(24.0f));
+    fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), px(12.0f));
+    draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + padY + titleSize.y * 0.5f), dot * 0.5f,
+                          toU32(saved ? p.ready : p.standby, shown));
+    ImVec4 ink = p.text;
+    ink.w *= shown;
+    drawText(draw, ImVec2(min.x + padX + dot + px(10.0f), min.y + padY), TextStyle::Body, ink, title);
+    if (!remark.empty()) {
+        ImVec4 quiet = p.textSecondary;
+        quiet.w *= shown;
+        drawText(draw, ImVec2(min.x + padX + dot + px(10.0f), min.y + padY + titleSize.y + px(4.0f)), TextStyle::Caption,
+                 quiet, remark);
+    }
+}
+
 void UiManager::drawUpscalingNote(const UiModel& model) {
     if (!model.config || !model.stream) return;
     const Strings& t = *text_;
@@ -1447,7 +1492,10 @@ void UiManager::drawMicrophoneBadge(const UiModel& model) {
     const float dot = px(8.0f);
     const float width = padX * 2.0f + dot + px(8.0f) + size.x;
     const float height = padY * 2.0f + size.y;
-    const ImVec2 min(viewport->Pos.x + viewport->Size.x - width - px(16.0f), viewport->Pos.y + px(16.0f));
+    // Top right, or top left when the display sits top right.
+    const bool displayThere = model.config && model.config->network.statsOverlay && model.config->network.statsCorner == 1;
+    const ImVec2 min(displayThere ? viewport->Pos.x + px(16.0f) : viewport->Pos.x + viewport->Size.x - width - px(16.0f),
+                     viewport->Pos.y + px(16.0f));
     fill(draw, min, ImVec2(min.x + width, min.y + height), toU32(p.background, shown), height * 0.5f);
     draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, min.y + height * 0.5f), dot * 0.5f,
                           toU32(model.microphoneMissing ? p.standby : p.danger, shown));
@@ -1557,6 +1605,16 @@ void UiManager::drawWindowBar(const UiModel& model) {
     windowBarButtonsWidth_ = buttonsWidth;
 }
 
+ImVec2 UiManager::statsCornerAt(const UiModel& model, ImVec2 size) const {
+    const int corner = model.config ? model.config->network.statsCorner : 0;
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float margin = px(16.0f);
+    const float x = (corner == 1 || corner == 3) ? viewport->Pos.x + viewport->Size.x - size.x - margin : viewport->Pos.x + margin;
+    // At the bottom it stays above the line with the keys, which shows for the first seconds.
+    const float y = corner >= 2 ? viewport->Pos.y + viewport->Size.y - size.y - margin - px(40.0f) : viewport->Pos.y + margin;
+    return ImVec2(x, y);
+}
+
 void UiManager::drawStreamOverlay(const UiModel& model) {
     const Strings& t = *text_;
     const Palette& p = palette();
@@ -1592,9 +1650,9 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
         const float padX = px(12.0f);
         const float padY = px(7.0f);
         const float dot = px(8.0f);
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        const ImVec2 min(viewport->Pos.x + px(16.0f), viewport->Pos.y + px(16.0f));
-        const ImVec2 max(min.x + padX * 2.0f + dot + px(8.0f) + textSize.x, min.y + padY * 2.0f + textSize.y);
+        const ImVec2 boxSize(padX * 2.0f + dot + px(8.0f) + textSize.x, padY * 2.0f + textSize.y);
+        const ImVec2 min = statsCornerAt(model, boxSize);
+        const ImVec2 max(min.x + boxSize.x, min.y + boxSize.y);
         ImDrawList* draw = ImGui::GetForegroundDrawList();
         fill(draw, min, max, toU32(p.background), (max.y - min.y) * 0.5f);
         draw->AddCircleFilled(ImVec2(min.x + padX + dot * 0.5f, (min.y + max.y) * 0.5f), dot * 0.5f,
@@ -1659,8 +1717,7 @@ void UiManager::drawStreamOverlay(const UiModel& model) {
     const float graphBlock = stats.presenting ? px(8.0f) + lineHeight + px(4.0f) + graphHeight : -px(6.0f);
     const ImVec2 size(inner + 2.0f * pad, pad + rowsHeight + graphBlock + pad);
 
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const ImVec2 min(viewport->Pos.x + px(16.0f), viewport->Pos.y + px(16.0f));
+    const ImVec2 min = statsCornerAt(model, size);
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     // Solid: a see-through ground let the picture behind it show, and where computed pictures
     // alternate with real ones that read as a flicker under the figures.
@@ -2065,12 +2122,13 @@ void UiManager::drawSettings(const UiModel& model) {
 
     label(TextStyle::Title, t.settings);
     space(14.0f);
-    const std::array<const char*, 5> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabKeyboard, t.tabAdvanced};
+    const std::array<const char*, 6> tabs = {t.tabStream, t.tabPicture, t.tabController, t.tabKeyboard, t.tabCapture,
+                                             t.tabAdvanced};
     settingsTab_ = static_cast<SettingsTab>(
         segmented("tabs", tabs, static_cast<int>(settingsTab_), ImGui::GetContentRegionAvail().x));
     // On a controller the shoulder buttons turn the pages, as they do on the console.
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 5);
-    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 4) % 5);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 1) % 6);
+    if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) settingsTab_ = static_cast<SettingsTab>((static_cast<int>(settingsTab_) + 5) % 6);
     space(18.0f);
 
     // A fixed height keeps the sheet from jumping when the tab changes. The
@@ -2090,6 +2148,7 @@ void UiManager::drawSettings(const UiModel& model) {
         case SettingsTab::Picture: drawPictureTab(model, config); break;
         case SettingsTab::Controller: drawControllerTab(model, config); break;
         case SettingsTab::Keyboard: drawKeyboardMouse(model, config); break;
+        case SettingsTab::Capture: drawCaptureTab(model); break;
         case SettingsTab::Advanced: drawAdvancedTab(model, config); break;
     }
     space(4.0f);
@@ -2787,6 +2846,26 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     space(4.0f);
 }
 
+void UiManager::drawCaptureTab(const UiModel& model) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+
+    sectionTitle(t.captureShots, true);
+    paragraph(TextStyle::Caption, t.captureShotsHint, p.textSecondary);
+    space(8.0f);
+    if (!model.picturesFolder.empty()) {
+        label(TextStyle::Body, model.picturesFolder, p.textSecondary);
+        space(8.0f);
+        if (edgeButton(t.captureOpenFolder, ButtonKind::Link)) actions_.openPicturesFolder();
+    }
+
+    // Not built yet: said so, and nothing to switch (rule: no switch that does nothing).
+    sectionTitle(t.captureClips);
+    paragraph(TextStyle::Caption, t.captureLater, p.textTertiary);
+    sectionTitle(t.captureVideos);
+    paragraph(TextStyle::Caption, t.captureLater, p.textTertiary);
+}
+
 void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     const Strings& t = *text_;
     const Palette& p = palette();
@@ -2862,6 +2941,13 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     toggleRow(t.statsOverlay, &config.network.statsOverlay);
     space(8.0f);
     toggleRow(t.statsCompact, &config.network.statsCompact, config.network.statsOverlay);
+    space(10.0f);
+    label(TextStyle::Body, t.statsCorner);
+    space(8.0f);
+    {
+        const std::array<const char*, 4> corners = {t.cornerTopLeft, t.cornerTopRight, t.cornerBottomLeft, t.cornerBottomRight};
+        config.network.statsCorner = segmented("stats-corner", corners, config.network.statsCorner, ImGui::GetContentRegionAvail().x);
+    }
 
     sectionTitle(t.extraAddresses);
     paragraph(TextStyle::Caption, t.extraAddressesHint, p.textSecondary);

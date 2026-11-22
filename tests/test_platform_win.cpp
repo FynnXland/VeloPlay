@@ -20,6 +20,7 @@
 
 #include "audio/WasapiOutput.hpp"
 #include "render/RtxVideoScaler.hpp"
+#include "render/FrameGrabber.hpp"
 #include "render/VideoRenderer.hpp"
 #include "util/ThreadStack.hpp"
 
@@ -1027,6 +1028,70 @@ TEST(FrameGeneration, MovesColourThatBrightnessDoesNotShow) {
                     hand ? ", held by a hand" : "", own.tintError, own.tintMixError);
         // Before the search compared colour, this was no better than the plain mix.
         EXPECT_LT(own.tintError, own.tintMixError * 0.6) << (hand ? "with hand" : "alone");
+    }
+}
+
+// A screenshot is a copy of a part of the picture on screen, read without
+// waiting for the card. Both formats a swap chain uses come out the same.
+TEST(FrameGrabber, CopiesThePartOfTheScreenThatShowsThePicture) {
+    Canvas canvas;
+    ASSERT_TRUE(canvas.create());
+    for (const DXGI_FORMAT format : {DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM}) {
+        constexpr UINT kWidth = 64;
+        constexpr UINT kHeight = 40;
+        // Every pixel says where it is: red = x, green = y, blue = 200.
+        std::vector<std::uint8_t> pixels(kWidth * kHeight * 4);
+        for (UINT y = 0; y < kHeight; ++y) {
+            for (UINT x = 0; x < kWidth; ++x) {
+                std::uint8_t* at = &pixels[(y * kWidth + x) * 4];
+                const bool bgra = format == DXGI_FORMAT_B8G8R8A8_UNORM;
+                at[bgra ? 2 : 0] = static_cast<std::uint8_t>(x);
+                at[1] = static_cast<std::uint8_t>(y);
+                at[bgra ? 0 : 2] = 200;
+                at[3] = 7; // whatever a swap chain holds there
+            }
+        }
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = kWidth;
+        desc.Height = kHeight;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = format;
+        desc.SampleDesc.Count = 1;
+        desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+        D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0};
+        ComPtr<ID3D11Texture2D> screen;
+        ASSERT_TRUE(SUCCEEDED(canvas.device->CreateTexture2D(&desc, &data, screen.GetAddressOf())));
+
+        render::FrameGrabber grabber;
+        // Without a request nothing is copied.
+        D3D11_BOX region{10, 5, 0, 50, 35, 1};
+        grabber.capture(canvas.device.Get(), canvas.context.Get(), screen.Get(), region);
+        EXPECT_FALSE(grabber.busy());
+        EXPECT_FALSE(grabber.take(canvas.context.Get()).has_value());
+
+        grabber.request();
+        grabber.capture(canvas.device.Get(), canvas.context.Get(), screen.Get(), region);
+        std::optional<media::Image> image;
+        // In the program take() is tried once per frame, about every 16 ms. The software
+        // renderer works on threads of its own and needs a moment as well.
+        for (int frame = 0; frame < 500 && !image; ++frame) {
+            canvas.context->Flush();
+            image = grabber.take(canvas.context.Get());
+            if (!image) Sleep(4);
+        }
+        ASSERT_TRUE(image.has_value()) << grabber.failure();
+        EXPECT_FALSE(grabber.busy());
+        ASSERT_EQ(image->width, 40);
+        ASSERT_EQ(image->height, 30);
+        for (const auto& [x, y] : {std::pair{0, 0}, std::pair{39, 29}, std::pair{17, 3}}) {
+            const std::uint8_t* at = &image->bgra[static_cast<std::size_t>((y * 40 + x) * 4)];
+            EXPECT_EQ(at[2], 10 + x) << "red at " << x << "," << y;
+            EXPECT_EQ(at[1], 5 + y) << "green at " << x << "," << y;
+            EXPECT_EQ(at[0], 200);
+            EXPECT_EQ(at[3], 255);
+        }
+        EXPECT_TRUE(media::encodePng(*image).ok());
     }
 }
 

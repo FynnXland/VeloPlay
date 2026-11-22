@@ -43,8 +43,9 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Lässt dich mit Maus und Tastatur spielen, mit Vorlagen und eigener Belegung pro Spiel
 - Lässt sich selbst mit dem Controller bedienen und hat eine Seite, um den Controller zu testen
 - Sendet dein Mikrofon für den Sprachchat an die Konsole
-- Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild und sagt, wenn
-  die Verbindung hakt
+- Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild, in der Ecke
+  deiner Wahl, und sagt, wenn die Verbindung hakt
+- Speichert mit F12 Fotos vom Spiel
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Misst die Verbindung zu einer Konsole und schlägt passende Stream-Einstellungen vor
 - Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint, und installiert sich auf
@@ -170,6 +171,7 @@ beim Verbinden danach.
 | Esc | Menü mit **Weiter**, **Trennen** und **PS5 in den Ruhemodus** |
 | F11 | Vollbild ein und aus |
 | F9 | Anzeige mit den Werten der Verbindung ein und aus |
+| F12 | Speichert ein Foto vom Spiel, ohne VeloPlays Anzeige, als PNG unter Bilder\VeloPlay |
 
 Die Anzeige oben links nennt, wie viele Bilder pro Sekunde ankommen und gezeigt werden, die
 Datenrate, die Antwortzeit, den Paketverlust und den Dekoder. Steht dort „D3D11VA“, entpackt die

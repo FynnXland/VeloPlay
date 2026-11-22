@@ -1,8 +1,11 @@
 #include "app/Application.hpp"
 
+#include <ctime>
+
 #include <dwmapi.h>
 #include <objbase.h>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <timeapi.h>
 
 #include <imgui.h>
@@ -296,6 +299,23 @@ int Application::run() {
         restartRequested_ = true;
         startSuccessor(executablePath());
         PostMessageW(window_, WM_CLOSE, 0, 0);
+    };
+    // One screenshot at a time: the next one is taken once the last is written.
+    options.takeScreenshot = [this] {
+        if (!saving_.valid()) grabber_.request();
+    };
+    {
+        PWSTR raw = nullptr;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Pictures, KF_FLAG_DEFAULT, nullptr, &raw)) && raw) {
+            picturesFolder_ = std::filesystem::path(raw) / L"VeloPlay";
+        }
+        if (raw) CoTaskMemFree(raw);
+    }
+    options.picturesFolder = picturesFolder_;
+    options.openFolder = [](const std::filesystem::path& folder) {
+        std::error_code ignored;
+        std::filesystem::create_directories(folder, ignored);
+        ShellExecuteW(nullptr, L"explore", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     };
     // Installing on this PC: the installed program takes over as the new instance does after an update.
     installer_ = createInstaller(executablePath());
@@ -662,14 +682,53 @@ void Application::frame() {
     diag::setStep("drawing");
     device_.beginFrame(clear);
     if (showVideo) videoRenderer_.draw(device_.width(), device_.height(), output);
+    // Before the overlays: a screenshot holds the game, not VeloPlay's display or notes.
+    if (showVideo && grabber_.busy()) {
+        const UINT shownWidth = static_cast<UINT>(std::max(0, videoRenderer_.shownWidth()));
+        const UINT shownHeight = static_cast<UINT>(std::max(0, videoRenderer_.shownHeight()));
+        D3D11_BOX region{};
+        region.left = (device_.width() - std::min(shownWidth, device_.width())) / 2;
+        region.top = (device_.height() - std::min(shownHeight, device_.height())) / 2;
+        region.right = region.left + std::min(shownWidth, device_.width());
+        region.bottom = region.top + std::min(shownHeight, device_.height());
+        grabber_.capture(device_.device(), device_.context(), device_.backBuffer().Get(), region);
+    }
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     diag::setStep("presenting");
     if (!device_.present(streaming ? config.graphics.vsync : true)) deviceLost_ = true;
+    collectScreenshot();
     diag::setStep("idle");
 
     // The dashboard does not need 60 redraws per second while another window
     // has focus. A running stream does.
     if (!streaming && GetForegroundWindow() != window_) Sleep(40);
+}
+
+void Application::collectScreenshot() {
+    if (saving_.valid() && saving_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        const Saved saved = saving_.get();
+        controller_->captureFinished(saved.ok, saved.where, saved.detail);
+    }
+    if (const char* why = grabber_.failure(); why && *why && !grabber_.busy() && !saving_.valid()) {
+        controller_->captureFinished(false, {}, why);
+        grabber_ = render::FrameGrabber{};
+        return;
+    }
+    std::optional<media::Image> image = grabber_.take(device_.context());
+    if (!image) return;
+    // Packing a 1080p picture takes a moment; the window must not wait for it.
+    saving_ = std::async(std::launch::async, [picture = std::move(*image), folder = picturesFolder_]() -> Saved {
+        if (folder.empty()) return {false, {}, "Windows did not name a folder for pictures"};
+        const Result<std::vector<std::uint8_t>> png = media::encodePng(picture);
+        if (!png) return {false, {}, png.error().message};
+        const std::time_t now = std::time(nullptr);
+        std::tm local{};
+        localtime_s(&local, &now);
+        const Result<std::filesystem::path> file = media::saveCapture(folder, local, "png", png.value());
+        if (!file) return {false, {}, file.error().message};
+        const std::u8string where = folder.u8string();
+        return {true, std::string(where.begin(), where.end()), {}};
+    });
 }
 
 void Application::watchForHang(HWND window, std::stop_token stop) {

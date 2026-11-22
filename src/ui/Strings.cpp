@@ -93,6 +93,7 @@ constexpr Strings kGerman = {
     .tabPicture = "Ausgabe",
     .tabController = "Controller",
     .tabKeyboard = "Maus & Tastatur",
+    .tabCapture = "Aufnahme",
     .tabAdvanced = "Erweitert",
     .inputIntro = "Das schickt die PS5. VeloPlay fordert diese Werte beim Verbinden von der Konsole an. Änderungen "
                   "gelten ab der nächsten Verbindung.",
@@ -170,6 +171,14 @@ constexpr Strings kGerman = {
     .updateFailWrite = "VeloPlay darf seinen Ordner nicht ändern. Lade die neue Version von der Download-Seite und ersetze den Ordner.",
     .updateFailArchive = "Die neue Version ließ sich nicht entpacken. Lade sie von der Download-Seite.",
     .openDownloads = "Download-Seite öffnen",
+    .captureSaved = "Foto gespeichert in {0}",
+    .captureShots = "Fotos",
+    .captureShotsHint = "F12 speichert im Spiel ein Foto vom Bild, ohne VeloPlays Anzeigen, als PNG in diesem Ordner:",
+    .captureOpenFolder = "Ordner öffnen",
+    .captureClips = "Clips",
+    .captureVideos = "Videoaufnahme",
+    .captureLater = "Kommt mit einer der nächsten Versionen.",
+    .captureFailed = "Das Foto konnte nicht gespeichert werden.",
     .installTitle = "Installation",
     .installHint = "VeloPlay läuft gerade aus dem Ordner, in den du es entpackt hast. Installieren kopiert seine "
                    "Dateien nach {0}, legt einen Eintrag im Startmenü an und trägt es in Windows unter den "
@@ -276,7 +285,7 @@ constexpr Strings kGerman = {
                           "veloplay.log im Ordner %APPDATA%\\VeloPlay. Der Controller steuert die PS5 trotzdem.",
     .pauseBody = "Das Spiel läuft weiter",
     .resume = "Weiter",
-    .streamKeys = "Esc: Menü  ·  F11: Vollbild  ·  F9: Anzeige  ·  F8: Hochskalierung",
+    .streamKeys = "Esc: Menü  ·  F11: Vollbild  ·  F9: Anzeige  ·  F8: Hochskalierung  ·  F12: Foto",
     .hudDecoder = "Dekoder",
     .noticeBitrateLowered = "Bei der eingestellten Datenrate kam kein Bild mehr an. VeloPlay hat neu verbunden und sie "
                             "für diese Sitzung auf {0} Mbit/s gesenkt. Dauerhaft änderst du sie unter Einstellungen > "
@@ -301,6 +310,11 @@ constexpr Strings kGerman = {
     .pauseOverlay = "Anzeige oben links",
     .pauseOverlaySmall = "Klein",
     .statsCompact = "Nur das Wichtigste zeigen: Bilder pro Sekunde, Antwortzeit, Datenrate",
+    .statsCorner = "Ecke der Anzeige, damit sie nichts vom Spiel verdeckt",
+    .cornerTopLeft = "Oben links",
+    .cornerTopRight = "Oben rechts",
+    .cornerBottomLeft = "Unten links",
+    .cornerBottomRight = "Unten rechts",
     .pauseOverlayAll = "Alle Werte",
     .pauseSince = "Verbunden seit {0}",
     .pauseTilePicture = "Bild",
@@ -354,7 +368,7 @@ constexpr Strings kGerman = {
     .kbmInvertY = "Maus oben und unten vertauschen",
     .kbmLayout = "Belegung",
     .kbmLayoutHint = "Klick auf ein Feld und drück dann die Taste oder Maustaste dafür. Entf leert das Feld, Esc bricht "
-                     "ab. Esc, F1, F8, F9 und F11 gehören VeloPlay.",
+                     "ab. Esc, F1, F8, F9, F11 und F12 gehören VeloPlay.",
     .kbmPressKey = "Taste drücken",
     .kbmUnassigned = "frei",
     .kbmPresetStandard = "Standard",
@@ -509,6 +523,7 @@ constexpr Strings kEnglish = {
     .tabPicture = "Output",
     .tabController = "Controller",
     .tabKeyboard = "Mouse & keys",
+    .tabCapture = "Capture",
     .tabAdvanced = "Advanced",
     .inputIntro = "What the PS5 sends. VeloPlay asks the console for these values when it connects. Changes apply "
                   "from the next connection.",
@@ -585,6 +600,14 @@ constexpr Strings kEnglish = {
     .updateFailWrite = "VeloPlay may not change its folder. Get the new version from the download page and replace the folder.",
     .updateFailArchive = "The new version could not be unpacked. Get it from the download page.",
     .openDownloads = "Open download page",
+    .captureSaved = "Screenshot saved in {0}",
+    .captureShots = "Screenshots",
+    .captureShotsHint = "F12 in a game saves a picture of it, without VeloPlay's display, as PNG in this folder:",
+    .captureOpenFolder = "Open folder",
+    .captureClips = "Clips",
+    .captureVideos = "Video recording",
+    .captureLater = "Coming with one of the next versions.",
+    .captureFailed = "The screenshot could not be saved.",
     .installTitle = "Installation",
     .installHint = "VeloPlay is running from the folder you unpacked it into. Installing copies its files to {0}, "
                    "adds it to the start menu and to the installed apps in Windows. Settings and pairings stay. "
@@ -688,7 +711,7 @@ constexpr Strings kEnglish = {
                           "%APPDATA%\\VeloPlay names the reason. The controller drives the PS5 all the same.",
     .pauseBody = "The game keeps running",
     .resume = "Resume",
-    .streamKeys = "Esc: menu  ·  F11: full screen  ·  F9: display  ·  F8: upscaling",
+    .streamKeys = "Esc: menu  ·  F11: full screen  ·  F9: display  ·  F8: upscaling  ·  F12: screenshot",
     .hudDecoder = "Decoder",
     .noticeBitrateLowered = "No picture arrived at the bitrate that was set. VeloPlay reconnected and lowered it to "
                             "{0} Mbit/s for this session. Change it for good under Settings > Stream.",    .accountSignIn = "Sign in with PlayStation",
@@ -711,6 +734,11 @@ constexpr Strings kEnglish = {
     .pauseOverlay = "Display in the top left corner",
     .pauseOverlaySmall = "Small",
     .statsCompact = "Show only what matters most: pictures per second, response time, bitrate",
+    .statsCorner = "Corner of the display, so it hides nothing of the game",
+    .cornerTopLeft = "Top left",
+    .cornerTopRight = "Top right",
+    .cornerBottomLeft = "Bottom left",
+    .cornerBottomRight = "Bottom right",
     .pauseOverlayAll = "All figures",
     .pauseSince = "Connected for {0}",
     .pauseTilePicture = "Picture",
@@ -764,7 +792,7 @@ constexpr Strings kEnglish = {
     .kbmInvertY = "Swap mouse up and down",
     .kbmLayout = "Layout",
     .kbmLayoutHint = "Click a field, then press the key or mouse button for it. Del empties the field, Esc cancels. "
-                     "Esc, F1, F8, F9 and F11 belong to VeloPlay.",
+                     "Esc, F1, F8, F9, F11 and F12 belong to VeloPlay.",
     .kbmPressKey = "Press a key",
     .kbmUnassigned = "free",
     .kbmPresetStandard = "Standard",

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <memory>
 #include <optional>
 #include <stop_token>
@@ -18,6 +19,7 @@
 #include "audio/WasapiOutput.hpp"
 #include "media/FramePacer.hpp"
 #include "media/MediaPipeline.hpp"
+#include "render/FrameGrabber.hpp"
 #include "render/VideoRenderer.hpp"
 #include "session/StreamMeter.hpp"
 #include "util/StallWatch.hpp"
@@ -87,6 +89,16 @@ private:
     // Declared before the controller, so they outlive it: the controller
     // tells the pipeline when a session ends.
     render::VideoRenderer videoRenderer_;
+    // Screenshots: the copy of the picture, then packing and writing it beside the window.
+    render::FrameGrabber grabber_;
+    struct Saved {
+        bool ok = false;
+        std::string where;
+        std::string detail;
+    };
+    std::future<Saved> saving_;
+    std::filesystem::path picturesFolder_;
+    void collectScreenshot();
     bool videoReady_ = false;
     std::unique_ptr<audio::WasapiOutput> audioOutput_;
     std::unique_ptr<audio::WasapiOutput> hapticsOutput_;

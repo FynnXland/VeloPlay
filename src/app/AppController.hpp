@@ -45,6 +45,11 @@ public:
         std::function<void(std::string_view topic)> openHelp;
         /// Starts the program again and ends this instance. Used after an update.
         std::function<void()> restart;
+        /// Asks the window for a copy of the picture on screen. Without it there are no screenshots.
+        std::function<void()> takeScreenshot;
+        /// Where screenshots go, and how the folder is shown.
+        std::filesystem::path picturesFolder;
+        std::function<void(const std::filesystem::path&)> openFolder;
         /// Installing on this PC. Without an installer the settings do not offer it.
         IInstaller* installer = nullptr; // must outlive the controller
         /// Starts the installed program and ends this instance.
@@ -148,6 +153,10 @@ public:
     void installUpdate() override;
     void restart() override;
     void installProgram() override;
+    void takeScreenshot() override;
+    void openPicturesFolder() override;
+    /// The window reports how a screenshot went.
+    void captureFinished(bool saved, std::string where, std::string detail);
     void startAccountLogin() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
@@ -252,6 +261,7 @@ private:
     // Copying the program takes a moment; it runs beside the window and update() picks the outcome up.
     std::future<Result<std::filesystem::path>> installing_;
     std::string installError_;
+    UiModel::CaptureNote captureNote_;
     void updateInstall();
 
     std::unique_ptr<protocol::PsnAccountLookup> accountLookup_;

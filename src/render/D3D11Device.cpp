@@ -157,6 +157,12 @@ bool D3D11Device::create(HWND window, std::string& error) {
     return true;
 }
 
+Microsoft::WRL::ComPtr<ID3D11Texture2D> D3D11Device::backBuffer() const {
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> buffer;
+    if (swapChain_) swapChain_->GetBuffer(0, IID_PPV_ARGS(&buffer));
+    return buffer;
+}
+
 bool D3D11Device::createRenderTarget() {
     ComPtr<ID3D11Texture2D> backBuffer;
     if (FAILED(swapChain_->GetBuffer(0, IID_PPV_ARGS(&backBuffer)))) return false;

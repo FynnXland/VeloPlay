@@ -85,6 +85,7 @@ void sanitize(AppConfig& config) {
     config.graphics.frameGenerationFactor = std::clamp(config.graphics.frameGenerationFactor, 0, 4);
     config.graphics.superResolutionLevel = std::clamp(config.graphics.superResolutionLevel, 0, 2);
     config.graphics.sharpness = std::clamp(config.graphics.sharpness, 0.0f, 1.0f);
+    config.network.statsCorner = std::clamp(config.network.statsCorner, 0, 3);
     config.controller.deadzone = std::clamp(config.controller.deadzone, 0.0f, 0.5f);
     input::sanitize(config.controller.keyboardMouse);
     if (config.remoteApi.port < 1024) config.remoteApi.port = 9876;
@@ -203,6 +204,7 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"jitter", jitterName(config.network.jitter)},
         {"stats_overlay", config.network.statsOverlay},
         {"stats_compact", config.network.statsCompact},
+        {"stats_corner", config.network.statsCorner},
     };
     root["audio"] = {
         {"microphone", config.audio.microphone},
@@ -311,6 +313,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     config.network.jitter = jitter == "stable" ? JitterMode::Stable : JitterMode::LowLatency;
     read(network, "stats_overlay", config.network.statsOverlay);
     read(network, "stats_compact", config.network.statsCompact);
+    read(network, "stats_corner", config.network.statsCorner);
     read(section(root, "audio"), "microphone", config.audio.microphone);
     read(section(root, "window"), "fullscreen", config.window.fullscreen);
 

@@ -107,6 +107,7 @@ struct Strings {
     const char* tabPicture;
     const char* tabController;
     const char* tabKeyboard;
+    const char* tabCapture;
     const char* tabAdvanced;
     const char* inputIntro;  // heads the tab with what the console sends
     const char* outputIntro; // heads the tab with what the PC makes of it
@@ -175,6 +176,14 @@ struct Strings {
     const char* updateFailWrite;
     const char* updateFailArchive;
     const char* openDownloads;
+    const char* captureSaved;  // {0} = folder
+    const char* captureShots;
+    const char* captureShotsHint;
+    const char* captureOpenFolder;
+    const char* captureClips;
+    const char* captureVideos;
+    const char* captureLater;
+    const char* captureFailed;
     const char* installTitle;
     const char* installHint; // {0} = folder
     const char* installButton;
@@ -287,6 +296,11 @@ struct Strings {
     const char* pauseOverlay;
     const char* pauseOverlaySmall;
     const char* statsCompact;
+    const char* statsCorner;
+    const char* cornerTopLeft;
+    const char* cornerTopRight;
+    const char* cornerBottomLeft;
+    const char* cornerBottomRight;
     const char* pauseOverlayAll;
     const char* pauseSince;        // {0} = time connected, like 12:34
     const char* pauseTilePicture;

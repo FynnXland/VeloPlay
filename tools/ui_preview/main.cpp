@@ -57,6 +57,8 @@ public:
     void installUpdate() override {}
     void restart() override {}
     void installProgram() override {}
+    void takeScreenshot() override {}
+    void openPicturesFolder() override {}
     void startAccountLogin() override {}
     void submitAccountRedirect(std::string_view) override {}
     void dismissAccountLookup() override {}
@@ -316,6 +318,12 @@ std::vector<Scene> scenes() {
              ui.openSettings(UiManager::SettingsTab::Advanced);
              ui.scrollSettingsTo(0.35f);
          }},
+        {"44-settings-capture",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.picturesFolder = "C:\\Users\\Jörg\\Pictures\\VeloPlay";
+             ui.openSettings(UiManager::SettingsTab::Capture);
+         }},
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
@@ -394,6 +402,29 @@ std::vector<Scene> scenes() {
              model.session.connectedSeconds = 240;
              model.stream = playingStats();
              model.alerts = {StreamAlert::NoController, StreamAlert::ConnectionStalls};
+         }},
+        {"42-stream-screenshot",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.captureNote.serial = 1;
+             model.captureNote.saved = true;
+             model.captureNote.where = "C:\\Users\\Jörg\\Pictures\\VeloPlay";
+         }},
+        {"43-stream-display-top-right",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.stream = playingStats();
+             model.config->network.statsCorner = 1;
+             model.microphoneAvailable = true;
+             model.microphoneLive = true;
+             model.config->audio.microphone = true;
          }},
         {"32-stream-upscaling-note",
          [](UiModel& model, UiManager& ui) {

@@ -48,7 +48,7 @@ ControllerState moveFor(KeyboardMouseMapper& mapper, Clock::time_point& now, std
 
 TEST(KeyboardMouse, KeepsTheProgramsOwnKeysAwayFromTheGame) {
     // Menu, upscaling, display, full screen: these work while playing and never reach the console.
-    for (const int code : {key::Escape, key::F1, key::F8, key::F9, key::F11}) EXPECT_TRUE(isReservedKey(code)) << code;
+    for (const int code : {key::Escape, key::F1, key::F8, key::F9, key::F11, key::F12}) EXPECT_TRUE(isReservedKey(code)) << code;
     EXPECT_FALSE(isReservedKey('W'));
     // A layout that names one of them loses that entry instead of swallowing the key.
     KeyboardMouseSettings settings;

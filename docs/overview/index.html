@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.1.0</span>
+    <span class="pill">Version 1.2.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -217,6 +217,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
         <li>Sich auf dem PC installieren, mit Eintrag im Startmenü und bei den Apps von Windows</li>
+        <li>Fotos vom Spiel mit <kbd>F12</kbd>, ohne VeloPlays Anzeigen darauf</li>
         <li>Skripte auf dem PC Tasten senden lassen</li>
         <li>Deutsch und Englisch</li>
       </ul>
@@ -463,11 +464,23 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Eingang:</strong> was die PS5 schickt. Ein Schalter „Automatisch“; ist er aus, erscheinen Bildrate (30 oder 60), Auflösung, Codec, HDR und Datenrate von 5 bis 60 Mbit/s. Gilt ab der nächsten Verbindung.</li>
         <li><strong>Ausgabe:</strong> was dein PC daraus macht. Zwischenbilder (Auto, Aus, 2x, 3x, 4x), Hochskalierung, Schärfe, VSync. Gilt sofort.</li>
         <li><strong>Controller:</strong> welcher Controller, der Test dafür, Totzone der Sticks, Vibration, adaptive Trigger.</li>
+        <li><strong>Aufnahme (seit 1.2.0):</strong> der Ordner für Fotos und ein Knopf, der ihn öffnet. Clips und Videoaufnahme stehen dort als „kommt mit einer der nächsten Versionen“, ohne Schalter, die noch nichts tun.</li>
         <li><strong>Maus &amp; Tastatur (eigene Seite seit 0.18.0):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
         <li><strong>Erweitert:</strong> Sprache, Updates, Installation, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
         <li><strong>Installation (seit 1.1.0):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben.</li>
       </ul>
       <p class="small muted">Änderungen werden von selbst gespeichert. Die Werte unter „Eingang“ gelten ab der nächsten Verbindung, alles andere sofort.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/aufnahme.png" alt="Einstellungen, Seite Aufnahme: Fotos mit dem Ordner und dem Knopf Ordner öffnen, darunter Clips und Videoaufnahme mit dem Hinweis, dass sie mit einer der nächsten Versionen kommen" width="1100" height="720">
+    <div>
+      <h3>Aufnahme</h3>
+      <ul>
+        <li><strong>Fotos:</strong> <kbd>F12</kbd> im Spiel. Hier steht der Ordner, ein Klick öffnet ihn.</li>
+        <li><strong>Clips und Videoaufnahme:</strong> kommen mit einer der nächsten Versionen. Bis dahin gibt es dafür keine Schalter.</li>
+      </ul>
     </div>
   </div>
 
@@ -518,6 +531,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Im Spiel</h3>
       <p class="small muted">Im Beispielbild ist die Fläche schwarz, weil das Vorschau-Werkzeug kein Spielbild hat. Dort liegt im Betrieb das Bild der PS5.</p>
       <ul>
+        <li><strong>Ecke (seit 1.2.0):</strong> Die Anzeige sitzt oben links, oben rechts, unten links oder unten rechts, eingestellt unter Einstellungen &gt; Erweitert. So verdeckt sie nichts vom Spiel, etwa eine Lebensanzeige. Der Hinweis „Mikrofon an“ und der Hinweis nach einem Foto weichen in die andere Ecke aus.</li>
+        <li><strong>Foto mit <kbd>F12</kbd> (seit 1.2.0):</strong> speichert das Bild des Spiels als PNG unter Bilder\VeloPlay. Aufgenommen wird das Bild, wie es auf dem Bildschirm ist, mit Zwischenbildern und Hochskalierung, aber ohne VeloPlays Anzeige und Hinweise. Unten rechts steht kurz, wohin es ging.</li>
         <li><strong>Kleine Anzeige (seit 0.15.0):</strong> Wer nur das Wichtigste sehen will, schaltet mit <kbd>F9</kbd> auf die kleine Anzeige: ein Punkt für die Verbindung, dazu Bilder pro Sekunde, Antwortzeit und Datenrate in einer Zeile. Alles Weitere unten gehört zur Anzeige mit allen Werten.</li>
         <li><strong>PS5 / Bildschirm:</strong> Bilder pro Sekunde, die ankommen, und Bilder, die gezeigt werden.</li>
         <li><strong>PS5 und Bildschirm:</strong> davor jeweils die Größe des Bildes, wie es ankommt und wie es auf dem Bildschirm liegt.</li>
@@ -788,7 +803,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.1.0</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.2.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
@@ -851,7 +866,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>289 automatische Tests unter Linux und 313 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>293 automatische Tests unter Linux und 318 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -870,6 +885,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Am 22.11.2026: Der Ton läuft auch über Kopfhörer, die Trigger funktionieren. Die Haptik ist zu spüren.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>
+      <tr><td>Fotos</td><td>Das Packen als PNG und die Dateinamen sind unter Linux getestet, auch dass keine Datei überschrieben wird. Das Abgreifen des Bildes ist unter Windows auf dem Software-Renderer getestet, für beide Formate, die Windows für das Fenster benutzt. Im Spiel noch nicht ausprobiert.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
       <tr><td>Installieren und Entfernen</td><td>Welche Dateien kopiert werden, ist unter Linux getestet, auch mit fremden Dateien und Ordnern daneben, die nicht mitkommen dürfen. Bei jedem Build installiert ein Windows-Rechner von GitHub das Programm, prüft Dateien, Startmenü und den Eintrag bei den Apps, installiert ein zweites Mal, entfernt es wieder und prüft, dass alles weg ist und eine entpackte Kopie sich nicht selbst löscht. Am 22.11.2026: alle 18 Prüfungen bestanden. Am PC des Autors noch nicht ausprobiert.</td><td class="state soon">auf Windows geprüft, beim Autor offen</td></tr>
       <tr><td>Updater</td><td>Mit nachgestellten Veröffentlichungen: neuere, ältere, falsche Prüfsumme, manipuliertes Archiv, abgebrochener Download</td><td class="state ok">bestanden</td></tr>
       <tr><td>Windows-Programm startet</td><td>Wird nach jedem Build gestartet und auf Grafik, Suche und Update-Abfrage geprüft</td><td class="state ok">läuft</td></tr>

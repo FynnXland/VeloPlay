@@ -68,6 +68,9 @@ struct NetworkSettings {
     bool statsOverlay = true;
     /// With the display on: only the few figures everybody wants (pictures per second, link), not all of them.
     bool statsCompact = false;
+    /// Where the display sits: 0 top left, 1 top right, 2 bottom left, 3 bottom right. A game's own
+    /// display (its health in the top left, say) should not end up under it.
+    int statsCorner = 0;
 
     friend bool operator==(const NetworkSettings&, const NetworkSettings&) = default;
 };
