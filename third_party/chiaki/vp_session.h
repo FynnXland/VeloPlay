@@ -31,12 +31,27 @@ enum {
 	VP_QUIT_CONSOLE_CRASHED = 4,    /* Remote Play on the console crashed */
 	VP_QUIT_VERSION_MISMATCH = 5,   /* console speaks a protocol version we do not */
 	VP_QUIT_SETUP_FAILED = 6,       /* handshake failed for another reason */
-	VP_QUIT_CONNECTION_LOST = 7     /* stream broke or the console dropped us */
+	VP_QUIT_CONNECTION_LOST = 7,    /* stream broke or the console dropped us */
+	/* Through Sony's servers only: */
+	VP_QUIT_PSN_NO_ANSWER = 8,      /* the console did not answer Sony's servers: off, asleep, no internet */
+	VP_QUIT_PSN_UNREACHABLE = 9,    /* both ends were told, but no way through the two networks was found */
+	VP_QUIT_PSN_FAILED = 10,        /* Sony's servers refused or another step failed (sign-in expired, say) */
+	VP_QUIT_PSN_REGIST_FAILED = 11  /* the console answered but would not let this client in */
 };
+
+#define VP_PSN_DUID_SIZE 32
+#define VP_PSN_ACCOUNT_ID_SIZE 8
 
 typedef struct VpConnectInfo
 {
-	const char *host;        /* IPv4 address, zero-terminated */
+	const char *host;        /* IPv4 address, zero-terminated; unused through Sony's servers */
+	/* Set: connect through Sony's servers instead of the local network. An
+	 * access token of a sign-in with the four scopes in PsnAccount.cpp; the
+	 * console's id from vp_psn_list_consoles(); the account's id. The keys
+	 * below are not used then: the console pairs again on this way. */
+	const char *psn_token;
+	uint8_t psn_duid[VP_PSN_DUID_SIZE];
+	uint8_t psn_account_id[VP_PSN_ACCOUNT_ID_SIZE];
 	char regist_key[16];     /* ASCII, padded with zeros */
 	uint8_t rp_key[16];
 	uint32_t width;
@@ -110,10 +125,29 @@ typedef struct VpLinkStats
 /* Call once per process before anything else. Returns 0 on success. */
 int vp_library_init(void);
 
+/* Nonzero if this build can connect through Sony's servers. */
+int vp_psn_available(void);
+
+typedef struct VpPsnConsole
+{
+	char name[33];
+	uint8_t duid[VP_PSN_DUID_SIZE];
+	int remote_play_enabled;
+} VpPsnConsole;
+
+/* Asks Sony's servers for the PS5 consoles of the signed-in account. Blocks for
+ * up to a few seconds; never call it on the window thread. Returns the number
+ * written to `out` (at most `max`), or -1 on failure. `log` may be NULL. */
+int vp_psn_list_consoles(const char *token, VpPsnConsole *out, int max,
+	void (*log)(void *user, int level, const char *message), void *user);
+
+
 /* Returns NULL if the session could not be set up; the reason is logged. */
 VpSession *vp_session_create(const VpConnectInfo *info, const VpCallbacks *callbacks);
 
-/* Starts the session thread. Returns 0 on success. */
+/* Starts the session thread. Returns 0 on success. Through Sony's servers the
+ * way is found first on a thread of its own, which takes up to a minute or so;
+ * a failure there ends with the quit callback like any other. */
 int vp_session_start(VpSession *session);
 
 /* Asks a running session to end. The quit callback follows. */
@@ -121,6 +155,15 @@ void vp_session_stop(VpSession *session);
 
 /* Stops if needed, waits for the session thread and frees everything. */
 void vp_session_destroy(VpSession *session);
+
+/* vp_session_destroy() in two halves, for a caller that must not wait: the
+ * first stops, waits for the session's threads and drops the callbacks (no
+ * callback runs after it returns). The second frees the rest; through Sony's
+ * servers it says goodbye to them first, which can take ten seconds or more,
+ * so it may run on a thread of its own. Returns nonzero from the first if the
+ * second may take that long. */
+int vp_session_release(VpSession *session);
+void vp_session_finish(VpSession *session);
 
 void vp_session_set_controller(VpSession *session, const VpControllerState *state);
 

@@ -1,9 +1,12 @@
 #include "protocol/PsnAccount.hpp"
 
+#include <algorithm>
+#include <array>
 #include <charconv>
 
 #include <nlohmann/json.hpp>
 
+#include "protocol/Crypto.hpp"
 #include "util/Bytes.hpp"
 
 namespace veloplay::protocol {
@@ -17,6 +20,11 @@ constexpr std::string_view kClientSecret = "mvaiZkRsAsI1IBkY";
 constexpr std::string_view kRedirect = "https://remoteplay.dl.playstation.net/remoteplay/redirect";
 constexpr std::string_view kTokenUrl = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/token";
 constexpr std::uint64_t kMaxAnswer = 64 * 1024;
+// The permissions Sony's servers ask for on the way from away (chiaki-ng, psnaccountid.h).
+constexpr std::string_view kRemoteScopes = "psn:clientapp referenceDataService:countryConfig.read "
+                                           "pushNotification:webSocket.desktop.connect "
+                                           "sessionManager:remotePlaySession.system.update";
+constexpr std::string_view kClientIdPrefix = "0000000700410080";
 
 std::string basicAuth() {
     const std::string pair = std::string(kClientId) + ":" + std::string(kClientSecret);
@@ -139,6 +147,80 @@ Result<PsnAccountId> psnAccountIdFromAnswer(std::string_view text) {
     PsnAccountId id;
     for (std::size_t i = 0; i < id.bytes.size(); ++i) id.bytes[i] = static_cast<std::uint8_t>(number >> (8 * i));
     return id;
+}
+
+Result<std::string> newPsnClientId() {
+    std::array<std::uint8_t, 16> random{};
+    if (const auto made = crypto::randomBytes(random); !made) return made.error();
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string id(kClientIdPrefix);
+    for (const std::uint8_t byte : random) {
+        id += kHex[byte >> 4];
+        id += kHex[byte & 0x0f];
+    }
+    return id;
+}
+
+std::string psnRemoteLoginUrl(std::string_view clientId) {
+    return "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize?service_entity=urn:service-entity:psn"
+           "&response_type=code&client_id=" +
+           std::string(kClientId) + "&redirect_uri=" + std::string(kRedirect) + "&scope=" + urlEncode(kRemoteScopes) +
+           "&request_locale=en_US&ui=pr&service_logo=ps&layout_type=popup&smcid=remoteplay"
+           "&prompt=always&PlatformPrivacyWs1=minimal&duid=" +
+           urlEncode(clientId) + "&";
+}
+
+update::HttpRequest psnRemoteTokenRequest(std::string_view code) {
+    update::HttpRequest request = psnTokenRequest(code);
+    request.body = "grant_type=authorization_code&code=" + urlEncode(code) + "&scope=" + urlEncode(kRemoteScopes) +
+                   "&redirect_uri=" + std::string(kRedirect) + "&";
+    return request;
+}
+
+update::HttpRequest psnRefreshRequest(std::string_view refreshToken) {
+    update::HttpRequest request = psnTokenRequest("");
+    request.body = "grant_type=refresh_token&refresh_token=" + urlEncode(refreshToken) +
+                   "&scope=" + urlEncode(kRemoteScopes) + "&redirect_uri=" + std::string(kRedirect) + "&";
+    return request;
+}
+
+Result<PsnTokens> psnTokensFromAnswer(std::string_view text, std::int64_t now) {
+    const json root = json::parse(text, nullptr, false);
+    if (!root.is_object()) return Error{ErrorCode::InvalidData, "the sign-in answer is no JSON object"};
+    PsnTokens tokens;
+    const auto it = root.find("access_token");
+    const auto refresh = root.find("refresh_token");
+    const auto expires = root.find("expires_in");
+    if (it == root.end() || !it->is_string() || refresh == root.end() || !refresh->is_string()) {
+        return Error{ErrorCode::InvalidData, "the sign-in answer carries no tokens"};
+    }
+    tokens.access = it->get<std::string>();
+    tokens.refresh = refresh->get<std::string>();
+    if (tokens.empty()) return Error{ErrorCode::InvalidData, "the sign-in answer carries empty tokens"};
+    std::int64_t seconds = 3600; // what Sony hands out; used if the answer leaves it out
+    if (expires != root.end() && expires->is_number_integer()) seconds = expires->get<std::int64_t>();
+    tokens.expiresAt = now + std::max<std::int64_t>(seconds, 0);
+    return tokens;
+}
+
+Result<PsnRemoteSignIn> signInForRemote(update::IHttpClient& http, std::string_view code, std::int64_t now,
+                                        std::stop_token stop) {
+    const auto tokenAnswer = http.send(psnRemoteTokenRequest(code), kMaxAnswer, stop);
+    if (!tokenAnswer) return tokenAnswer.error();
+    auto tokens = psnTokensFromAnswer(asText(*tokenAnswer), now);
+    if (!tokens) return tokens.error();
+    const auto accountAnswer = http.send(psnAccountRequest(tokens->access), kMaxAnswer, stop);
+    if (!accountAnswer) return accountAnswer.error();
+    const auto account = psnAccountIdFromAnswer(asText(*accountAnswer));
+    if (!account) return account.error();
+    return PsnRemoteSignIn{std::move(*tokens), *account};
+}
+
+Result<PsnTokens> refreshPsnTokens(update::IHttpClient& http, std::string_view refreshToken, std::int64_t now,
+                                   std::stop_token stop) {
+    const auto answer = http.send(psnRefreshRequest(refreshToken), kMaxAnswer, stop);
+    if (!answer) return answer.error();
+    return psnTokensFromAnswer(asText(*answer), now);
 }
 
 Result<PsnAccountId> lookUpPsnAccount(update::IHttpClient& http, std::string_view code, std::stop_token stop) {

@@ -26,6 +26,8 @@ struct ConsoleEntry {
     bool waking = false;           // wake-up sent, waiting for it to boot
     std::string runningApp;
     std::string runningAppId; // the game's title id, like "PPSA01325"; tells games apart
+    /// Not in this network, but Sony's servers know it with Remote Play on: "Connect" goes that way.
+    bool viaInternet = false;
 
     friend bool operator==(const ConsoleEntry&, const ConsoleEntry&) = default;
 };

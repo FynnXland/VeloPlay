@@ -55,6 +55,7 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Zeigt das Bild einer Capture-Card genauso (Beta)
 - Lässt dich mit Lenkrad und Pedalen lenken (Beta)
 - Lässt auf AMD-Karten AMDs eigenes Verfahren die Zwischenbilder berechnen (Beta)
+- Verbindet von unterwegs über die Server von Sony, ohne Router und VPN (Beta)
 - Zeigt auf Wunsch in Discord, welches Spiel du über VeloPlay spielst
 - Aktualisiert sich mit einem Klick, sobald eine neue Version erscheint, und installiert sich auf
   Wunsch mit Eintrag im Startmenü auf deinem PC
@@ -233,14 +234,44 @@ Eine direkte Verbindung zwischen PC und PS5 am Netzwerk vorbei gibt es nicht. Bl
 <a id="away"></a>
 ## Von unterwegs spielen
 
-Bei Freunden oder im Urlaub, über ein fremdes WLAN: Das geht über ein VPN ins Heimnetz. Für
-VeloPlay sieht es dann fast so aus, als wärst du zu Hause. An einer echten PS5 ist dieser Weg noch
-nicht ausprobiert.
+Bei Freunden oder im Urlaub, über ein fremdes WLAN. Es gibt zwei Wege. Beide sind an einer echten
+PS5 in einem fremden Netz noch nicht ausprobiert.
+
+### Über die Server von Sony (Beta)
+
+So macht es auch Sonys eigene App: Die Server von Sony bringen PC und PS5 zusammen, danach läuft
+das Bild direkt. Am Router musst du nichts einstellen, ein VPN brauchst du nicht.
 
 **Einmal zu Hause vorbereiten:**
 
 1. **Den Laptop zu Hause mit der PS5 koppeln**, wie den PC. Die PIN zeigt nur der Bildschirm der
-   PS5, deshalb geht das unterwegs nicht. Eine Kopplung lässt sich auch nicht von einem PC auf
+   PS5, deshalb geht das unterwegs nicht.
+2. **In VeloPlay anmelden:** Einstellungen > Erweitert > Von unterwegs spielen > „Bei PlayStation
+   anmelden“. Danach steht dort, welche PS5 Sony für dein Konto kennt.
+3. **An der PS5** muss Remote Play eingeschaltet sein (Einstellungen > System > Remote Play).
+
+**Unterwegs:** Lass die PS5 am besten an, wenn du losgehst. Ob VeloPlay sie auf diesem Weg aus dem
+Ruhemodus holen kann, ist noch nicht geprüft. Dann VeloPlay starten. Findet es die PS5 nicht im
+Netz, steht bei ihr „Hier nicht gefunden. Verbinden versucht es über das Internet“. Ein Klick auf
+„Verbinden“, und VeloPlay baut die Verbindung über Sony auf. Das dauert länger als zu Hause, oft
+eine halbe Minute.
+
+**Wenn es nicht klappt:** Manche Netze lassen diesen Weg nicht zu, etwa Firmen-WLAN, manche
+Hotel-WLANs und oft der Hotspot vom Handy. Probier es ein paarmal und sonst in einem anderen Netz,
+oder nimm den Weg über ein VPN. Mit `VeloPlay.exe --through-sony` kannst du den Weg auch zu Hause
+ausprobieren.
+
+**Was dabei gespeichert wird:** Ein Schlüssel von Sony, mit dem VeloPlay sich ohne dein Passwort
+erneut anmeldet, verschlüsselt wie die Schlüssel der Konsole. Dein Passwort sieht und speichert
+VeloPlay nicht. Abmelden löscht den Schlüssel.
+
+### Über ein VPN ins Heimnetz
+
+Wenn du an deinen Router kommst. Für VeloPlay sieht es dann fast so aus, als wärst du zu Hause.
+
+**Einmal zu Hause vorbereiten:**
+
+1. **Den Laptop zu Hause mit der PS5 koppeln**, wie oben. Eine Kopplung lässt sich auch nicht von einem PC auf
    einen anderen kopieren: Die Schlüssel sind an dein Windows-Konto auf diesem PC gebunden.
 2. **Der PS5 eine feste Adresse geben.** FRITZ!Box: Heimnetz > Netzwerk, bei der PS5 auf
    Bearbeiten, dann „Diesem Netzwerkgerät immer die gleiche IPv4-Adresse zuweisen“.
@@ -361,6 +392,12 @@ Version die neueste ist. Diese Anfrage enthält nichts über dich oder deine Kon
 deine IP-Adresse, wie jede Webseite. Unter Einstellungen > Erweitert > Updates lässt sich die
 Prüfung abschalten. Telemetrie gibt es nicht.
 
+Nur wenn du dich für „Von unterwegs spielen“ anmeldest, spricht VeloPlay auch mit den Servern von
+Sony: für die Anmeldung, die Liste deiner Konsolen und den Aufbau der Verbindung. Um die eigene
+Adresse im Internet herauszufinden, fragt es dabei STUN-Server, wie chiaki-ng: eine Liste
+öffentlicher Server, die von Dritten auf GitHub gepflegt wird, sowie Server von Moonlight und
+Google.
+
 Ein Update wird über HTTPS von der Veröffentlichungsseite dieses Projekts geladen. Bevor VeloPlay
 etwas anfasst, vergleicht es die Datei mit der SHA-256-Prüfsumme, die GitHub dazu veröffentlicht.
 Mit einem eigenen Zertifikat signiert sind die Dateien nicht.
@@ -416,8 +453,8 @@ Als Nächstes:
 
 1. HDR
 
-Von unterwegs spielen geht über ein VPN, siehe [oben](#away); an einer echten PS5 noch nicht
-ausprobiert.
+Von unterwegs spielen geht über die Server von Sony oder über ein VPN, siehe [oben](#away); an
+einer echten PS5 noch nicht ausprobiert.
 
 ## Dank
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <mutex>
+#include <thread>
 #include <utility>
 
 #include <spdlog/spdlog.h>
@@ -24,13 +25,17 @@ std::string_view toString(QuitReason reason) {
         case QuitReason::VersionMismatch: return "version_mismatch";
         case QuitReason::SetupFailed: return "setup_failed";
         case QuitReason::ConnectionLost: return "connection_lost";
+        case QuitReason::PsnNoAnswer: return "psn_no_answer";
+        case QuitReason::PsnUnreachable: return "psn_unreachable";
+        case QuitReason::PsnFailed: return "psn_failed";
+        case QuitReason::PsnRegistFailed: return "psn_regist_failed";
     }
     return "unknown";
 }
 
 bool isTransient(QuitReason reason) {
     return reason == QuitReason::ConnectionLost || reason == QuitReason::SetupFailed ||
-           reason == QuitReason::ConnectionRefused;
+           reason == QuitReason::ConnectionRefused || reason == QuitReason::PsnUnreachable;
 }
 
 namespace {
@@ -49,6 +54,10 @@ QuitReason fromShim(int reason) {
         case VP_QUIT_CONSOLE_CRASHED: return QuitReason::ConsoleCrashed;
         case VP_QUIT_VERSION_MISMATCH: return QuitReason::VersionMismatch;
         case VP_QUIT_CONNECTION_LOST: return QuitReason::ConnectionLost;
+        case VP_QUIT_PSN_NO_ANSWER: return QuitReason::PsnNoAnswer;
+        case VP_QUIT_PSN_UNREACHABLE: return QuitReason::PsnUnreachable;
+        case VP_QUIT_PSN_FAILED: return QuitReason::PsnFailed;
+        case VP_QUIT_PSN_REGIST_FAILED: return QuitReason::PsnRegistFailed;
         default: return QuitReason::SetupFailed;
     }
 }
@@ -65,14 +74,26 @@ public:
     ChiakiSession& operator=(const ChiakiSession&) = delete;
 
     ~ChiakiSession() override {
-        // Joins the session thread, so no callback runs after this line.
-        if (handle_) vp_session_destroy(handle_);
+        if (!handle_) return;
+        // Joins the session's threads, so no callback runs after this line.
+        if (vp_session_release(handle_) == 0) {
+            vp_session_finish(handle_);
+            return;
+        }
+        // Through Sony's servers the goodbye to them can take ten seconds and
+        // more; the window must not wait for it.
+        std::thread([handle = handle_] { vp_session_finish(handle); }).detach();
     }
 
     Result<void> start(const SessionConfig& config, IMediaSink* sink) override {
         if (handle_) return Error{ErrorCode::InvalidArgument, "session was already started"};
-        if (!net::parseIpv4(config.host)) return Error{ErrorCode::InvalidArgument, "console address is not IPv4"};
-        if (config.registKey.empty() || config.registKey.size() > sizeof(VpConnectInfo::regist_key)) {
+        if (!config.psn && !net::parseIpv4(config.host)) {
+            return Error{ErrorCode::InvalidArgument, "console address is not IPv4"};
+        }
+        if (config.psn && (config.psn->accessToken.empty() || vp_psn_available() == 0)) {
+            return Error{ErrorCode::InvalidArgument, "this build cannot connect through Sony's servers"};
+        }
+        if (!config.psn && (config.registKey.empty() || config.registKey.size() > sizeof(VpConnectInfo::regist_key))) {
             return Error{ErrorCode::InvalidArgument, "regist key has an unexpected length"};
         }
 
@@ -85,7 +106,12 @@ public:
 
         VpConnectInfo info{};
         info.host = config.host.c_str();
-        std::memcpy(info.regist_key, config.registKey.data(), config.registKey.size());
+        if (config.psn) {
+            info.psn_token = config.psn->accessToken.c_str();
+            std::memcpy(info.psn_duid, config.psn->consoleId.data(), sizeof(info.psn_duid));
+            std::memcpy(info.psn_account_id, config.psn->accountId.data(), sizeof(info.psn_account_id));
+        }
+        std::memcpy(info.regist_key, config.registKey.data(), std::min(config.registKey.size(), sizeof(info.regist_key)));
         std::memcpy(info.rp_key, config.rpKey.data(), sizeof(info.rp_key));
         info.width = static_cast<std::uint32_t>(config.stream.width);
         info.height = static_cast<std::uint32_t>(config.stream.height);
@@ -354,6 +380,29 @@ static_assert(kTriggerEffectSize == VP_TRIGGER_EFFECT_SIZE);
 
 SessionFactory chiakiSessionFactory() {
     return [] { return std::unique_ptr<ISession>(std::make_unique<ChiakiSession>()); };
+}
+
+bool psnAvailable() { return vp_psn_available() != 0; }
+
+Result<std::vector<PsnConsole>> listPsnConsoles(const std::string& accessToken) {
+    if (!psnAvailable()) return Error{ErrorCode::InvalidArgument, "this build cannot reach Sony's servers"};
+    std::array<VpPsnConsole, 16> found{};
+    const auto log = [](void*, int level, const char* message) {
+        if (level == VP_LOG_ERROR) spdlog::error("[psn] {}", message);
+        else spdlog::warn("[psn] {}", message);
+    };
+    const int count = vp_psn_list_consoles(accessToken.c_str(), found.data(), static_cast<int>(found.size()), log, nullptr);
+    if (count < 0) return Error{ErrorCode::Network, "Sony's servers did not list the consoles"};
+    std::vector<PsnConsole> out;
+    for (int i = 0; i < count; ++i) {
+        PsnConsole console;
+        console.name = found[static_cast<std::size_t>(i)].name;
+        std::copy(std::begin(found[static_cast<std::size_t>(i)].duid), std::end(found[static_cast<std::size_t>(i)].duid),
+                  console.id.begin());
+        console.remotePlay = found[static_cast<std::size_t>(i)].remote_play_enabled != 0;
+        out.push_back(std::move(console));
+    }
+    return out;
 }
 
 } // namespace veloplay::session

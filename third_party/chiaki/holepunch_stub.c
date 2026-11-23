@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// VeloPlay connects to consoles in the local network only. chiaki-ng's
-// connection over the internet (remote/holepunch.c) needs curl, json-c,
-// libevent and miniupnpc, none of which are built here. The session code still
-// references a handful of its functions. They are reachable only when a
-// holepunch session is passed in ChiakiConnectInfo, which this client never
-// does, so each one reports failure.
+// Builds without the way through Sony's servers (VELOPLAY_PSN off, as in the
+// Linux CI): chiaki-ng's remote/holepunch.c needs curl with WebSocket support,
+// json-c, libevent and miniupnpc. The session code and vp_session.c still
+// reference its functions; here each one reports failure, and
+// vp_psn_available() says the way is missing, so nothing calls them.
 
 // holepunch.h needs the socket headers that session.h brings in before it.
 #include <chiaki/session.h>
@@ -57,4 +56,68 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_holepunch_session_punch_hole(ChiakiHolepunc
 	(void)session;
 	(void)port_type;
 	return CHIAKI_ERR_UNINITIALIZED;
+}
+
+CHIAKI_EXPORT ChiakiErrorCode chiaki_holepunch_list_devices(const char *psn_oauth2_token,
+	ChiakiHolepunchConsoleType console_type, ChiakiHolepunchDeviceInfo **devices, size_t *device_count, ChiakiLog *log)
+{
+	(void)psn_oauth2_token;
+	(void)console_type;
+	(void)log;
+	if(devices)
+		*devices = NULL;
+	if(device_count)
+		*device_count = 0;
+	return CHIAKI_ERR_UNINITIALIZED;
+}
+
+CHIAKI_EXPORT void chiaki_holepunch_free_device_list(ChiakiHolepunchDeviceInfo **devices)
+{
+	(void)devices;
+}
+
+CHIAKI_EXPORT ChiakiHolepunchSession chiaki_holepunch_session_init(const char *psn_oauth2_token, ChiakiLog *log)
+{
+	(void)psn_oauth2_token;
+	(void)log;
+	return NULL;
+}
+
+CHIAKI_EXPORT void chiaki_holepunch_session_force_port_guessing(ChiakiHolepunchSession session, bool enabled)
+{
+	(void)session;
+	(void)enabled;
+}
+
+CHIAKI_EXPORT void chiaki_holepunch_session_set_port_guessing_ports(ChiakiHolepunchSession session, int ports)
+{
+	(void)session;
+	(void)ports;
+}
+
+CHIAKI_EXPORT void chiaki_holepunch_session_set_port_guessing_socks(ChiakiHolepunchSession session, int socks)
+{
+	(void)session;
+	(void)socks;
+}
+
+CHIAKI_EXPORT ChiakiErrorCode chiaki_holepunch_session_create(ChiakiHolepunchSession session)
+{
+	(void)session;
+	return CHIAKI_ERR_UNINITIALIZED;
+}
+
+CHIAKI_EXPORT ChiakiErrorCode chiaki_holepunch_session_start(ChiakiHolepunchSession session, const uint8_t *console_uid,
+	ChiakiHolepunchConsoleType console_type)
+{
+	(void)session;
+	(void)console_uid;
+	(void)console_type;
+	return CHIAKI_ERR_UNINITIALIZED;
+}
+
+CHIAKI_EXPORT void chiaki_holepunch_main_thread_cancel(ChiakiHolepunchSession session, bool stop_thread)
+{
+	(void)session;
+	(void)stop_thread;
 }

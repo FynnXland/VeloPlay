@@ -70,6 +70,8 @@ public:
     void startAccountLoginInBrowser() override {}
     void submitAccountRedirect(std::string_view) override {}
     void dismissAccountLookup() override {}
+    void startRemoteLogin() override {}
+    void signOutRemote() override {}
 };
 
 /// Response times in ms for the connection scenes; negative means lost.
@@ -611,6 +613,36 @@ std::vector<Scene> scenes() {
              model.session.away = true;
              model.stream = playingStats();
              model.alerts = {StreamAlert::UnsteadyLink};
+         }},
+        {"57-settings-away-signed-out",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.psnRemote.available = true;
+             model.psnRemote.expired = true;
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(0.3f);
+         }},
+        {"58-settings-away-signed-in",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.psnRemote.available = true;
+             model.psnRemote.signedIn = true;
+             model.psnRemote.listed = true;
+             model.psnRemote.consoles = {"Wohnzimmer"};
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(0.3f);
+         }},
+        {"59-home-console-over-the-internet",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             for (ConsoleEntry& console : model.consoles) {
+                 if (!console.registered) continue;
+                 console.status = ConsoleStatus::Offline;
+                 console.address.clear();
+                 console.runningApp.clear();
+                 console.viaInternet = true;
+                 break;
+             }
          }},
         {"28-settings-in-game",
          [](UiModel& model, UiManager& ui) {

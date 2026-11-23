@@ -1491,3 +1491,184 @@ TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
     EXPECT_EQ(h.sessions->configs[3].stream.bitrateKbps, 5'000);
     EXPECT_TRUE(h.hasNotice(Notice::Topic::SessionLost));
 }
+
+namespace {
+
+/// Sony's sign-in and token service, as far as playing from away needs it. Called from the controller's futures,
+/// one request at a time.
+struct FakeSonyForAway final : update::IHttpClient {
+    std::mutex mutex;
+    std::vector<std::string> bodies;
+    std::optional<Error> fail;
+    Result<Bytes> get(const std::string&, std::uint64_t, const Progress&, std::stop_token) override {
+        return Error{ErrorCode::InvalidArgument, "not used"};
+    }
+    Result<Bytes> send(const update::HttpRequest& request, std::uint64_t, std::stop_token) override {
+        std::lock_guard lock(mutex);
+        bodies.push_back(request.body);
+        if (request.method == "POST") {
+            if (fail) return *fail;
+            const std::string token =
+                R"({"access_token":"access-1","token_type":"bearer","expires_in":3600,"refresh_token":"refresh-1"})";
+            return Bytes(token.begin(), token.end());
+        }
+        const std::string account = R"({"user_id":"8104513492015792419"})";
+        return Bytes(account.begin(), account.end());
+    }
+};
+
+struct AwayHarness {
+    FakeSonyForAway sony;
+    std::string loginShown;
+    std::atomic<std::int64_t> clock{1'000'000};
+    std::mutex listMutex;
+    std::vector<std::string> listedWith;
+    std::string consoleName; // what Sony calls it; empty until pairing told us the name
+    std::unique_ptr<test::MockConsole> console = std::make_unique<test::MockConsole>(test::MockConsole::Config{});
+    Harness h;
+
+    explicit AwayHarness(const char* file, std::chrono::milliseconds homeMemory = 300ms)
+        : h(*console, file, true, 60s, 0us, nullptr, [this, homeMemory](AppController::Options& options) {
+              options.homeMemory = homeMemory;
+              options.psnFirstListAfter = 0ms;
+              options.psnRetry = 50ms;
+              options.http = &sony;
+              options.showLogin = [this](const std::string& url) {
+                  loginShown = url;
+                  return true;
+              };
+              options.unixTime = [this] { return clock.load(); };
+              options.psnConsoles = [this](const std::string& token)
+                  -> Result<std::vector<session::PsnConsole>> {
+                  std::lock_guard lock(listMutex);
+                  listedWith.push_back(token);
+                  session::PsnConsole remote;
+                  remote.name = consoleName;
+                  remote.id.fill(0x5A);
+                  remote.remotePlay = true;
+                  return std::vector<session::PsnConsole>{remote};
+              };
+          }) {}
+
+    bool signIn() {
+        h.app->startRemoteLogin();
+        if (loginShown.find("duid=") == std::string::npos) return false;
+        h.app->submitAccountRedirect("https://remoteplay.dl.playstation.net/remoteplay/redirect?code=the-code");
+        return h.runUntil([&] { return h.app->config().psn.signedIn(); });
+    }
+};
+
+} // namespace
+
+TEST(AppControllerSession, GoesThroughSonysServersToAConsoleThatIsNotAtHome) {
+    AwayHarness a("session_psn_away.json");
+    ASSERT_TRUE(a.h.pair());
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = a.h.app->config().consoles[0].name;
+    }
+    ASSERT_TRUE(a.signIn());
+    EXPECT_EQ(a.h.app->config().psn.tokens.refresh, "refresh-1");
+    EXPECT_EQ(a.h.app->config().psn.tokens.expiresAt, 1'000'000 + 3600);
+    // The four permissions of this way are asked for; what pairing used stays as it was.
+    EXPECT_NE(a.loginShown.find("remotePlaySession"), std::string::npos);
+    EXPECT_EQ(a.h.app->config().accountId, "ASNFZ4mrze8=");
+
+    // At home the console answers the search: it is reached directly, Sony is not asked.
+    EXPECT_FALSE(a.h.model.consoles[0].viaInternet);
+
+    // Leaving home: the console stops answering, Sony still lists it.
+    a.console.reset();
+    ASSERT_TRUE(a.h.runUntil([&] { return !a.h.model.consoles.empty() && a.h.model.consoles[0].viaInternet; }));
+    {
+        std::lock_guard lock(a.listMutex);
+        ASSERT_FALSE(a.listedWith.empty());
+        EXPECT_EQ(a.listedWith.back(), "access-1");
+    }
+    EXPECT_TRUE(a.h.model.psnRemote.signedIn);
+    ASSERT_EQ(a.h.model.psnRemote.consoles.size(), 1u);
+
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    const session::SessionConfig& used = a.h.sessions->configs[0];
+    ASSERT_TRUE(used.psn.has_value());
+    EXPECT_TRUE(used.host.empty());
+    EXPECT_EQ(used.psn->accessToken, "access-1");
+    EXPECT_EQ(used.psn->consoleId[0], 0x5A);
+    EXPECT_EQ(used.psn->accountId, protocol::PsnAccountId::parse("8104513492015792419")->bytes);
+    EXPECT_TRUE(a.h.model.session.away); // the away bitrate and advice apply
+}
+
+TEST(AppControllerSession, RenewsTheSignInForAwayAndSaysWhenSonyNoLongerTakesIt) {
+    AwayHarness a("session_psn_renew.json");
+    a.h.app->start();
+    ASSERT_TRUE(a.signIn());
+
+    // Shortly before the hour is up the token is renewed with the refresh token.
+    a.clock += 3200;
+    ASSERT_TRUE(a.h.runUntil([&] {
+        std::lock_guard lock(a.sony.mutex);
+        return a.sony.bodies.back().find("grant_type=refresh_token") != std::string::npos;
+    }));
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.app->config().psn.tokens.expiresAt == 1'003'200 + 3600; }));
+
+    // A server that is down, or a hotel's page in its place, keeps the sign-in: it is tried again.
+    {
+        std::lock_guard lock(a.sony.mutex);
+        a.sony.fail = Error{ErrorCode::Rejected, "the server answered with HTTP 503"};
+    }
+    a.clock += 3200;
+    ASSERT_TRUE(a.h.runUntil([&] {
+        std::lock_guard lock(a.sony.mutex);
+        return std::count_if(a.sony.bodies.begin(), a.sony.bodies.end(), [](const std::string& body) {
+                   return body.find("grant_type=refresh_token") != std::string::npos;
+               }) >= 2;
+    }));
+    for (int i = 0; i < 10; ++i) {
+        a.h.app->update();
+        std::this_thread::sleep_for(5ms);
+    }
+    EXPECT_TRUE(a.h.app->config().psn.signedIn());
+
+    // Sony refuses the refresh token: signed out, and the settings say why.
+    {
+        std::lock_guard lock(a.sony.mutex);
+        a.sony.fail = Error{ErrorCode::Rejected, "the server answered with HTTP 400"};
+    }
+    a.clock += 3200;
+    ASSERT_TRUE(a.h.runUntil([&] { return !a.h.app->config().psn.signedIn(); }));
+    EXPECT_TRUE(a.h.model.psnRemote.expired);
+    EXPECT_FALSE(a.h.model.psnRemote.signedIn);
+}
+
+TEST(AppControllerSession, StaysAtHomeWhenTheConsoleWasOutOfReachForAMoment) {
+    // The PS5's Wi-Fi drops for longer than the search waits: that is no reason for half a minute through
+    // Sony's servers and a new pairing. A console seen here lately is reached directly.
+    AwayHarness a("session_psn_home.json", 60s);
+    ASSERT_TRUE(a.h.pair());
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = a.h.app->config().consoles[0].name;
+    }
+    ASSERT_TRUE(a.signIn());
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    EXPECT_FALSE(a.h.sessions->configs[0].psn.has_value());
+    a.h.app->disconnect();
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Idle; }));
+
+    a.console.reset();
+    ASSERT_TRUE(a.h.runUntil([&] {
+        std::lock_guard lock(a.listMutex);
+        return !a.listedWith.empty() && a.h.model.consoles[0].status == ConsoleStatus::Offline;
+    }));
+    EXPECT_FALSE(a.h.model.consoles[0].viaInternet);
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    ASSERT_EQ(a.h.sessions->configs.size(), 2u);
+    EXPECT_FALSE(a.h.sessions->configs[1].psn.has_value());
+    EXPECT_EQ(a.h.sessions->configs[1].host, a.h.app->config().consoles[0].lastAddress);
+}

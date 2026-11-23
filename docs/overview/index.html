@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.13.0</span>
+    <span class="pill">Version 1.14.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -193,18 +193,27 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 
 <section id="naechstes">
   <h2>Dein nächster Test</h2>
-  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 23.11.2026, Version 1.13.0.</p>
+  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 23.11.2026, Version 1.14.0.</p>
   <div class="panel">
     <h3><span class="dot soon"></span>Zuerst</h3>
     <ol>
-      <li><strong>Update holen:</strong> VeloPlay bietet 1.13.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Update holen:</strong> VeloPlay bietet 1.14.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h3><span class="dot soon"></span>Morgen: Aufnahme für das Video</h3>
+    <ol>
+      <li><strong>Vorher einstellen:</strong> Zwischenbilder auf „Auto“, Bildstil „Aus“. Die Aufnahme nimmt genau das gezeigte Bild auf, samt berechneter Bilder; daraus lässt sich die Hälfte „ohne Zwischenbilder“ später genau herausrechnen.</li>
+      <li><strong>Aufnehmen mit <kbd>F10</kbd></strong> (noch einmal <kbd>F10</kbd> beendet sie): je 30 bis 60 Sekunden Autofahrt durch die Stadt, einmal nachts und einmal am Tag. Wenn du magst, dazu ein Fallschirmsprung. Die Kamera ruhig mitschwenken lassen, schnelle Kurven zeigen den Unterschied am deutlichsten.</li>
+      <li><strong>Eine Fahrt noch einmal mit Bildstil „Kino“</strong> (<kbd>F7</kbd>), für den Vergleich ohne und mit Stil.</li>
+      <li><strong>Mir schicken:</strong> die Videos aus „Videos\VeloPlay“ und zu jedem die gleichnamige Datei „….frames.txt“ aus „%APPDATA%\VeloPlay\recordings“. Die sagt, welche Bilder echt und welche berechnet sind.</li>
     </ol>
   </div>
   <div class="panel">
     <h3><span class="dot soon"></span>Neu, bitte ausprobieren</h3>
     <ol>
       <li><strong>Discord (1.11.1):</strong> Unter Einstellungen &gt; Erweitert &gt; Discord dein Spiel eintragen. Steht es oben auf der Karte, ohne „PS5“ als Text und ohne „VeloPlay über VeloPlay“?</li>
-      <li><strong>Von unterwegs spielen (1.13.0), der Reihe nach:</strong> (1) zu Hause den Laptop mit der PS5 koppeln; (2) in der FRITZ!Box der PS5 eine feste Adresse geben; (3) in der FRITZ!Box WireGuard für ein einzelnes Gerät anlegen und auf dem Laptop importieren; (4) zu Hause den Laptop mit dem Hotspot des Handys verbinden, WireGuard an, VeloPlay starten: Steht die PS5 in der Liste, verbinden. Steht im Menü im Spiel bei „Verbindung“ „Unterwegs“? Wie fühlt sich die Steuerung an? Die Schritte stehen im README unter „Von unterwegs spielen“, auch der Link auf der Startseite führt dorthin.</li>
+      <li><strong>Von unterwegs über Sony (1.14.0, Beta), der Reihe nach:</strong> (1) Auf dem PC unter Einstellungen &gt; Erweitert &gt; „Von unterwegs spielen“ bei PlayStation anmelden. Steht danach „Sony kennt: …“ mit deiner PS5? (2) Zu Hause ausprobieren: VeloPlay schließen und mit <code>VeloPlay.exe --through-sony</code> starten (Verknüpfung oder Eingabeaufforderung im Ordner von VeloPlay), dann „Verbinden“. Das darf eine halbe Minute dauern. Kommt ein Bild? (3) Auf dem Laptop VeloPlay installieren, zu Hause koppeln und dort ebenfalls anmelden. (4) Den Laptop mit dem Hotspot deines Handys verbinden (nicht mit dem WLAN zu Hause) und „Verbinden“. Bei der PS5 sollte „Hier nicht gefunden. Verbinden versucht es über das Internet“ stehen. Der Hotspot ist das schwierigste Netz; klappt es dort nicht, sagt das noch nichts über das WLAN deiner Freundin. (5) Bei deiner Freundin: PS5 zu Hause an lassen, dann verbinden. Bitte jedes Mal sagen, was passiert, und bei einem Fehler die Uhrzeit; das Protokoll liegt in „%APPDATA%\VeloPlay“.</li>
       <li><strong>Hinweise abschalten (1.12.0):</strong> Einstellungen &gt; Erweitert &gt; „Hinweise über dem Bild“. Einmal „Einzeln wählen“ öffnen und einen Hinweis ausschalten, den du nicht brauchst. Verschwindet er im Spiel?</li>
       <li><strong>Hinweis bei unruhigem WLAN:</strong> Kommt er zu oft? Einmal pro halbe Stunde ist gedacht. Er sagt jetzt „Kabel oder Repeater kann helfen“.</li>
     </ol>
@@ -262,7 +271,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Von unterwegs spielen: geht seit 1.13.0 über ein VPN ins Heimnetz, an einer echten PS5 noch nicht ausprobiert</li>
+        <li>Von unterwegs spielen: seit 1.14.0 über die Server von Sony (Beta), seit 1.13.0 über ein VPN ins Heimnetz; beides an einer echten PS5 noch nicht ausprobiert</li>
         <li>HDR</li>
       </ul>
       <p class="small muted">Zwischenbilder, Hochskalieren und Schärfen laufen seit dem 21.11.2026 auf einer RTX 4070: Am Bildschirm kommen etwa 60 Bilder pro Sekunde an, auch mit RTX Video. RTX Video verändert das Bild dort messbar, der sichtbare Unterschied ist bei gleicher Bildgröße aber gering.</p>
@@ -876,7 +885,17 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     </ul>
   </details>
   <h3>Von unterwegs</h3>
-  <p>Seit 1.13.0 geht das über ein VPN ins Heimnetz, etwa WireGuard der FRITZ!Box. Der Laptop muss einmal zu Hause gekoppelt werden, die PS5 braucht eine feste Adresse. VeloPlay merkt, wenn die PS5 über ein VPN oder ein anderes Netz erreicht wird, fängt dann mit 10 Mbit/s an und merkt sich für unterwegs eine eigene Datenrate. An einer echten PS5 ist das noch nicht ausprobiert.</p>
+  <p><strong>Über die Server von Sony (seit 1.14.0, Beta):</strong> So macht es auch Sonys eigene App. Du meldest dich einmal unter Einstellungen &gt; Erweitert &gt; „Von unterwegs spielen“ bei PlayStation an. Findet VeloPlay eine gekoppelte PS5 nicht im Netz, die Sony für dein Konto kennt, steht bei ihr „Hier nicht gefunden. Verbinden versucht es über das Internet“, und „Verbinden“ geht über Sony: Die Server bringen PC und PS5 zusammen, danach läuft das Bild direkt. Am Router wird nichts eingestellt. Gekoppelt sein muss die PS5 vorher zu Hause; ob sie sich auf diesem Weg aus dem Ruhemodus holen lässt, ist nicht geprüft. Manche Netze lassen den Weg nicht zu, etwa Firmen-WLAN oder der Hotspot eines Handys. An einer echten PS5 ist das noch nicht ausprobiert.</p>
+  <details><summary>Technik</summary>
+    <ul>
+      <li>Grundlage ist der Code von chiaki-ng dafür („UDP-Holepunching“): Beide Seiten melden Sony ihre Adressen, die eigene im Internet erfragt VeloPlay bei STUN-Servern, dann schicken sich PC und PS5 gegenseitig Pakete, bis der Router beider Seiten sie durchlässt. Die Suche nach dem Router über UPnP startet VeloPlay nie, es legt also keine Portfreigabe an.</li>
+      <li>Gespeichert wird ein Schlüssel von Sony (Refresh-Token), verschlüsselt mit deinem Windows-Konto wie die Schlüssel der Konsole. VeloPlay erneuert ihn zehn Minuten vor Ablauf. Lehnt Sony ihn ab, meldet VeloPlay dich ab und sagt es; ist Sony nur nicht erreichbar, versucht es VeloPlay eine Minute später wieder.</li>
+      <li>Eine PS5, die in den letzten drei Minuten im Netz gefunden wurde, verbindet VeloPlay immer direkt, auch wenn ihr WLAN gerade kurz weg ist. Der Weg wird einmal beim Verbinden gewählt; ein Neuverbinden im Spiel bleibt dabei.</li>
+      <li>Über Sony koppelt sich die PS5 bei jeder Verbindung neu, deshalb dauert der Aufbau länger, oft eine halbe Minute. Das Protokoll lässt Nachrichten der Server, Schlüssel und Adressen weg.</li>
+    </ul>
+  </details>
+  <img class="shot" src="img/unterwegs.png" alt="Einstellungen, Reiter Erweitert: Abschnitt Von unterwegs spielen mit Beta-Pille, angemeldet, Sony kennt die PS5 Wohnzimmer, Knopf Abmelden" width="1100" height="720">
+  <p><strong>Über ein VPN:</strong> Seit 1.13.0 geht das über ein VPN ins Heimnetz, etwa WireGuard der FRITZ!Box. Der Laptop muss einmal zu Hause gekoppelt werden, die PS5 braucht eine feste Adresse. VeloPlay merkt, wenn die PS5 über ein VPN oder ein anderes Netz erreicht wird, fängt dann mit 10 Mbit/s an und merkt sich für unterwegs eine eigene Datenrate. An einer echten PS5 ist das noch nicht ausprobiert.</p>
   <details><summary>Technik</summary>
     <ul>
       <li>Zu Hause heißt: Ein Netzwerkadapter dieses PCs, der kein Tunnel ist, liegt im Netz der PS5. Tunnel erkennt VeloPlay am Adaptertyp von WireGuard und Tailscale (Windows meldet ihn als „virtuell“), nicht an OpenVPN mit TAP-Adapter.</li>
@@ -931,7 +950,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>332 automatische Tests unter Linux und 366 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>338 automatische Tests unter Linux und 366 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

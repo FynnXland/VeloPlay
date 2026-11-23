@@ -13,6 +13,7 @@
 #include "input/KeyboardMouse.hpp"
 #include "input/Wheel.hpp"
 #include "protocol/Crypto.hpp"
+#include "protocol/PsnAccount.hpp"
 #include "protocol/Registration.hpp"
 #include "util/Bytes.hpp"
 #include "util/Result.hpp"
@@ -95,6 +96,18 @@ struct WindowSettings {
     friend bool operator==(const WindowSettings&, const WindowSettings&) = default;
 };
 
+/// The sign-in for playing from away, through Sony's servers. The tokens are
+/// secret: in the file only sealed (ISecretProtector), never in the log.
+struct PsnRemoteSettings {
+    protocol::PsnTokens tokens;
+    std::string accountId; // base64, the eight bytes of the signed-in account
+    /// Sealed tokens that could not be opened (another Windows account): kept as they are.
+    std::string sealed;
+
+    [[nodiscard]] bool signedIn() const { return !tokens.empty() && !accountId.empty(); }
+    friend bool operator==(const PsnRemoteSettings&, const PsnRemoteSettings&) = default;
+};
+
 /// The notes over the picture during a stream (StreamAlerts). They go to the log either way.
 struct NoteSettings {
     bool enabled = true;
@@ -155,6 +168,7 @@ struct AppConfig {
     WindowSettings window{};
     UpdateSettings updates{};
     NoteSettings notes{};
+    PsnRemoteSettings psn{};
     DiscordSettings discord{};
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast

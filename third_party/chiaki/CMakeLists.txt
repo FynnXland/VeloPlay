@@ -17,6 +17,47 @@ veloplay_fetch_commit(nanopb https://github.com/nanopb/nanopb.git ${VELOPLAY_NAN
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
+# The way through Sony's servers (chiaki-ng's remote/holepunch.c) needs curl
+# with WebSocket support, json-c, libevent and miniupnpc. The Windows build
+# gets them from vcpkg; elsewhere it stays off unless asked for, and stubs
+# stand in (holepunch_stub.c).
+if(WIN32)
+    set(veloplay_psn_default ON)
+else()
+    set(veloplay_psn_default OFF)
+endif()
+option(VELOPLAY_PSN "Connect to the console through Sony's servers (needs curl, json-c, libevent, miniupnpc)"
+    ${veloplay_psn_default})
+if(VELOPLAY_PSN)
+    find_package(CURL REQUIRED)
+    find_package(PkgConfig QUIET)
+    find_package(json-c CONFIG QUIET)
+    if(TARGET json-c::json-c)
+        set(veloplay_jsonc json-c::json-c)
+    else()
+        pkg_search_module(VP_JSONC REQUIRED json-c IMPORTED_TARGET)
+        set(veloplay_jsonc PkgConfig::VP_JSONC)
+    endif()
+    find_package(Libevent CONFIG QUIET)
+    if(TARGET libevent::core)
+        set(veloplay_libevent libevent::core libevent::extra)
+    else()
+        pkg_search_module(VP_LIBEVENT REQUIRED libevent IMPORTED_TARGET)
+        set(veloplay_libevent PkgConfig::VP_LIBEVENT)
+    endif()
+    find_package(miniupnpc CONFIG QUIET)
+    if(TARGET miniupnpc::miniupnpc)
+        set(veloplay_miniupnpc miniupnpc::miniupnpc)
+    else()
+        pkg_search_module(VP_MINIUPNPC miniupnpc IMPORTED_TARGET)
+        if(VP_MINIUPNPC_FOUND)
+            set(veloplay_miniupnpc PkgConfig::VP_MINIUPNPC)
+        else()
+            find_library(veloplay_miniupnpc NAMES miniupnpc REQUIRED)
+        endif()
+    endif()
+endif()
+
 # --- Galois field arithmetic and erasure coding (forward error correction) ---
 
 add_library(veloplay_gf_complete STATIC
@@ -95,11 +136,52 @@ if(NOT aia_left EQUAL -1)
     message(FATAL_ERROR "lib/src/common.c of chiaki-ng has more references to aia than expected.")
 endif()
 set(common_patched "${chiaki_generated}/common_local.c")
+if(VELOPLAY_PSN)
+    # With the way through Sony's servers, aia.c is built and common.c stays as it is.
+    set(common_patched "${chiaki_dir}/lib/src/common.c")
+    set(common_c "")
+endif()
 if(EXISTS "${common_patched}")
     file(READ "${common_patched}" common_before)
 endif()
-if(NOT common_c STREQUAL "${common_before}")
+if(NOT VELOPLAY_PSN AND NOT common_c STREQUAL "${common_before}")
     file(WRITE "${common_patched}" "${common_c}")
+endif()
+
+# holepunch.c passes two whole messages of Sony's servers to the logger as
+# the format string itself: a '%' in them would read random memory. They go
+# in as an argument instead (and vp_session.c keeps them out of the log). As
+# above: if upstream changes the line, the build stops here.
+set(chiaki_psn_sources)
+if(VELOPLAY_PSN)
+    file(READ "${chiaki_dir}/lib/src/remote/holepunch.c" holepunch_c)
+    set(json_as_format "CHIAKI_LOGE(log, json_object_to_json_string_ext(payload_json, JSON_C_TO_STRING_PRETTY));")
+    # Counted by length, not as a list: the text ends in a semicolon, CMake's list separator.
+    string(LENGTH "${holepunch_c}" holepunch_length)
+    string(REPLACE "${json_as_format}" "" holepunch_without "${holepunch_c}")
+    string(LENGTH "${holepunch_without}" holepunch_without_length)
+    string(LENGTH "${json_as_format}" json_as_format_length)
+    math(EXPR json_as_format_count "(${holepunch_length} - ${holepunch_without_length}) / ${json_as_format_length}")
+    if(NOT json_as_format_count EQUAL 2)
+        message(FATAL_ERROR "lib/src/remote/holepunch.c of chiaki-ng no longer logs Sony's messages in exactly two places. "
+            "Review third_party/chiaki/CMakeLists.txt against commit ${VELOPLAY_CHIAKI_COMMIT}.")
+    endif()
+    string(REPLACE "${json_as_format}"
+        "CHIAKI_LOGE(log, \"%s\", json_object_to_json_string_ext(payload_json, JSON_C_TO_STRING_PRETTY));"
+        holepunch_c "${holepunch_c}")
+    set(holepunch_patched "${chiaki_generated}/holepunch_local.c")
+    if(EXISTS "${holepunch_patched}")
+        file(READ "${holepunch_patched}" holepunch_before)
+    endif()
+    if(NOT holepunch_c STREQUAL "${holepunch_before}")
+        file(WRITE "${holepunch_patched}" "${holepunch_c}")
+    endif()
+    list(APPEND chiaki_psn_sources
+        "${chiaki_dir}/lib/src/aia.c"
+        "${chiaki_dir}/lib/src/aia_openssl.c"
+        "${holepunch_patched}")
+else()
+    list(APPEND chiaki_psn_sources holepunch_stub.c)
 endif()
 
 # streamconnection.c closes the stream's transport on its own when the console
@@ -146,7 +228,7 @@ add_library(veloplay_chiaki STATIC
     "${common_patched}"
     "${streamconnection_patched}"
     generated/takion.pb.c
-    holepunch_stub.c
+    ${chiaki_psn_sources}
     vp_session.c)
 target_include_directories(veloplay_chiaki
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -154,11 +236,20 @@ target_include_directories(veloplay_chiaki
         "${chiaki_generated}"
         "${chiaki_dir}/lib/include"
         "${chiaki_dir}/lib/src"
+        # holepunch.c, compiled from a copy, includes "../aia.h" and "stun.h".
+        "${chiaki_dir}/lib/src/remote"
         "${CMAKE_CURRENT_SOURCE_DIR}/generated")
 target_compile_definitions(veloplay_chiaki PRIVATE
     CHIAKI_VERSION_MAJOR=1 CHIAKI_VERSION_MINOR=10 CHIAKI_VERSION_PATCH=1 CHIAKI_VERSION="1.10.1")
 target_link_libraries(veloplay_chiaki PRIVATE
     veloplay_jerasure veloplay_nanopb OpenSSL::Crypto Threads::Threads)
+if(VELOPLAY_PSN)
+    target_compile_definitions(veloplay_chiaki PRIVATE VP_WITH_PSN=1)
+    target_link_libraries(veloplay_chiaki PRIVATE CURL::libcurl ${veloplay_jsonc} ${veloplay_libevent} ${veloplay_miniupnpc})
+    if(WIN32)
+        target_link_libraries(veloplay_chiaki PRIVATE crypt32)
+    endif()
+endif()
 if(WIN32)
     target_link_libraries(veloplay_chiaki PRIVATE wsock32 ws2_32 bcrypt iphlpapi)
 elseif(UNIX)

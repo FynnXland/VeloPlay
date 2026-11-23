@@ -58,6 +58,20 @@ public:
         /// Whether a console at this address is reached from away (through a VPN or another network).
         /// Away has its own learned bitrate and other advice. Without it every console counts as at home.
         std::function<bool(std::uint32_t address)> isAway;
+        /// The account's consoles at Sony, for playing from away. Blocking; it runs on a thread of its
+        /// own. Empty: this build cannot go through Sony's servers, and nothing about it is offered.
+        std::function<Result<std::vector<session::PsnConsole>>(const std::string& accessToken)> psnConsoles;
+        /// Seconds since 1970; tests set their own. Sign-in tokens run out by this clock.
+        std::function<std::int64_t()> unixTime;
+        /// A console seen here this recently is at home and only out of reach for a moment (its Wi-Fi): it is
+        /// not reached through Sony's servers then, which would take half a minute and pair again.
+        std::chrono::milliseconds homeMemory{std::chrono::minutes(3)};
+        /// Sony is asked for the console list only after the search had this long to find it here.
+        std::chrono::milliseconds psnFirstListAfter{std::chrono::seconds(6)};
+        /// How long to wait before asking Sony again after a request failed for no reason of the sign-in.
+        std::chrono::milliseconds psnRetry{std::chrono::minutes(1)};
+        /// For trying the way at home: go through Sony's servers even to a console found here.
+        bool alwaysThroughSony = false;
         std::function<std::unique_ptr<session::ISession>()> captureFactory;
         /// The connection to Discord for the card "Playing VeloPlay". Without it there is no card.
         std::function<std::unique_ptr<discord::IPipe>()> discordPipe;
@@ -195,6 +209,8 @@ public:
     void graphicsRestored(std::chrono::steady_clock::time_point now);
     void startAccountLogin() override;
     void startAccountLoginInBrowser() override;
+    void startRemoteLogin() override;
+    void signOutRemote() override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
 
@@ -245,6 +261,7 @@ private:
         int unsteadyNotes = 0;
         bool restart = false;          // we stopped it to connect again with new settings
         bool away = false;             // reached from away: its own learned bitrate, other advice
+        bool viaPsn = false;           // through Sony's servers, not to an address
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
         bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn
@@ -253,7 +270,7 @@ private:
     };
 
     void addNotice(Notice::Kind kind, Notice::Topic topic, std::string detail, std::string technical = {});
-    void beginSession(std::string_view hostId, bool afterWake);
+    void beginSession(std::string_view hostId, bool afterWake, bool viaPsn = false);
     bool startAttempt();
     [[nodiscard]] StreamSettings streamSettingsForAttempt() const;
     void updateSession(Clock::time_point now);
@@ -326,6 +343,29 @@ private:
     void updateInstall();
 
     std::unique_ptr<protocol::PsnAccountLookup> accountLookup_;
+
+    // Playing from away through Sony's servers. Every request runs in a future; update() collects.
+    void updatePsn(Clock::time_point now);
+    [[nodiscard]] std::int64_t unixNow() const;
+    [[nodiscard]] bool psnUsable() const;
+    [[nodiscard]] const session::PsnConsole* psnConsoleFor(const RegisteredConsole& console) const;
+    [[nodiscard]] bool foundAtHome(std::string_view hostId) const;
+    /// Whether connecting to this console goes through Sony's servers: signed in, listed with Remote Play on,
+    /// and not seen here lately. Decided once per connect; reconnects of the session keep the way.
+    [[nodiscard]] bool goesThroughSony(const RegisteredConsole& console, Clock::time_point now) const;
+    std::vector<std::pair<std::string, Clock::time_point>> seenAtHome_;
+    Clock::time_point firstUpdate_{};
+    bool remoteLogin_ = false; // the sign-in window that is open is the one for playing from away
+    UiModel::PsnRemoteView::Phase psnPhase_ = UiModel::PsnRemoteView::Phase::Idle;
+    std::string psnError_;
+    bool psnExpired_ = false;
+    std::future<Result<protocol::PsnRemoteSignIn>> psnSignIn_;
+    std::future<Result<protocol::PsnTokens>> psnRefresh_;
+    std::future<Result<std::vector<session::PsnConsole>>> psnList_;
+    std::vector<session::PsnConsole> psnConsoles_;
+    bool psnListed_ = false;
+    Clock::time_point psnNextList_{};
+    Clock::time_point psnNextRefresh_{};
     AccountLookup accountStatus_;
 
     std::optional<WakeJob> wake_;

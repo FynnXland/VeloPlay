@@ -371,6 +371,27 @@ TEST(Config, KeepsWhichNotesOverThePictureAreSwitchedOff) {
     EXPECT_EQ(std::adjacent_find(keys.begin(), keys.end()), keys.end());
 }
 
+TEST(Config, KeepsTheSignInForPlayingFromAwaySealed) {
+    test::FakeProtector protector;
+    AppConfig config;
+    config.psn.tokens = {"access-secret", "refresh-secret", 1'800'000'000};
+    config.psn.accountId = "IyrEtqCRanA=";
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    // Never in plain text in the file.
+    EXPECT_EQ(text->find("access-secret"), std::string::npos);
+    EXPECT_EQ(text->find("refresh-secret"), std::string::npos);
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back);
+    EXPECT_EQ(back->psn, config.psn);
+    EXPECT_TRUE(back->psn.signedIn());
+
+    // Signed out: nothing about it in the file.
+    const auto empty = serializeConfig(AppConfig{}, protector);
+    ASSERT_TRUE(empty);
+    EXPECT_EQ(empty->find("\"psn\""), std::string::npos);
+}
+
 TEST(RegisteredConsole, IsBuiltFromRegistrationResult) {
     protocol::RegisteredHost host;
     host.nickname = "PS5-042";

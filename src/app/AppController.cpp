@@ -50,6 +50,10 @@ Notice::Topic noticeTopicFor(session::QuitReason reason, bool everConnected) {
         case session::QuitReason::ConnectionRefused:
             return everConnected ? Notice::Topic::SessionLost : Notice::Topic::SessionRefused;
         case session::QuitReason::ConnectionLost: return Notice::Topic::SessionLost;
+        case session::QuitReason::PsnNoAnswer: return Notice::Topic::PsnNoAnswer;
+        case session::QuitReason::PsnUnreachable: return Notice::Topic::PsnUnreachable;
+        case session::QuitReason::PsnFailed:
+        case session::QuitReason::PsnRegistFailed: return Notice::Topic::PsnFailed;
         default: return everConnected ? Notice::Topic::SessionLost : Notice::Topic::SessionSetupFailed;
     }
 }
@@ -168,6 +172,13 @@ void AppController::update() {
     const auto now = Clock::now();
     diag::setStep("reading the console list");
     discovered_ = discovery_.hosts();
+    if (firstUpdate_ == Clock::time_point{}) firstUpdate_ = now;
+    for (const protocol::DiscoveredHost& host : discovered_) {
+        auto seen = std::find_if(seenAtHome_.begin(), seenAtHome_.end(),
+                                 [&](const auto& entry) { return equalsIgnoreCase(entry.first, host.info.hostId); });
+        if (seen == seenAtHome_.end()) seenAtHome_.emplace_back(host.info.hostId, now);
+        else seen->second = now;
+    }
 
     diag::setStep("reading the controllers");
     updateControllers();
@@ -191,6 +202,7 @@ void AppController::update() {
     diag::setStep("pairing, remote control, settings");
     updatePairing();
     updateAccountLookup();
+    updatePsn(now);
     updateInstall();
 
     std::vector<input::QuickAction> actions;
@@ -210,6 +222,21 @@ void AppController::fillModel(UiModel& model) {
     model.consoles = buildConsoleList(config_.consoles, discovered_);
     for (ConsoleEntry& entry : model.consoles) {
         entry.waking = wake_ && wake_->hostId == entry.hostId;
+        if (entry.registered && entry.status == ConsoleStatus::Offline) {
+            for (const RegisteredConsole& console : config_.consoles) {
+                if (console.hostId == entry.hostId) entry.viaInternet = goesThroughSony(console, Clock::now());
+            }
+        }
+    }
+    model.psnRemote.available = static_cast<bool>(options_.psnConsoles) && options_.http && options_.showLogin;
+    model.psnRemote.signedIn = config_.psn.signedIn();
+    model.psnRemote.phase = psnPhase_;
+    model.psnRemote.errorDetail = psnError_;
+    model.psnRemote.listed = psnListed_;
+    model.psnRemote.expired = psnExpired_;
+    model.psnRemote.consoles.clear();
+    for (const session::PsnConsole& console : psnConsoles_) {
+        if (console.remotePlay) model.psnRemote.consoles.push_back(console.name);
     }
     model.discoveryRunning = discoveryRunning_;
 
@@ -456,6 +483,12 @@ void AppController::connect(std::string_view hostId) {
                   "this build has no session support");
         return;
     }
+    // Not found in this network, but Sony's servers know it: that way, without waking (it cannot).
+    if (goesThroughSony(*console, Clock::now())) {
+        if (!stateMachine_.handle(AppEvent::ConnectRequested)) return;
+        beginSession(console->hostId, false, true);
+        return;
+    }
     const auto address = addressOf(*console);
     if (!address) {
         addNotice(Notice::Kind::Error, Notice::Topic::SessionSetupFailed, console->name,
@@ -526,7 +559,7 @@ void AppController::submitLoginPin(std::string_view digits) {
     session_->loginPinRequested = false;
 }
 
-void AppController::beginSession(std::string_view hostId, bool afterWake) {
+void AppController::beginSession(std::string_view hostId, bool afterWake, bool viaPsn) {
     const auto console = std::find_if(config_.consoles.begin(), config_.consoles.end(),
                                       [&](const RegisteredConsole& c) { return c.hostId == hostId; });
     ActiveSession active;
@@ -534,6 +567,7 @@ void AppController::beginSession(std::string_view hostId, bool afterWake) {
     active.name = console != config_.consoles.end() ? console->name : std::string{};
     active.afterWake = afterWake;
     active.attempts = afterWake ? kAttemptsAfterWake : 1;
+    active.viaPsn = viaPsn;
     attachPump(nullptr);
     session_ = std::move(active);
     if (!startAttempt()) failSession(session::QuitReason::SetupFailed, "session could not be started");
@@ -582,20 +616,31 @@ bool AppController::startAttempt() {
     const auto console = std::find_if(config_.consoles.begin(), config_.consoles.end(),
                                       [&](const RegisteredConsole& c) { return c.hostId == session_->hostId; });
     if (console == config_.consoles.end() || !console->credentialsValid || !options_.sessionFactory) return false;
-    const auto address = addressOf(*console);
-    if (!address) return false;
-    // At home or away decides which learned bitrate applies; said once, so a wrong guess shows in the log.
-    const auto ip = net::parseIpv4(*address);
-    const bool away = !session_->capture && options_.isAway && ip && options_.isAway(*ip);
-    if (session_->attempt <= 1 || away != session_->away) {
-        spdlog::info("Console at {}: {}", *address,
-                     away ? "reached from away (through a VPN or another network); away bitrate and advice"
-                          : "in this PC's home network");
-    }
-    session_->away = away;
-
     session::SessionConfig sessionConfig;
-    sessionConfig.host = *address;
+    std::string where;
+    if (session_->viaPsn) {
+        const session::PsnConsole* remote = psnUsable() ? psnConsoleFor(*console) : nullptr;
+        const auto account = protocol::PsnAccountId::parse(config_.psn.accountId);
+        if (!remote || !account) return false;
+        sessionConfig.psn = session::SessionConfig::Psn{config_.psn.tokens.access, remote->id, account->bytes};
+        if (session_->attempt <= 1) spdlog::info("{} is not in this network; going through Sony's servers", console->name);
+        session_->away = true;
+        where = "through Sony's servers";
+    } else {
+        const auto address = addressOf(*console);
+        if (!address) return false;
+        // At home or away decides which learned bitrate applies; said once, so a wrong guess shows in the log.
+        const auto ip = net::parseIpv4(*address);
+        const bool away = !session_->capture && options_.isAway && ip && options_.isAway(*ip);
+        if (session_->attempt <= 1 || away != session_->away) {
+            spdlog::info("Console at {}: {}", *address,
+                         away ? "reached from away (through a VPN or another network); away bitrate and advice"
+                              : "in this PC's home network");
+        }
+        session_->away = away;
+        sessionConfig.host = *address;
+        where = "at " + *address;
+    }
     sessionConfig.registKey = console->registKey;
     sessionConfig.rpKey = console->rpKey;
     sessionConfig.stream = streamSettingsForAttempt();
@@ -610,7 +655,7 @@ bool AppController::startAttempt() {
     // Full strength until the console says otherwise. That also undoes what another program left the controller at.
     controllers_.setEffectStrength(input::EffectStrength::Strong, input::EffectStrength::Strong);
     controllers_.clearTriggerEffects(); // and loose triggers: a test from the settings may still be on them
-    spdlog::info("Connecting to {} at {}, attempt {} of {} ({}x{}, {} fps, {} kbit/s)", console->name, *address,
+    spdlog::info("Connecting to {} {}, attempt {} of {} ({}x{}, {} fps, {} kbit/s)", console->name, where,
                  session_->attempt, session_->attempts, sessionConfig.stream.width, sessionConfig.stream.height,
                  sessionConfig.stream.fps, sessionConfig.stream.bitrateKbps);
     if (options_.mediaSink) options_.mediaSink->begin(sessionConfig.stream);
@@ -1455,6 +1500,171 @@ void AppController::updateWake(Clock::time_point now) {
     }
 }
 
+// --- Playing from away through Sony's servers ---
+
+std::int64_t AppController::unixNow() const {
+    if (options_.unixTime) return options_.unixTime();
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+bool AppController::psnUsable() const {
+    return static_cast<bool>(options_.psnConsoles) && config_.psn.signedIn() && !psnConsoles_.empty();
+}
+
+bool AppController::foundAtHome(std::string_view hostId) const {
+    for (const protocol::DiscoveredHost& host : discovered_) {
+        if (equalsIgnoreCase(host.info.hostId, hostId)) return true;
+    }
+    return false;
+}
+
+bool AppController::goesThroughSony(const RegisteredConsole& console, Clock::time_point now) const {
+    if (!psnUsable()) return false;
+    const session::PsnConsole* remote = psnConsoleFor(console);
+    if (!remote || !remote->remotePlay) return false;
+    if (options_.alwaysThroughSony) return true;
+    if (foundAtHome(console.hostId)) return false;
+    for (const auto& [hostId, seen] : seenAtHome_) {
+        if (equalsIgnoreCase(hostId, console.hostId) && now - seen < options_.homeMemory) return false;
+    }
+    return true;
+}
+
+// Sony's list knows a console by its name and an id of its own, not by the id it answers searches with. The
+// name matches when nobody renamed it since pairing; with one console on each side there is nothing to mix up.
+const session::PsnConsole* AppController::psnConsoleFor(const RegisteredConsole& console) const {
+    for (const session::PsnConsole& remote : psnConsoles_) {
+        if (equalsIgnoreCase(remote.name, console.name)) return &remote;
+    }
+    if (psnConsoles_.size() == 1 && config_.consoles.size() == 1) return &psnConsoles_.front();
+    return nullptr;
+}
+
+void AppController::startRemoteLogin() {
+    psnError_.clear();
+    psnExpired_ = false;
+    if (!options_.psnConsoles || !options_.http || !options_.showLogin) {
+        psnPhase_ = UiModel::PsnRemoteView::Phase::Failed;
+        psnError_ = "playing from away is not available in this build";
+        return;
+    }
+    const auto clientId = protocol::newPsnClientId();
+    if (!clientId) {
+        psnPhase_ = UiModel::PsnRemoteView::Phase::Failed;
+        psnError_ = clientId.error().message;
+        return;
+    }
+    if (accountLookup_) accountLookup_->cancel();
+    remoteLogin_ = true;
+    psnPhase_ = UiModel::PsnRemoteView::Phase::SigningIn;
+    if (!options_.showLogin(protocol::psnRemoteLoginUrl(*clientId))) {
+        remoteLogin_ = false;
+        psnPhase_ = UiModel::PsnRemoteView::Phase::Failed;
+        psnError_ = "the sign-in page could not be opened";
+    }
+}
+
+void AppController::signOutRemote() {
+    config_.psn = PsnRemoteSettings{};
+    psnConsoles_.clear();
+    psnListed_ = false;
+    psnPhase_ = UiModel::PsnRemoteView::Phase::Idle;
+    psnError_.clear();
+    psnExpired_ = false;
+    spdlog::info("Playing from away: signed out");
+    saveNow();
+}
+
+void AppController::updatePsn(Clock::time_point now) {
+    using Phase = UiModel::PsnRemoteView::Phase;
+    const auto ready = [](const auto& future) {
+        return future.valid() && future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    };
+
+    if (ready(psnSignIn_)) {
+        auto signedIn = psnSignIn_.get();
+        if (!signedIn) {
+            psnPhase_ = Phase::Failed;
+            psnError_ = signedIn.error().message;
+            spdlog::warn("Playing from away: sign-in failed: {}", signedIn.error().message);
+        } else {
+            config_.psn.tokens = signedIn->tokens;
+            config_.psn.accountId = signedIn->account.toBase64();
+            config_.psn.sealed.clear();
+            // Pairing wants the same number; whoever signed in here owns the consoles.
+            if (config_.accountId.empty()) config_.accountId = config_.psn.accountId;
+            psnPhase_ = Phase::Idle;
+            psnExpired_ = false;
+            psnNextList_ = now; // look at once
+            psnNextRefresh_ = {};
+            spdlog::info("Playing from away: signed in");
+            saveNow();
+        }
+    }
+
+    if (ready(psnRefresh_)) {
+        auto refreshed = psnRefresh_.get();
+        if (refreshed) {
+            config_.psn.tokens = *refreshed;
+            config_.psn.sealed.clear();
+            saveNow();
+        } else if (refreshed.error().code == ErrorCode::Rejected &&
+                   (refreshed.error().message.ends_with("HTTP 400") || refreshed.error().message.ends_with("HTTP 401"))) {
+            // Sony no longer takes the refresh token (signed out elsewhere, or months unused). Anything else, a
+            // server that is down or a hotel's sign-in page in its place, is tried again: the sign-in stays.
+            spdlog::warn("Playing from away: the sign-in ran out: {}", refreshed.error().message);
+            signOutRemote();
+            psnExpired_ = true;
+        } else {
+            spdlog::info("Playing from away: renewing the sign-in failed, trying again: {}", refreshed.error().message);
+            psnNextRefresh_ = now + options_.psnRetry;
+        }
+    }
+
+    if (ready(psnList_)) {
+        auto listed = psnList_.get();
+        if (listed) {
+            if (*listed != psnConsoles_) {
+                spdlog::info("Playing from away: Sony knows {} console(s), {} with Remote Play on", listed->size(),
+                             std::count_if(listed->begin(), listed->end(),
+                                           [](const session::PsnConsole& c) { return c.remotePlay; }));
+            }
+            psnConsoles_ = std::move(*listed);
+            psnListed_ = true;
+        } else {
+            spdlog::info("Playing from away: the console list could not be fetched: {}", listed.error().message);
+        }
+    }
+
+    if (!options_.psnConsoles || !options_.http || !config_.psn.signedIn()) return;
+    if (psnSignIn_.valid() || psnRefresh_.valid()) return;
+
+    // Renew ten minutes before it runs out: a session asks with the access token when it starts.
+    if (config_.psn.tokens.expiresAt - unixNow() < 600 && now >= psnNextRefresh_) {
+        if (config_.psn.tokens.refresh.empty()) {
+            signOutRemote();
+            psnExpired_ = true;
+            return;
+        }
+        update::IHttpClient* http = options_.http;
+        psnRefresh_ = std::async(std::launch::async, [http, refresh = config_.psn.tokens.refresh, at = unixNow()] {
+            return protocol::refreshPsnTokens(*http, refresh, at, {});
+        });
+        return;
+    }
+
+    // The list only matters while a paired console is not found here.
+    const bool someoneMissing =
+        options_.alwaysThroughSony || std::any_of(config_.consoles.begin(), config_.consoles.end(),
+                                                  [&](const RegisteredConsole& c) { return !foundAtHome(c.hostId); });
+    if (someoneMissing && !psnList_.valid() && now >= psnNextList_ && now - firstUpdate_ >= options_.psnFirstListAfter) {
+        psnNextList_ = now + options_.psnRetry;
+        psnList_ = std::async(std::launch::async,
+                              [list = options_.psnConsoles, token = config_.psn.tokens.access] { return list(token); });
+    }
+}
+
 void AppController::startAccountLogin() {
     accountStatus_ = AccountLookup{};
     if (!accountLookup_ || !options_.showLogin) {
@@ -1488,6 +1698,20 @@ void AppController::startAccountLoginInBrowser() {
 
 void AppController::submitAccountRedirect(std::string_view url) {
     const auto code = protocol::psnCodeFromRedirect(url);
+    if (remoteLogin_) {
+        remoteLogin_ = false;
+        if (!code || !options_.http) {
+            psnPhase_ = UiModel::PsnRemoteView::Phase::Failed;
+            psnError_ = "the address carries no sign-in code";
+            return;
+        }
+        psnPhase_ = UiModel::PsnRemoteView::Phase::Fetching;
+        update::IHttpClient* http = options_.http;
+        psnSignIn_ = std::async(std::launch::async, [http, code = *code, now = unixNow()] {
+            return protocol::signInForRemote(*http, code, now, {});
+        });
+        return;
+    }
     accountStatus_ = AccountLookup{};
     if (!code || !accountLookup_) {
         accountStatus_.phase = AccountLookup::Phase::Failed;
@@ -1501,6 +1725,11 @@ void AppController::submitAccountRedirect(std::string_view url) {
 }
 
 void AppController::accountLoginClosed() {
+    if (remoteLogin_) {
+        remoteLogin_ = false;
+        if (psnPhase_ == UiModel::PsnRemoteView::Phase::SigningIn) psnPhase_ = UiModel::PsnRemoteView::Phase::Idle;
+        return;
+    }
     if (accountStatus_.phase == AccountLookup::Phase::SigningIn) accountStatus_ = AccountLookup{};
 }
 

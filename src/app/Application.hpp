@@ -90,6 +90,7 @@ private:
     unsigned vendorBeforeLoss_ = 0;
     std::deque<std::chrono::steady_clock::time_point> losses_; // of the last minute
     bool testDeviceLoss_ = false; // --test-device-loss: counts the device as lost a few seconds after the start
+    bool throughSony_ = false;    // --through-sony: the way from away, tried at home
     std::chrono::steady_clock::time_point testLossAt_{};
     bool restartRequested_ = false;
     bool successorStarted_ = false; // the instance that takes over after an update is already running

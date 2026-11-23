@@ -48,6 +48,29 @@ Result<std::string> protectCredentials(const RegisteredConsole& console, ISecret
     return base64Encode(*blob);
 }
 
+Result<std::string> protectPsnTokens(const protocol::PsnTokens& tokens, ISecretProtector& protector) {
+    const json secret{{"access", tokens.access}, {"refresh", tokens.refresh}, {"expires_at", tokens.expiresAt}};
+    const auto blob = protector.protect(asBytes(secret.dump(-1, ' ', false, json::error_handler_t::replace)));
+    if (!blob) return blob.error();
+    return base64Encode(*blob);
+}
+
+bool unprotectPsnTokens(std::string_view encoded, ISecretProtector& protector, protocol::PsnTokens& tokens) {
+    const auto blob = base64Decode(encoded);
+    if (!blob) return false;
+    const auto plain = protector.unprotect(*blob);
+    if (!plain) return false;
+    const json secret = json::parse(asText(*plain), nullptr, false);
+    if (!secret.is_object()) return false;
+    protocol::PsnTokens out;
+    read(secret, "access", out.access);
+    read(secret, "refresh", out.refresh);
+    read(secret, "expires_at", out.expiresAt);
+    if (out.empty()) return false;
+    tokens = std::move(out);
+    return true;
+}
+
 bool unprotectCredentials(std::string_view encoded, ISecretProtector& protector, RegisteredConsole& console) {
     const auto blob = base64Decode(encoded);
     if (!blob) return false;
@@ -244,6 +267,13 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
     root["audio"] = {
         {"microphone", config.audio.microphone},
     };
+    if (config.psn.signedIn()) {
+        const auto sealed = protectPsnTokens(config.psn.tokens, protector);
+        if (!sealed) return sealed.error();
+        root["psn"] = {{"tokens", *sealed}, {"account_id", config.psn.accountId}};
+    } else if (!config.psn.sealed.empty()) {
+        root["psn"] = {{"tokens", config.psn.sealed}, {"account_id", config.psn.accountId}};
+    }
     root["notes"] = {
         {"enabled", config.notes.enabled},
         {"hidden", config.notes.hidden},
@@ -400,6 +430,13 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(section(root, "discord"), "game_name", config.discord.gameName);
     read(section(root, "notes"), "enabled", config.notes.enabled);
     read(section(root, "notes"), "hidden", config.notes.hidden);
+    {
+        const json& psn = section(root, "psn");
+        std::string sealed;
+        read(psn, "tokens", sealed);
+        read(psn, "account_id", config.psn.accountId);
+        if (!sealed.empty() && !unprotectPsnTokens(sealed, protector, config.psn.tokens)) config.psn.sealed = sealed;
+    }
     if (config.discord.gameName.size() > 128) config.discord.gameName.resize(128);
     read(section(root, "window"), "fullscreen", config.window.fullscreen);
 

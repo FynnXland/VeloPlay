@@ -24,6 +24,7 @@ constexpr Strings kGerman = {
     .statusReady = "Bereit",
     .statusStandby = "Im Ruhemodus",
     .statusOffline = "Nicht erreichbar",
+    .statusViaInternet = "Hier nicht gefunden. Verbinden versucht es über das Internet",
     .statusWaking = "Wird aufgeweckt",
     .nowRunning = "{0} läuft",
     .notPaired = "Nicht gekoppelt",
@@ -348,7 +349,14 @@ constexpr Strings kGerman = {
     .hudDecoder = "Dekoder",
     .noticeBitrateLowered = "Bei der eingestellten Datenrate kam kein Bild mehr an. VeloPlay hat neu verbunden und sie "
                             "für diese Sitzung auf {0} Mbit/s gesenkt. Dauerhaft änderst du sie unter Einstellungen > "
-                            "Stream.",    .accountSignIn = "Bei PlayStation anmelden",
+                            "Stream.",
+    .noticePsnNoAnswer = "{0} hat über das Internet nicht geantwortet. Ob VeloPlay sie aus dem Ruhemodus holen kann, "
+                         "ist noch nicht geprüft: Lass die PS5 beim nächsten Mal an und schau, ob Remote Play an ihr "
+                         "eingeschaltet ist.",
+    .noticePsnUnreachable = "Zu {0} ließ sich über das Internet kein Weg aufbauen. Manche Netze lassen das nicht zu, "
+                            "etwa Firmen-WLAN oder der Hotspot vom Handy. Versuch es in einem anderen Netz.",
+    .noticePsnFailed = "Die Verbindung über das Internet zu {0} ist gescheitert. Melde dich unter Einstellungen > "
+                       "Erweitert > Von unterwegs spielen neu an und versuch es noch einmal.",    .accountSignIn = "Bei PlayStation anmelden",
     .accountSignInHint = "Öffnet die Anmeldeseite von Sony in einem eigenen Fenster. Du meldest dich dort an, VeloPlay "
                          "liest danach deine Account-ID aus. Dein Passwort sieht und speichert VeloPlay nicht.",
     .accountSignInBrowser = "Lieber im eigenen Browser anmelden, etwa mit Passkey",
@@ -420,6 +428,20 @@ constexpr Strings kGerman = {
     .alertUnsteadyAway = "Verbindung von unterwegs unruhig",
     .pauseAway = "Unterwegs",
     .awayHelp = "Nicht zu Hause? So spielst du von unterwegs",
+    .awayTitle = "Von unterwegs spielen",
+    .awayHint = "Über die Server von Sony, ohne Router und ohne VPN, wie bei Sonys eigener App. Koppel die PS5 vorher "
+                "zu Hause und lass sie am besten an, wenn du losgehst. Findet VeloPlay sie nicht im Netz, geht "
+                "„Verbinden“ über das Internet.",
+    .awaySignIn = "Bei PlayStation anmelden",
+    .awaySigningIn = "Anmeldung läuft",
+    .awaySignOut = "Abmelden",
+    .awaySignedIn = "Angemeldet.",
+    .awayConsoles = "Angemeldet. Sony kennt: {0}",
+    .awayNoConsole = "Angemeldet. Sony nennt keine PS5 mit eingeschaltetem Remote Play.",
+    .awayExpired = "Die Anmeldung ist abgelaufen. Melde dich neu an.",
+    .awayFailed = "Die Anmeldung hat nicht geklappt.",
+    .awayKept = "VeloPlay behält einen Schlüssel von Sony, verschlüsselt für dein Windows-Konto. Dein Passwort sieht "
+                "und speichert es nicht.",
     .notesTitle = "Hinweise über dem Bild",
     .notesShow = "Hinweise im Spiel zeigen",
     .notesHint = "Oben im Bild, wenn etwas hakt, etwa das WLAN oder der Akku. Auch abgeschaltete Hinweise stehen im Protokoll.",
@@ -525,6 +547,7 @@ constexpr Strings kEnglish = {
     .statusReady = "Ready",
     .statusStandby = "In rest mode",
     .statusOffline = "Not reachable",
+    .statusViaInternet = "Not found here. Connect tries over the internet",
     .statusWaking = "Waking up",
     .nowRunning = "Running {0}",
     .notPaired = "Not paired",
@@ -843,7 +866,13 @@ constexpr Strings kEnglish = {
     .streamKeys = "Esc: menu  ·  F11: full screen  ·  F9: display  ·  F8: upscaling  ·  F12: screenshot",
     .hudDecoder = "Decoder",
     .noticeBitrateLowered = "No picture arrived at the bitrate that was set. VeloPlay reconnected and lowered it to "
-                            "{0} Mbit/s for this session. Change it for good under Settings > Stream.",    .accountSignIn = "Sign in with PlayStation",
+                            "{0} Mbit/s for this session. Change it for good under Settings > Stream.",
+    .noticePsnNoAnswer = "{0} did not answer over the internet. Whether VeloPlay can bring it out of rest mode is not "
+                         "tested yet: leave the PS5 on next time and check that Remote Play is switched on at it.",
+    .noticePsnUnreachable = "No way to {0} could be set up over the internet. Some networks do not allow it, such as "
+                            "company Wi-Fi or a phone's hotspot. Try another network.",
+    .noticePsnFailed = "The connection to {0} over the internet failed. Sign in again under Settings > Advanced > "
+                       "Play from away and try once more.",    .accountSignIn = "Sign in with PlayStation",
     .accountSignInHint = "Opens Sony's sign-in page in a window of its own. You sign in there, VeloPlay then reads "
                          "your account ID. VeloPlay neither sees nor stores your password.",
     .accountSignInBrowser = "Sign in in your own browser instead, with a passkey for example",
@@ -914,6 +943,20 @@ constexpr Strings kEnglish = {
     .alertUnsteadyAway = "The connection from away is unsteady",
     .pauseAway = "Away",
     .awayHelp = "Not at home? How to play from away",
+    .awayTitle = "Play from away",
+    .awayHint = "Through Sony's servers, without touching the router and without a VPN, as Sony's own app does it. "
+                "Pair the PS5 at home first and best leave it on when you go. When VeloPlay does not find it in the "
+                "network, Connect goes over the internet.",
+    .awaySignIn = "Sign in with PlayStation",
+    .awaySigningIn = "Signing in",
+    .awaySignOut = "Sign out",
+    .awaySignedIn = "Signed in.",
+    .awayConsoles = "Signed in. Sony knows: {0}",
+    .awayNoConsole = "Signed in. Sony lists no PS5 with Remote Play switched on.",
+    .awayExpired = "The sign-in ran out. Sign in again.",
+    .awayFailed = "Signing in did not work.",
+    .awayKept = "VeloPlay keeps a key from Sony, encrypted for your Windows account. It neither sees nor stores your "
+                "password.",
     .notesTitle = "Notes over the picture",
     .notesShow = "Show notes while playing",
     .notesHint = "At the top of the picture when something stumbles, the Wi-Fi or the battery for example. Notes you switch off still go to the log.",

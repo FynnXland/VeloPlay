@@ -16,17 +16,28 @@ channel that carries controller input. Discovery, wake-up and pairing are VeloPl
 | `veloplay_jerasure`, `veloplay_gf_complete` | streetpea's forks, as chiaki-ng pins them | forward error correction |
 | `veloplay_nanopb` | nanopb 0.4.9.2 | the protobuf messages of Takion |
 
-Nothing of chiaki-ng's own build system is used, because it pulls in curl, json-c, libevent and
-miniupnpc. Those serve the connection through Sony's servers (holepunching), which VeloPlay does
-not offer.
+Nothing of chiaki-ng's own build system is used.
+
+## The connection through Sony's servers
+
+The option `VELOPLAY_PSN` (on for Windows, off elsewhere) builds `aia.c`, `aia_openssl.c` and
+`remote/holepunch.c` with curl (with WebSockets), json-c, libevent and miniupnpc from vcpkg. The
+Linux CI keeps it off because the system curl has no WebSockets; a local Linux build with the
+option on compiles and links, which is the check for the C code there.
+
+- `chiaki_holepunch_upnp_discover` is never called, so the gateway status stays unknown and
+  holepunch.c neither adds nor deletes port mappings on the router. Its address comes from STUN.
+- `holepunch.c` is built from a patched copy: two calls pass a server message to the logger as the
+  format string. They get `"%s"` instead. The build stops if upstream changes those lines.
+- `vp_session.c` drops log lines that carry server messages, hex dumps or tokens, and masks IPv4
+  addresses.
 
 ## What is left out or replaced
 
-- `aia.c`, `aia_openssl.c`, `remote/holepunch.c`: not compiled.
-- `common.c`: compiled from a copy with the two lines removed that call into `aia.c`. The build
-  stops if upstream changes those lines.
-- `holepunch_stub.c`: the seven holepunch functions the session code references. They are only
-  reached when a holepunch session is passed in, which never happens here.
+- Without `VELOPLAY_PSN`: `aia.c`, `aia_openssl.c`, `remote/holepunch.c` are not compiled;
+  `common.c` is compiled from a copy with the two lines removed that call into `aia.c` (the build
+  stops if upstream changes those lines); `holepunch_stub.c` provides the holepunch functions the
+  session code references, which are only reached with a holepunch session.
 - `chiaki/config.h`: generated, with the built-in Opus, FFmpeg and Raspberry Pi decoders off.
   VeloPlay decodes itself.
 - `generated/takion.pb.c|h`: output of nanopb's generator for `lib/protobuf/takion.proto`, checked

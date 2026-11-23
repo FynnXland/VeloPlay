@@ -194,6 +194,8 @@ void Application::waitForPredecessor() {
     // For the check on GitHub's machine: the path after a lost graphics device, without losing one.
     for (int i = 1; i < count; ++i) {
         if (std::wstring_view(arguments[i]) == L"--test-device-loss") testDeviceLoss_ = true;
+        // To try the way through Sony's servers without leaving home.
+        if (std::wstring_view(arguments[i]) == L"--through-sony") throughSony_ = true;
     }
     for (int i = 1; i < count; ++i) {
         if (std::wstring_view(arguments[i]) != L"--after") continue;
@@ -362,6 +364,10 @@ int Application::run() {
     });
     // Asked once per connection attempt: the adapters may have changed (a VPN switched on).
     options.isAway = [](std::uint32_t address) { return !net::isAtHome(address, net::localSubnets()); };
+    // Through Sony's servers only where this build carries the parts for it.
+    if (session::psnAvailable()) options.psnConsoles = [](const std::string& token) { return session::listPsnConsoles(token); };
+    options.alwaysThroughSony = throughSony_;
+    if (throughSony_) spdlog::info("Started with --through-sony: consoles are reached through Sony's servers");
     options.captureDevices = [this] {
         std::lock_guard lock(captureMutex_);
         return captureDevices_;

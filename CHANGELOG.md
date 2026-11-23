@@ -3,6 +3,32 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.14.0
+
+- **Playing from away through Sony's servers (Beta).** No router settings and no VPN: as with
+  Sony's own app, Sony's servers bring the PC and the PS5 together. Sign in once under Settings >
+  Advanced > Play from away. When VeloPlay does not find a paired PS5 in the network, it says "Not
+  found here. Connect tries over the internet", and Connect goes that way. The PS5 has to be paired
+  at home first and should be left on: whether it can be brought out of rest mode this way is not
+  tested. Some networks do not allow this way (company Wi-Fi, often a phone hotspot). VeloPlay
+  keeps a key from Sony, encrypted for your Windows account, never your password, and renews it by
+  itself. A console seen at home in the last minutes is always reached directly.
+  `VeloPlay.exe --through-sony` tries the way at home. Not yet tried with a real PS5.
+
+**Deutsch**
+
+- **Von unterwegs spielen über die Server von Sony (Beta).** Ohne Einstellungen am Router und ohne
+  VPN: Wie bei Sonys eigener App bringen die Server von Sony PC und PS5 zusammen. Einmal unter
+  Einstellungen > Erweitert > Von unterwegs spielen anmelden. Findet VeloPlay eine gekoppelte PS5
+  nicht im Netz, steht dort „Hier nicht gefunden. Verbinden versucht es über das Internet“, und
+  „Verbinden“ nimmt diesen Weg. Die PS5 muss vorher zu Hause gekoppelt sein und sollte an bleiben:
+  Ob sie sich auf diesem Weg aus dem Ruhemodus holen lässt, ist nicht geprüft. Manche Netze lassen
+  den Weg nicht zu (Firmen-WLAN, oft der Hotspot vom Handy). VeloPlay behält einen Schlüssel von
+  Sony, verschlüsselt für dein Windows-Konto, nie dein Passwort, und erneuert ihn selbst. Eine
+  Konsole, die in den letzten Minuten zu Hause gefunden wurde, wird immer direkt erreicht.
+  `VeloPlay.exe --through-sony` probiert den Weg zu Hause aus. An einer echten PS5 noch nicht
+  ausprobiert.
+
 ## 1.13.0
 
 - **Playing from away, through a VPN.** The README has a new part "Playing from away": pair the

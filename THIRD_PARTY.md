@@ -12,8 +12,9 @@ Session setup, Takion transport, error correction and stream encryption of the R
 - License: GNU Affero General Public License, version 3 only, with an additional permission to
   link with OpenSSL (`LICENSES/AGPL-3.0-only-OpenSSL.txt` in that repository)
 - Copyright: the Chiaki and chiaki-ng authors
-- Built without the parts that connect through the internet. `third_party/chiaki/README.md` lists
-  what is left out and what is replaced.
+- The Windows build includes the connection through Sony's servers (`lib/src/remote`), with UPnP
+  never started; other builds leave it out. `third_party/chiaki/README.md` lists what is left out,
+  replaced and patched.
 
 ## Account lookup (chiaki-ng, grill2010)
 
@@ -139,7 +140,9 @@ unchanged from the NVIDIA Optical Flow SDK 5.0.7 (https://developer.nvidia.com/o
 
 WebView2 SDK (BSD 3-Clause; the browser itself is part of Windows), FFmpeg (libavcodec and libavutil, LGPL 2.1 or later; built without GPL or non-free parts, shipped
 as separate DLLs that can be replaced), Opus (BSD 3-Clause), OpenSSL (Apache License 2.0), SDL3
-(zlib license), Dear ImGui (MIT), nlohmann/json (MIT), spdlog (MIT), fmt (MIT) and miniz (MIT).
+(zlib license), Dear ImGui (MIT), nlohmann/json (MIT), spdlog (MIT), fmt (MIT), miniz (MIT), and
+for the connection through Sony's servers curl (curl license, MIT-style), json-c (MIT), libevent
+(BSD 3-Clause) and miniupnpc (BSD 3-Clause).
 FFmpeg's source is available from https://ffmpeg.org; the exact version is the one vcpkg builds
 for the `builtin-baseline` named in `vcpkg.json`. vcpkg places each library's license text under
 `vcpkg_installed/<triplet>/share/<name>/copyright` in the build directory.

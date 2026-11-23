@@ -66,6 +66,9 @@ struct Notice {
         SessionConsoleCrashed,
         SessionSetupFailed,
         SessionLost,            // stream broke and reconnecting did not help
+        PsnNoAnswer,            // through Sony's servers: the console did not answer
+        PsnUnreachable,         // through Sony's servers: no way through both networks
+        PsnFailed,              // through Sony's servers: refused, or the sign-in ran out
         SleepFailed,            // rest mode request could not be sent
         BitrateLowered,         // no picture at the set rate; `detail` is the new rate in Mbit/s
     };
@@ -176,6 +179,18 @@ struct UiModel {
     AccountLookup accountLookup;
     /// True if this build can open Sony's sign-in page and read the answer.
     bool accountLoginAvailable = false;
+
+    /// Playing from away through Sony's servers (Beta).
+    struct PsnRemoteView {
+        bool available = false; // this build can, and a sign-in window is there
+        bool signedIn = false;
+        enum class Phase { Idle, SigningIn, Fetching, Failed } phase = Phase::Idle;
+        std::string errorDetail;
+        bool listed = false;               // Sony's servers answered with the account's consoles
+        std::vector<std::string> consoles; // their names, those with Remote Play on
+        bool expired = false;              // the sign-in ran out and has to be done again
+    };
+    PsnRemoteView psnRemote;
     std::vector<Notice> notices;
 
     ConnectionTest connectionTest;
@@ -330,6 +345,9 @@ public:
     virtual void submitAccountRedirect(std::string_view url) = 0;
     /// The user has seen the outcome, or gives up; resets the lookup to Idle.
     virtual void dismissAccountLookup() = 0;
+    /// Sign in at Sony for playing from away, and sign out again (forgets the tokens).
+    virtual void startRemoteLogin() = 0;
+    virtual void signOutRemote() = 0;
 };
 
 } // namespace veloplay

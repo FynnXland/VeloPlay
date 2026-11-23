@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -33,6 +34,16 @@ struct SessionConfig {
     /// a DualSense: the console then stops sending classic rumble.
     bool dualSense = false;
     std::string name;        // how the user knows the source; a capture card finds its sound input by it
+    /// Set: reach the console through Sony's servers instead of `host`. The
+    /// access token of a sign-in for playing from away, the console's id at
+    /// Sony and the account's eight bytes. The pairing keys are not used then:
+    /// the console pairs again on this way.
+    struct Psn {
+        std::string accessToken; // secret
+        std::array<std::uint8_t, 32> consoleId{};
+        std::array<std::uint8_t, 8> accountId{};
+    };
+    std::optional<Psn> psn;
 };
 
 enum class QuitReason {
@@ -44,6 +55,11 @@ enum class QuitReason {
     VersionMismatch,   // console firmware speaks a version we do not
     SetupFailed,       // handshake failed for another reason
     ConnectionLost,    // stream broke or the console dropped us
+    // Only through Sony's servers:
+    PsnNoAnswer,       // the console did not answer Sony's servers: off, asleep or without internet
+    PsnUnreachable,    // no way through the two networks was found
+    PsnFailed,         // Sony's servers refused or another step failed (an expired sign-in, say)
+    PsnRegistFailed,   // the console answered but would not let this client in
 };
 
 std::string_view toString(QuitReason reason);
@@ -177,5 +193,19 @@ using SessionFactory = std::function<std::unique_ptr<ISession>()>;
 
 /// Sessions backed by libchiaki.
 SessionFactory chiakiSessionFactory();
+
+/// A console of the signed-in account, as Sony's servers list it.
+struct PsnConsole {
+    std::string name;
+    std::array<std::uint8_t, 32> id{};
+    bool remotePlay = false; // Remote Play is switched on at the console
+    friend bool operator==(const PsnConsole&, const PsnConsole&) = default;
+};
+
+/// Whether this build can reach a console through Sony's servers.
+bool psnAvailable();
+/// Asks Sony's servers for the account's PS5 consoles. Blocks for seconds:
+/// never on the window thread. `accessToken` is secret and never logged.
+Result<std::vector<PsnConsole>> listPsnConsoles(const std::string& accessToken);
 
 } // namespace veloplay::session

@@ -42,6 +42,7 @@ std::string statusLine(const Strings& t, const ConsoleEntry& console) {
     if (console.waking) line = t.statusWaking;
     else if (console.status == ConsoleStatus::Ready) line = t.statusReady;
     else if (console.status == ConsoleStatus::Standby) line = t.statusStandby;
+    else if (console.viaInternet) line = t.statusViaInternet;
     else line = t.statusOffline;
 
     if (console.status == ConsoleStatus::Ready && !console.runningApp.empty()) {
@@ -84,6 +85,9 @@ std::string noticeText(const Strings& t, const Notice& notice) {
         case Notice::Topic::SessionLost: pattern = t.noticeSessionLost; break;
         case Notice::Topic::SleepFailed: pattern = t.noticeSleepFailed; break;
         case Notice::Topic::BitrateLowered: pattern = t.noticeBitrateLowered; break;
+        case Notice::Topic::PsnNoAnswer: pattern = t.noticePsnNoAnswer; break;
+        case Notice::Topic::PsnUnreachable: pattern = t.noticePsnUnreachable; break;
+        case Notice::Topic::PsnFailed: pattern = t.noticePsnFailed; break;
     }
     return format(pattern, {notice.detail});
 }
@@ -528,7 +532,7 @@ void UiManager::drawDashboard(const UiModel& model) {
         if (edgeButton(t.addConsole)) openPairing();
         // A paired console that does not answer: perhaps this PC is not at home. Say how that works.
         const bool pairedMissing = std::any_of(model.consoles.begin(), model.consoles.end(), [](const ConsoleEntry& c) {
-            return c.registered && c.status == ConsoleStatus::Offline;
+            return c.registered && c.status == ConsoleStatus::Offline && !c.viaInternet;
         });
         if (pairedMissing && edgeButton(t.awayHelp, ButtonKind::Link)) actions_.openHelp("away");
         space(24.0f);
@@ -815,10 +819,11 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
         // the way; one that does not answer at all can still be tried, because
         // discovery does not cross every network.
         const bool idle = model.state == AppState::Idle || model.state == AppState::Error;
-        const bool canConnect = idle && !console.address.empty();
+        const bool canConnect = idle && (!console.address.empty() || console.viaInternet);
         place(buttonSize(t.connect).x);
         if (button(t.connect, ButtonKind::Primary, ImVec2(0, 0), canConnect)) actions_.connect(console.hostId);
-        if (console.status != ConsoleStatus::Ready) {
+        // Over the internet nothing wakes it: a wake button would promise what it cannot do.
+        if (console.status != ConsoleStatus::Ready && !console.viaInternet) {
             const bool canWake = !console.waking && idle;
             place(buttonSize(t.wake).x);
             if (button(t.wake, ButtonKind::Secondary, ImVec2(0, 0), canWake)) actions_.wake(console.hostId);
@@ -3346,6 +3351,55 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
                 paragraph(TextStyle::Caption, t.installFailed, p.danger);
                 paragraph(TextStyle::Caption, model.install.error, p.textTertiary);
             }
+        }
+    }
+
+    if (model.psnRemote.available) {
+        using Phase = UiModel::PsnRemoteView::Phase;
+        const UiModel::PsnRemoteView& away = model.psnRemote;
+        space(20.0f);
+        {
+            const ImVec2 start = ImGui::GetCursorScreenPos();
+            const float titleHeight = measure(TextStyle::Strong, t.awayTitle).y;
+            label(TextStyle::Strong, t.awayTitle);
+            const float titleWidth = measure(TextStyle::Strong, t.awayTitle).x;
+            const float pillHeight = measure(TextStyle::Caption, t.beta).y + px(4.0f);
+            ImGui::SetCursorScreenPos(
+                ImVec2(start.x + titleWidth + px(10.0f), start.y + (titleHeight - pillHeight) * 0.5f));
+            pill(t.beta, p.beta);
+            ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + std::max(titleHeight, pillHeight)));
+        }
+        space(8.0f);
+        paragraph(TextStyle::Caption, t.awayHint, p.textSecondary);
+        space(10.0f);
+        const bool busy = away.phase == Phase::SigningIn || away.phase == Phase::Fetching;
+        if (away.signedIn) {
+            std::string state = t.awaySignedIn;
+            if (away.listed) {
+                std::string names;
+                for (const std::string& name : away.consoles) names += (names.empty() ? "" : ", ") + name;
+                state = names.empty() ? std::string(t.awayNoConsole) : format(t.awayConsoles, {names});
+            }
+            paragraph(TextStyle::Body, state, p.text);
+            space(10.0f);
+            if (button(t.awaySignOut, ButtonKind::Secondary, ImVec2(0, 0), model.state != AppState::Streaming)) {
+                actions_.signOutRemote();
+            }
+        } else {
+            if (away.expired) {
+                paragraph(TextStyle::Caption, t.awayExpired, p.standby);
+                space(8.0f);
+            }
+            if (button(busy ? t.awaySigningIn : t.awaySignIn, ButtonKind::Secondary, ImVec2(0, 0), !busy)) {
+                actions_.startRemoteLogin();
+            }
+            space(6.0f);
+            paragraph(TextStyle::Caption, t.awayKept, p.textTertiary);
+        }
+        if (away.phase == Phase::Failed) {
+            space(8.0f);
+            paragraph(TextStyle::Caption, t.awayFailed, p.danger);
+            if (!away.errorDetail.empty()) paragraph(TextStyle::Caption, away.errorDetail, p.textTertiary);
         }
     }
 

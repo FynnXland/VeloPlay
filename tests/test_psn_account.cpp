@@ -14,7 +14,8 @@ namespace {
 /// Plays Sony's two answers and keeps what was asked.
 struct FakeSony final : update::IHttpClient {
     std::vector<update::HttpRequest> requests;
-    std::string tokenAnswer = R"({"access_token":"tok/en+1","token_type":"bearer","expires_in":3599})";
+    std::string tokenAnswer =
+        R"({"access_token":"tok/en+1","token_type":"bearer","expires_in":3599,"refresh_token":"re fresh"})";
     std::string accountAnswer = R"({"scopes":"psn:clientapp","user_id":"8104513492015792419","client_id":"x"})";
     std::optional<Error> failToken;
     std::chrono::milliseconds delay{0};
@@ -148,4 +149,47 @@ TEST(PsnAccountLookup, RunsInTheBackground) {
     lookup.cancel();
     EXPECT_FALSE(lookup.running());
     EXPECT_FALSE(lookup.take().has_value());
+}
+
+TEST(PsnRemote, AsksForTheFourPermissionsOfTheWayFromAway) {
+    const auto id = newPsnClientId();
+    ASSERT_TRUE(id.ok());
+    EXPECT_EQ(id->size(), 48u);
+    EXPECT_EQ(id->rfind("0000000700410080", 0), 0u);
+    EXPECT_NE(*id, *newPsnClientId()); // new each time
+
+    const std::string url = psnRemoteLoginUrl(*id);
+    EXPECT_NE(url.find("scope=psn%3Aclientapp%20referenceDataService%3AcountryConfig.read%20pushNotification%3A"
+                       "webSocket.desktop.connect%20sessionManager%3AremotePlaySession.system.update&"),
+              std::string::npos);
+    EXPECT_NE(url.find("&duid=" + *id + "&"), std::string::npos);
+    EXPECT_EQ(url.find(' '), std::string::npos);
+
+    const update::HttpRequest refresh = psnRefreshRequest("old/refresh");
+    EXPECT_EQ(refresh.method, "POST");
+    EXPECT_EQ(refresh.body.rfind("grant_type=refresh_token&refresh_token=old%2Frefresh&scope=psn%3Aclientapp%20", 0), 0u);
+}
+
+TEST(PsnRemote, SignsInAndKeepsBothTokensWithTheirTime) {
+    FakeSony sony;
+    const auto signedIn = signInForRemote(sony, "the-code", 1'000, {});
+    ASSERT_TRUE(signedIn.ok()) << signedIn.error().message;
+    EXPECT_EQ(signedIn->tokens.access, "tok/en+1");
+    EXPECT_EQ(signedIn->tokens.refresh, "re fresh");
+    EXPECT_EQ(signedIn->tokens.expiresAt, 1'000 + 3'599);
+    EXPECT_EQ(signedIn->account.toNumber(), 8104513492015792419ull);
+    ASSERT_EQ(sony.requests.size(), 2u);
+    EXPECT_NE(sony.requests[0].body.find("&scope=psn%3Aclientapp%20"), std::string::npos);
+
+    // A refresh keeps what Sony hands back, a new refresh token included.
+    sony.tokenAnswer = R"({"access_token":"second","refresh_token":"rotated","expires_in":60})";
+    const auto refreshed = refreshPsnTokens(sony, "re fresh", 5'000, {});
+    ASSERT_TRUE(refreshed.ok());
+    EXPECT_EQ(refreshed->access, "second");
+    EXPECT_EQ(refreshed->refresh, "rotated");
+    EXPECT_EQ(refreshed->expiresAt, 5'060);
+
+    // Without a refresh token there is nothing to keep for later.
+    EXPECT_FALSE(psnTokensFromAnswer(R"({"access_token":"a","expires_in":60})", 0).ok());
+    EXPECT_FALSE(psnTokensFromAnswer("not json", 0).ok());
 }

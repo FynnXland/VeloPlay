@@ -40,6 +40,7 @@ struct Strings {
     const char* statusReady;
     const char* statusStandby;
     const char* statusOffline;
+    const char* statusViaInternet; // paired, not found here, but Sony's servers list it
     const char* statusWaking;
     const char* nowRunning; // {0} = game title
     const char* notPaired;
@@ -340,6 +341,9 @@ struct Strings {
     const char* streamKeys;
     const char* hudDecoder;
     const char* noticeBitrateLowered; // {0} = new rate in Mbit/s
+    const char* noticePsnNoAnswer;    // {0} = console
+    const char* noticePsnUnreachable; // {0} = console
+    const char* noticePsnFailed;      // {0} = console
     const char* accountSignIn;
     const char* accountSignInHint;
     const char* accountSignInBrowser;
@@ -401,6 +405,17 @@ struct Strings {
     const char* alertUnsteadyAway;
     const char* pauseAway;
     const char* awayHelp;
+    const char* awayTitle;
+    const char* awayHint;
+    const char* awaySignIn;
+    const char* awaySigningIn;
+    const char* awaySignOut;
+    const char* awaySignedIn;
+    const char* awayConsoles; // {0} = names
+    const char* awayNoConsole;
+    const char* awayExpired;
+    const char* awayFailed;
+    const char* awayKept;
     const char* notesTitle;
     const char* notesShow;
     const char* notesHint;

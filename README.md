@@ -55,6 +55,7 @@ Rendered by `tools/ui_preview`. On Windows the client uses Segoe UI, so letter s
 - Shows the picture of a capture card the same way (beta)
 - Lets you steer with a steering wheel and pedals (beta)
 - On AMD cards, can let AMD's frame rate conversion compute the pictures in between (beta)
+- Connects from away through Sony's servers, without router or VPN (Beta)
 - Shows in Discord which game you play through VeloPlay, if you like
 - Updates itself with one click when a new version is published, and installs itself on your PC
   with a start menu entry if you like
@@ -240,14 +241,42 @@ not carry Remote Play.
 <a id="away"></a>
 ## Playing from away
 
-At a friend's place or on holiday, over someone else's Wi-Fi: this works through a VPN into your
-home network. To VeloPlay it then looks almost as if you were at home. This way has not been tried
-with a real PS5 yet.
+At a friend's place or on holiday, over someone else's Wi-Fi. There are two ways. Neither has been
+tried with a real PS5 in a foreign network yet.
+
+### Through Sony's servers (Beta)
+
+This is how Sony's own app does it: Sony's servers bring the PC and the PS5 together, then the
+picture goes directly. Nothing to set up on the router, no VPN.
 
 **Prepare once at home:**
 
 1. **Pair the laptop with the PS5 at home**, like the PC. Only the PS5's screen shows the PIN, so
-   this cannot be done from away. A pairing cannot be copied from one PC to another either: the
+   this cannot be done from away.
+2. **Sign in in VeloPlay:** Settings > Advanced > Play from away > "Sign in with PlayStation".
+   It then shows which PS5 Sony knows for your account.
+3. **On the PS5**, Remote Play has to be switched on (Settings > System > Remote Play).
+
+**Away:** Best leave the PS5 on when you go. Whether VeloPlay can bring it out of rest mode this way
+is not tested yet. Then start VeloPlay. If it does not find the PS5 in the network, the PS5 shows
+"Not found here. Connect tries over the internet". Click "Connect", and VeloPlay sets up the
+connection through Sony. That takes longer than at home, often half a minute.
+
+**If it does not work:** Some networks do not allow this way, such as company Wi-Fi, some hotel
+Wi-Fi and often a phone's hotspot. Try a few times and otherwise in another network, or take the
+way through a VPN. With `VeloPlay.exe --through-sony` you can try the way at home as well.
+
+**What is stored:** a key from Sony that lets VeloPlay sign in again without your password,
+encrypted like the console's keys. VeloPlay neither sees nor stores your password. Signing out
+deletes the key.
+
+### Through a VPN into your home network
+
+If you can get at your router. To VeloPlay it then looks almost as if you were at home.
+
+**Prepare once at home:**
+
+1. **Pair the laptop with the PS5 at home**, as above. A pairing cannot be copied from one PC to another either: the
    keys are bound to your Windows account on that PC.
 2. **Give the PS5 a fixed address.** FRITZ!Box: Home Network > Network, edit the PS5, then
    "Always assign this network device the same IPv4 address".
@@ -363,6 +392,11 @@ is the latest. That request carries nothing about you or your console; GitHub se
 address, as any website does. You can switch the check off under Settings > Advanced > Updates.
 There is no telemetry.
 
+Only if you sign in for "Play from away" does VeloPlay also talk to Sony's servers: for signing in,
+the list of your consoles and setting up the connection. To find its own address on the internet
+it asks STUN servers then, as chiaki-ng does: a list of public servers kept by a third party on
+GitHub, plus servers of Moonlight and Google.
+
 An update is downloaded from the release page of this project over HTTPS, and VeloPlay compares
 it with the SHA-256 checksum that GitHub publishes for the file before it touches anything. The
 files are not signed with a certificate of their own.
@@ -417,7 +451,8 @@ Next:
 
 1. HDR
 
-Playing from away works through a VPN, see [above](#away); not yet tried with a real PS5.
+Playing from away works through Sony's servers or a VPN, see [above](#away); not yet tried with a
+real PS5.
 
 ## Credits
 
