@@ -46,12 +46,17 @@ std::vector<std::uint32_t> broadcastAddresses();
 struct LocalSubnet {
     std::uint32_t address = 0; // our own address in it
     unsigned prefix = 0;       // number of network bits, 24 for 255.255.255.0
+    bool tunnel = false;       // a VPN adapter (WireGuard, Tailscale): its network is somewhere else
 
     friend bool operator==(const LocalSubnet&, const LocalSubnet&) = default;
 };
 
 /// The networks of all active adapters, without loopback.
 std::vector<LocalSubnet> localSubnets();
+
+/// Whether an address lies in one of these networks on an adapter of this PC that is no tunnel:
+/// a console at home, not one reached through a VPN or the internet. Loopback counts as home.
+bool isAtHome(std::uint32_t address, const std::vector<LocalSubnet>& subnets);
 
 struct Datagram {
     Bytes data;

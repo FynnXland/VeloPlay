@@ -3,6 +3,29 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.13.0
+
+- **Playing from away, through a VPN.** The README has a new part "Playing from away": pair the
+  laptop at home once, give the PS5 a fixed address, set up WireGuard on the router, try it over a
+  phone hotspot. VeloPlay notices when the PS5 is reached through a VPN or another network, starts
+  with a more careful bitrate there (10 Mbit/s) and keeps a learned rate of its own for away, so
+  the one at home does not suffer. The pause menu then says "Away", and the note about an uneven
+  link no longer blames the PS5's Wi-Fi. Not yet tried with a real PS5 away from home.
+- When a paired PS5 does not answer, the start page has a link "Not at home? How to play from
+  away".
+
+**Deutsch**
+
+- **Von unterwegs spielen, über ein VPN.** Im README gibt es den neuen Teil „Von unterwegs
+  spielen“: den Laptop einmal zu Hause koppeln, der PS5 eine feste Adresse geben, WireGuard im
+  Router einrichten, über den Hotspot des Handys ausprobieren. VeloPlay merkt, wenn die PS5 über
+  ein VPN oder ein anderes Netz erreicht wird, fängt dort mit einer vorsichtigeren Datenrate an
+  (10 Mbit/s) und merkt sich für unterwegs eine eigene, damit die von zu Hause nicht leidet. Im
+  Menü im Spiel steht dann „Unterwegs“, und der Hinweis zur unruhigen Verbindung schiebt es nicht
+  mehr aufs WLAN der PS5. An einer echten PS5 von unterwegs noch nicht ausprobiert.
+- Antwortet eine gekoppelte PS5 nicht, zeigt die Startseite den Link „Nicht zu Hause? So spielst
+  du von unterwegs“.
+
 ## 1.12.0
 
 - **Switch off notes over the picture.** Settings > Advanced has a new part "Notes over the

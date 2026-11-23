@@ -230,6 +230,52 @@ verzögert hat. Welches WLAN-Band die PS5 benutzt, sieht VeloPlay nicht. Die PS5
 Eine direkte Verbindung zwischen PC und PS5 am Netzwerk vorbei gibt es nicht. Bluetooth und USB
 übertragen kein Remote Play.
 
+<a id="away"></a>
+## Von unterwegs spielen
+
+Bei Freunden oder im Urlaub, über ein fremdes WLAN: Das geht über ein VPN ins Heimnetz. Für
+VeloPlay sieht es dann fast so aus, als wärst du zu Hause. An einer echten PS5 ist dieser Weg noch
+nicht ausprobiert.
+
+**Einmal zu Hause vorbereiten:**
+
+1. **Den Laptop zu Hause mit der PS5 koppeln**, wie den PC. Die PIN zeigt nur der Bildschirm der
+   PS5, deshalb geht das unterwegs nicht. Eine Kopplung lässt sich auch nicht von einem PC auf
+   einen anderen kopieren: Die Schlüssel sind an dein Windows-Konto auf diesem PC gebunden.
+2. **Der PS5 eine feste Adresse geben.** FRITZ!Box: Heimnetz > Netzwerk, bei der PS5 auf
+   Bearbeiten, dann „Diesem Netzwerkgerät immer die gleiche IPv4-Adresse zuweisen“.
+3. **Aufwecken übers Netz erlauben.** An der PS5 unter Einstellungen > System > Energiesparen >
+   Im Ruhemodus verfügbare Funktionen „Mit dem Internet verbunden bleiben“ und „Einschalten der
+   PS5 über das Netzwerk aktivieren“ einschalten.
+4. **Das VPN einrichten.** FRITZ!Box: Internet > Freigaben > VPN (WireGuard), dort eine
+   Verbindung für ein einzelnes Gerät anlegen. Die FRITZ!Box gibt dir eine Datei. Auf dem Laptop
+   das Programm WireGuard von wireguard.com installieren und die Datei dort importieren.
+5. **Vorher ausprobieren:** Den Laptop mit dem Hotspot deines Handys verbinden, WireGuard
+   einschalten, VeloPlay starten. Steht die PS5 als „Bereit“ oder „Im Ruhemodus“ in der Liste,
+   klappt es auch woanders.
+
+**Unterwegs:** WireGuard einschalten, VeloPlay starten, verbinden. VeloPlay merkt, dass die PS5
+über das VPN erreicht wird, fängt mit einer vorsichtigeren Datenrate an und merkt sich für
+unterwegs eine eigene, damit die von zu Hause nicht leidet. Im Menü im Spiel steht bei
+„Verbindung“ dann „Unterwegs“.
+
+**Was die Verzögerung bestimmt:** Das Bild geht von der PS5 über den Upload deines Anschlusses zu
+Hause und dann über den Anschluss, an dem du gerade bist. Dazu kommt die Zeit durchs Internet,
+innerhalb Deutschlands grob 10 bis 30 ms hin und zurück. Am meisten bringen eine PS5 am Kabel am
+Router und zu Hause ein Upload von 15 Mbit/s oder mehr.
+
+**Wenn es nicht klappt:**
+
+- **Beide Netze haben dieselben Adressen**, zum Beispiel zu Hause und dort 192.168.178.x, wie bei
+  zwei FRITZ!Boxen üblich. Dann weiß der Laptop nicht, welches Netz gemeint ist. Abhilfe ist ein
+  anderer Adressbereich zu Hause (FRITZ!Box: Heimnetz > Netzwerk > Netzwerkeinstellungen >
+  IPv4-Einstellungen). Danach VeloPlay einmal zu Hause starten, damit es die neue Adresse der PS5
+  lernt.
+- **Dein Anschluss zu Hause hat keine eigene öffentliche IPv4-Adresse** (DS-Lite, häufig bei
+  Kabelanschlüssen). Dann erreicht der Laptop die FRITZ!Box nur über IPv6, und das fremde Netz
+  muss IPv6 können. Sonst bleibt ein Dienst wie Tailscale mit einem Gerät zu Hause, das immer
+  läuft.
+
 ## Wenn etwas nicht klappt
 
 **Die Konsole wird nicht gefunden.** Die offizielle Remote-Play-App findet Konsolen über dein
@@ -368,8 +414,10 @@ im Spiel, Selbst-Update.
 
 Als Nächstes:
 
-1. Von unterwegs spielen, außerhalb des Heimnetzes
-2. HDR
+1. HDR
+
+Von unterwegs spielen geht über ein VPN, siehe [oben](#away); an einer echten PS5 noch nicht
+ausprobiert.
 
 ## Dank
 

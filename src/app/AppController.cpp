@@ -258,6 +258,7 @@ void AppController::fillModel(UiModel& model) {
         model.session.attempts = session_->attempts;
         model.session.waitingForRelease = session_->waitingForRelease;
         model.session.capture = session_->capture;
+        model.session.away = session_->away;
         if (session_->session && session_->connected) {
             const session::SessionStats stats = session_->session->stats(now);
             model.session.videoFrames = stats.videoFrames;
@@ -316,7 +317,8 @@ void AppController::fillModel(UiModel& model) {
     // else the first paired one. The settings screen shows it.
     model.requestedStream = effectiveStream(config_, session_ ? std::string_view(session_->hostId)
                                             : config_.consoles.empty() ? std::string_view{}
-                                                                       : std::string_view(config_.consoles.front().hostId));
+                                                                       : std::string_view(config_.consoles.front().hostId),
+                                            session_ && session_->away);
     model.requestedStream.hdr = false;
 }
 
@@ -539,7 +541,8 @@ void AppController::beginSession(std::string_view hostId, bool afterWake) {
 
 StreamSettings AppController::streamSettingsForAttempt() const {
     // With "automatic" the program's choice for this console, the stored settings otherwise.
-    StreamSettings stream = effectiveStream(config_, session_ ? std::string_view(session_->hostId) : std::string_view{});
+    StreamSettings stream = effectiveStream(config_, session_ ? std::string_view(session_->hostId) : std::string_view{},
+                                            session_ && session_->away);
     // HDR needs a display path that does not exist yet; the settings say so.
     stream.hdr = false;
     if (session_ && session_->bitrateKbps > 0) stream.bitrateKbps = session_->bitrateKbps;
@@ -581,6 +584,15 @@ bool AppController::startAttempt() {
     if (console == config_.consoles.end() || !console->credentialsValid || !options_.sessionFactory) return false;
     const auto address = addressOf(*console);
     if (!address) return false;
+    // At home or away decides which learned bitrate applies; said once, so a wrong guess shows in the log.
+    const auto ip = net::parseIpv4(*address);
+    const bool away = !session_->capture && options_.isAway && ip && options_.isAway(*ip);
+    if (session_->attempt <= 1 || away != session_->away) {
+        spdlog::info("Console at {}: {}", *address,
+                     away ? "reached from away (through a VPN or another network); away bitrate and advice"
+                          : "in this PC's home network");
+    }
+    session_->away = away;
 
     session::SessionConfig sessionConfig;
     sessionConfig.host = *address;
@@ -857,7 +869,8 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
             case StreamAlert::GraphicsRestored: what = "the graphics device was made anew"; break;
             case StreamAlert::UnsteadyLink:
                 ++session_->unsteadyNotes;
-                what = "the console's pictures come unevenly (its Wi-Fi, most likely)";
+                what = session_->away ? "the console's pictures come unevenly (the way from away)"
+                                      : "the console's pictures come unevenly (its Wi-Fi, most likely)";
                 break;
         }
         spdlog::info("Note over the picture: {} ({} ms since the last picture, {:.0f} fps, {} lost, {} dropped)", what,
@@ -877,7 +890,8 @@ void AppController::logLinkSummary(Clock::time_point now) {
     // What most likely held the picture back, in plain terms: this line is what is read afterwards.
     const char* verdict = average < kSteadyLatenessMs ? "steady"
                           : average < 6.0             ? "a little uneven"
-                                                      : "uneven (the console's Wi-Fi, most likely: a cable or 5 GHz helps)";
+                          : session_->away ? "uneven (the way from away: the upload at home or the line here)"
+                                           : "uneven (the console's Wi-Fi, most likely: a cable or repeater helps)";
     const double inside = session_->insideSamples > 0 ? session_->insideSum / session_->insideSamples : 0.0;
     // Everything that makes an input come back later, so the log answers "why did it feel slow".
     spdlog::info("Link summary after {} min: {}; pictures held up {:.1f} ms on average, {:.1f} ms at worst ({} notes "
@@ -903,16 +917,19 @@ void AppController::rememberLink(Clock::time_point now) {
     outcome.framesLost = stats.framesLost;
     outcome.stalled = session_->stalled;
     outcome.markLoweredBefore = session_->markLowered;
-    const LinkMemory learned = learn(console->link, outcome);
-    if (learned.ceilingKbps != console->link.ceilingKbps && learned.ceilingKbps > 0 &&
-        (console->link.ceilingKbps == 0 || learned.ceilingKbps < console->link.ceilingKbps)) {
+    // Away has its own memory: an evening over someone else's line must not spoil the rate at home.
+    LinkMemory& memory = session_->away ? console->awayLink : console->link;
+    const LinkMemory learned = learn(memory, outcome);
+    if (learned.ceilingKbps != memory.ceilingKbps && learned.ceilingKbps > 0 &&
+        (memory.ceilingKbps == 0 || learned.ceilingKbps < memory.ceilingKbps)) {
         session_->markLowered = true;
     }
-    if (learned == console->link) return;
-    spdlog::info("Automatic bitrate for {}: {} kbit/s next time (this session {} kbit/s, {} of {} pictures lost{})",
-                 console->name, learned.bitrateKbps, outcome.bitrateKbps, outcome.framesLost,
-                 outcome.frames + outcome.framesLost, outcome.stalled ? ", stream stood still" : "");
-    console->link = learned;
+    if (learned == memory) return;
+    spdlog::info("Automatic bitrate for {}{}: {} kbit/s next time (this session {} kbit/s, {} of {} pictures lost{})",
+                 console->name, session_->away ? " from away" : "", learned.bitrateKbps, outcome.bitrateKbps,
+                 outcome.framesLost, outcome.frames + outcome.framesLost,
+                 outcome.stalled ? ", stream stood still" : "");
+    memory = learned;
     configDirty_ = true;
     saveAfter_ = Clock::now() + kSaveDelay;
 }

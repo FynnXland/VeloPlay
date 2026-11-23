@@ -526,6 +526,11 @@ void UiManager::drawDashboard(const UiModel& model) {
             space(10.0f);
         }
         if (edgeButton(t.addConsole)) openPairing();
+        // A paired console that does not answer: perhaps this PC is not at home. Say how that works.
+        const bool pairedMissing = std::any_of(model.consoles.begin(), model.consoles.end(), [](const ConsoleEntry& c) {
+            return c.registered && c.status == ConsoleStatus::Offline;
+        });
+        if (pairedMissing && edgeButton(t.awayHelp, ButtonKind::Link)) actions_.openHelp("away");
         space(24.0f);
         drawModePicker(model);
     }
@@ -1360,7 +1365,8 @@ void UiManager::drawStreamAlerts(const UiModel& model) {
         {StreamAlert::FewerPictures, t.alertFewer},
         {StreamAlert::BatteryLow, t.alertBattery},
         {StreamAlert::GraphicsRestored, t.alertGraphicsRestored},
-        {StreamAlert::UnsteadyLink, t.alertUnsteadyLink},
+        // From away the PS5's Wi-Fi is only one of the lines on the way: no advice that may not fit.
+        {StreamAlert::UnsteadyLink, model.session.away ? t.alertUnsteadyAway : t.alertUnsteadyLink},
     }};
     const float padX = px(14.0f);
     const float padY = px(8.0f);
@@ -1956,8 +1962,9 @@ void UiManager::drawPauseMenu(const UiModel& model) {
          SettingsTab::Picture},
         fromCard ? Tile{t.pauseTileLink, t.captureCards, t.pauseCaptureLink, p.ready, SettingsTab::Picture}
                  : Tile{t.pauseTileLink, rough ? t.pauseLinkRough : t.pauseLinkGood,
-                        format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0),
-                                                   number(stats.packetLossPercent, 1)}),
+                        std::string(session.away ? std::string(t.pauseAway) + "  ·  " : std::string()) +
+                            format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0),
+                                                       number(stats.packetLossPercent, 1)}),
                         rough ? p.standby : p.ready, SettingsTab::Stream},
         fromCard ? Tile{t.pauseTileControl, t.pauseCaptureControl, std::string(), p.ready, SettingsTab::Controller}
                  : Tile{t.pauseTileControl, controlValue, controlDetail,

@@ -107,6 +107,8 @@ struct SessionView {
     bool settingsChanged = false;
     /// The picture comes from a capture card, not from a console over the network.
     bool capture = false;
+    /// The console is reached from away (through a VPN or another network), not in the home network.
+    bool away = false;
 };
 
 /// A video source on this PC, such as a capture card (or a webcam, which Windows lists the same way).

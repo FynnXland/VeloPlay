@@ -1414,6 +1414,43 @@ TEST(AppControllerSession, AutomaticChoosesTheStreamAndLearnsFromAStall) {
     EXPECT_EQ(h.app->config().stream.bitrateKbps, 6'000);
 }
 
+TEST(AppControllerSession, KeepsAnotherBitrateForTheWayFromAway) {
+    test::MockConsole console({});
+    Harness h(console, "session_away.json", true, 700ms, 0us, nullptr, [](AppController::Options& options) {
+        options.isAway = [](std::uint32_t) { return true; }; // as through a VPN
+    });
+    ASSERT_TRUE(h.pair());
+    h.app->config().consoles[0].link = {20'000, 0}; // what home learned
+    h.app->configChanged();
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    // Away starts carefully, whatever home learned, and the model says where it is.
+    EXPECT_EQ(h.sessions->configs[0].stream.bitrateKbps, kAwayStartBitrateKbps);
+    EXPECT_TRUE(h.model.session.away);
+    EXPECT_EQ(h.model.requestedStream.bitrateKbps, kAwayStartBitrateKbps);
+    // A stall away is learned for away; home keeps its rate.
+    ASSERT_TRUE(h.runUntil([&] { return h.sessions->configs.size() == 2; }));
+    EXPECT_EQ(h.sessions->configs[1].stream.bitrateKbps, 5'000);
+    EXPECT_EQ(h.app->config().consoles[0].awayLink.bitrateKbps, 5'000);
+    EXPECT_EQ(h.app->config().consoles[0].link.bitrateKbps, 20'000);
+}
+
+TEST(AppControllerSession, ReachesAConsoleKnownOnlyByItsSavedAddress) {
+    // Through a VPN the search's broadcast never arrives; the console answers the direct question to
+    // the address saved at pairing, and the session goes there.
+    test::MockConsole console({});
+    Harness h(console, "session_saved_address.json");
+    ASSERT_TRUE(h.pair());
+    ASSERT_FALSE(h.app->config().consoles[0].lastAddress.empty());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    EXPECT_EQ(h.sessions->configs[0].host, h.app->config().consoles[0].lastAddress);
+    EXPECT_FALSE(h.model.session.away); // without a check, every console counts as at home
+}
+
 TEST(AppControllerSession, RestartsAStreamThatStandsStillAtHalfTheBitrate) {
     test::MockConsole console({});
     // The timeout is real time. It has to be long against how late a sleep can

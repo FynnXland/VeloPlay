@@ -55,6 +55,9 @@ public:
         std::function<void(const std::filesystem::path&)> openFolder;
         /// Capture cards: what is there (asked once per update, so it has to be quick) and how to open one.
         std::function<std::vector<CaptureDevice>()> captureDevices;
+        /// Whether a console at this address is reached from away (through a VPN or another network).
+        /// Away has its own learned bitrate and other advice. Without it every console counts as at home.
+        std::function<bool(std::uint32_t address)> isAway;
         std::function<std::unique_ptr<session::ISession>()> captureFactory;
         /// The connection to Discord for the card "Playing VeloPlay". Without it there is no card.
         std::function<std::unique_ptr<discord::IPipe>()> discordPipe;
@@ -241,6 +244,7 @@ private:
         double roundTripMs = 0.0;
         int unsteadyNotes = 0;
         bool restart = false;          // we stopped it to connect again with new settings
+        bool away = false;             // reached from away: its own learned bitrate, other advice
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
         bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn

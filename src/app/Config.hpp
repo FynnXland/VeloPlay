@@ -129,6 +129,7 @@ struct RegisteredConsole {
     crypto::Key128 rpKey{};  // secret
     std::uint32_t rpKeyType = 0;
     LinkMemory link;         // what "automatic" learned about the way to this console
+    LinkMemory awayLink;     // the same for the way from away (VPN, another network), kept apart
     /// False when the stored keys could not be decrypted, for example after the
     /// file was copied to another PC. The console then needs to be paired again.
     bool credentialsValid = true;
@@ -177,7 +178,7 @@ void detectProfile(AppConfig& config);
 /// What a session with this console asks for: the program's choice with
 /// "automatic", the stored settings otherwise. An unknown console gets the
 /// choice for a link nothing is known about.
-[[nodiscard]] StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId);
+[[nodiscard]] StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId, bool away = false);
 
 Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& protector);
 

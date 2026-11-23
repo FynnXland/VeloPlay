@@ -590,6 +590,28 @@ std::vector<Scene> scenes() {
              model.stream = playingStats();
              ui.showPauseMenu();
          }},
+        {"55-pause-menu-away",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.session.hostId = "001122AABBCC";
+             model.session.away = true; // through the VPN from a friend's place
+             model.controllerConnected = true;
+             model.stream = playingStats();
+             ui.showPauseMenu();
+         }},
+        {"56-stream-away-note",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 240;
+             model.session.away = true;
+             model.stream = playingStats();
+             model.alerts = {StreamAlert::UnsteadyLink};
+         }},
         {"28-settings-in-game",
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);

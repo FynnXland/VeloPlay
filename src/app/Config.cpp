@@ -115,6 +115,10 @@ void sanitize(AppConfig& config) {
             console.link.bitrateKbps = std::clamp(console.link.bitrateKbps, kMinBitrateKbps, kAutoMaxBitrateKbps);
         }
         console.link.ceilingKbps = std::clamp(console.link.ceilingKbps, 0, kMaxBitrateKbps);
+        if (console.awayLink.bitrateKbps != 0) {
+            console.awayLink.bitrateKbps = std::clamp(console.awayLink.bitrateKbps, kMinBitrateKbps, kAutoMaxBitrateKbps);
+        }
+        console.awayLink.ceilingKbps = std::clamp(console.awayLink.ceilingKbps, 0, kMaxBitrateKbps);
     }
     detectProfile(config);
 }
@@ -137,12 +141,12 @@ bool applyProfile(AppConfig& config, std::string_view profileId) {
     return true;
 }
 
-StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId) {
+StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId, bool away) {
     if (!isAutomatic(config)) return config.stream;
     for (const RegisteredConsole& console : config.consoles) {
-        if (console.hostId == hostId) return automaticStream(console.link);
+        if (console.hostId == hostId) return automaticStream(away ? console.awayLink : console.link, away);
     }
-    return automaticStream(LinkMemory{});
+    return automaticStream(LinkMemory{}, away);
 }
 
 void detectProfile(AppConfig& config) {
@@ -266,6 +270,8 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             {"rp_key_type", console.rpKeyType},
             {"auto_bitrate_kbps", console.link.bitrateKbps},
             {"auto_ceiling_kbps", console.link.ceilingKbps},
+            {"away_bitrate_kbps", console.awayLink.bitrateKbps},
+            {"away_ceiling_kbps", console.awayLink.ceilingKbps},
         };
         // A console whose keys could not be read keeps its place in the list
         // (the user sees "pair again"), but there is nothing to encrypt.
@@ -410,6 +416,8 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             read(entry, "rp_key_type", console.rpKeyType);
             read(entry, "auto_bitrate_kbps", console.link.bitrateKbps);
             read(entry, "auto_ceiling_kbps", console.link.ceilingKbps);
+            read(entry, "away_bitrate_kbps", console.awayLink.bitrateKbps);
+            read(entry, "away_ceiling_kbps", console.awayLink.ceilingKbps);
             std::string credentials;
             read(entry, "credentials", credentials);
             console.credentialsValid = unprotectCredentials(credentials, protector, console);

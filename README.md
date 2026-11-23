@@ -237,6 +237,48 @@ do too.
 There is no direct connection between PC and PS5 that bypasses the network. Bluetooth and USB do
 not carry Remote Play.
 
+<a id="away"></a>
+## Playing from away
+
+At a friend's place or on holiday, over someone else's Wi-Fi: this works through a VPN into your
+home network. To VeloPlay it then looks almost as if you were at home. This way has not been tried
+with a real PS5 yet.
+
+**Prepare once at home:**
+
+1. **Pair the laptop with the PS5 at home**, like the PC. Only the PS5's screen shows the PIN, so
+   this cannot be done from away. A pairing cannot be copied from one PC to another either: the
+   keys are bound to your Windows account on that PC.
+2. **Give the PS5 a fixed address.** FRITZ!Box: Home Network > Network, edit the PS5, then
+   "Always assign this network device the same IPv4 address".
+3. **Allow waking over the network.** On the PS5 under Settings > System > Power Saving >
+   Features Available in Rest Mode, turn on "Stay Connected to the Internet" and "Enable Turning
+   On PS5 from Network".
+4. **Set up the VPN.** FRITZ!Box: Internet > Permit Access > VPN (WireGuard), add a connection for
+   a single device. The FRITZ!Box gives you a file. On the laptop, install WireGuard from
+   wireguard.com and import the file there.
+5. **Try it before you go:** connect the laptop to your phone's hotspot, turn WireGuard on, start
+   VeloPlay. If the PS5 shows as "Ready" or "In rest mode", it will work elsewhere too.
+
+**When away:** turn WireGuard on, start VeloPlay, connect. VeloPlay notices that the PS5 is
+reached through the VPN, starts with a more careful bitrate and keeps a rate of its own for away,
+so the one at home does not suffer. The Connection tile in the pause menu then says "Away".
+
+**What decides the delay:** the picture goes from the PS5 through the upload of your line at home
+and then through the line where you are. Add the time through the internet, roughly 10 to 30 ms
+there and back within one country. What helps most is a PS5 on a cable to the router and an upload
+of 15 Mbit/s or more at home.
+
+**If it does not work:**
+
+- **Both networks use the same addresses**, for example 192.168.178.x at home and there, as is
+  usual with two FRITZ!Boxes. The laptop then cannot tell which network is meant. The remedy is
+  another address range at home (FRITZ!Box: Home Network > Network > Network Settings > IPv4
+  Settings). Then start VeloPlay once at home so it learns the PS5's new address.
+- **Your line at home has no public IPv4 address of its own** (DS-Lite, common with cable). The
+  laptop then reaches the FRITZ!Box only over IPv6, and the other network has to support IPv6.
+  Otherwise a service like Tailscale remains, with a device at home that is always on.
+
 ## If something does not work
 
 **The console is not found.** The official Remote Play app finds consoles through your PSN
@@ -373,8 +415,9 @@ in the game, self-update.
 
 Next:
 
-1. Play from outside the home network
-2. HDR
+1. HDR
+
+Playing from away works through a VPN, see [above](#away); not yet tried with a real PS5.
 
 ## Credits
 

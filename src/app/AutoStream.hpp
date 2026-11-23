@@ -13,6 +13,9 @@ namespace veloplay {
 
 inline constexpr int kAutoStartBitrateKbps = 15'000;
 inline constexpr int kAutoMaxBitrateKbps = 30'000;
+/// Away from home (VPN or another network) the way runs over two internet lines, one of them the
+/// upload at home. A guess, not measured: a careful start that learning raises like at home.
+inline constexpr int kAwayStartBitrateKbps = 10'000;
 
 /// What earlier sessions with one console showed. Zero means nothing yet.
 struct LinkMemory {
@@ -40,7 +43,8 @@ struct SessionOutcome {
 /// are asked for whatever the game does: a 60 fps game arrives as it is, and
 /// a 30 fps game is recognised by its repeated pictures (CadenceDetector).
 /// HDR stays off until there is a display path for it.
-[[nodiscard]] StreamSettings automaticStream(const LinkMemory& memory);
+/// `away`: the console is reached from somewhere else; with nothing learned yet it starts lower.
+[[nodiscard]] StreamSettings automaticStream(const LinkMemory& memory, bool away = false);
 
 /// What to remember after a session. A stream that stood still or lost
 /// pictures lowers the rate and marks where the trouble began. A clean

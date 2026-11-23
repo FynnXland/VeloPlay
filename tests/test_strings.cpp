@@ -75,7 +75,7 @@ TEST(HelpLinks, PointAtPagesThatExist) {
     // "HEAD" follows the repository's default branch, whatever it is called.
     EXPECT_EQ(veloplay::helpBaseUrl(), "https://github.com/FynnXland/VeloPlay/blob/HEAD/");
 
-    for (const char* topic : {"account-id", "remote-control", "anything-else", ""}) {
+    for (const char* topic : {"account-id", "away", "remote-control", "anything-else", ""}) {
         for (bool german : {true, false}) {
             const std::string url = veloplay::helpUrl(topic, german);
             ASSERT_EQ(url.rfind(veloplay::helpBaseUrl(), 0), 0u) << url;

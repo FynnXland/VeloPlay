@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cstring>
 #include <mutex>
+#include <string>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -180,7 +181,10 @@ std::vector<LocalSubnet> localSubnets() {
             for (auto* unicast = adapter->FirstUnicastAddress; unicast; unicast = unicast->Next) {
                 if (unicast->Address.lpSockaddr->sa_family != AF_INET) continue;
                 const auto* addr = reinterpret_cast<const sockaddr_in*>(unicast->Address.lpSockaddr);
-                result.push_back({ntohl(addr->sin_addr.s_addr), static_cast<unsigned>(unicast->OnLinkPrefixLength)});
+                // Wintun, the adapter of WireGuard and Tailscale, says IF_TYPE_PROP_VIRTUAL (53; wintun.inf, *IfType).
+                const bool tunnel = adapter->IfType == IF_TYPE_PROP_VIRTUAL || adapter->IfType == IF_TYPE_TUNNEL;
+                result.push_back(
+                    {ntohl(addr->sin_addr.s_addr), static_cast<unsigned>(unicast->OnLinkPrefixLength), tunnel});
             }
         }
     }
@@ -194,12 +198,25 @@ std::vector<LocalSubnet> localSubnets() {
             std::uint32_t mask = ntohl(reinterpret_cast<const sockaddr_in*>(it->ifa_netmask)->sin_addr.s_addr);
             unsigned prefix = 0;
             for (; mask & 0x80000000u; mask <<= 1) ++prefix;
-            result.push_back({ip, prefix});
+            const std::string name = it->ifa_name ? it->ifa_name : "";
+            const bool tunnel = (it->ifa_flags & IFF_POINTOPOINT) != 0 || name.rfind("wg", 0) == 0 ||
+                                name.rfind("tun", 0) == 0 || name.rfind("tailscale", 0) == 0;
+            result.push_back({ip, prefix, tunnel});
         }
         freeifaddrs(list);
     }
 #endif
     return result;
+}
+
+bool isAtHome(std::uint32_t address, const std::vector<LocalSubnet>& subnets) {
+    if ((address >> 24) == 127) return true;
+    for (const LocalSubnet& subnet : subnets) {
+        if (subnet.tunnel || subnet.prefix == 0 || subnet.prefix > 32) continue;
+        const std::uint32_t mask = subnet.prefix == 32 ? 0xffffffffu : ~(0xffffffffu >> subnet.prefix);
+        if ((address & mask) == (subnet.address & mask)) return true;
+    }
+    return false;
 }
 
 std::vector<std::uint32_t> broadcastAddresses() {

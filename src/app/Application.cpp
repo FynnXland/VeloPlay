@@ -24,6 +24,7 @@
 #include "app/HangProbe.hpp"
 #include "app/HelpLinks.hpp"
 #include "app/Installer.hpp"
+#include "net/Socket.hpp"
 #include "util/LogFiles.hpp"
 #include "input/SdlControllerBackend.hpp"
 #include "update/Release.hpp"
@@ -359,6 +360,8 @@ int Application::run() {
             for (int slice = 0; slice < 50 && !stop.stop_requested(); ++slice) Sleep(100);
         }
     });
+    // Asked once per connection attempt: the adapters may have changed (a VPN switched on).
+    options.isAway = [](std::uint32_t address) { return !net::isAtHome(address, net::localSubnets()); };
     options.captureDevices = [this] {
         std::lock_guard lock(captureMutex_);
         return captureDevices_;

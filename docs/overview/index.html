@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.12.0</span>
+    <span class="pill">Version 1.13.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -193,17 +193,18 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 
 <section id="naechstes">
   <h2>Dein nächster Test</h2>
-  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 22.11.2026, Version 1.12.0.</p>
+  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 23.11.2026, Version 1.13.0.</p>
   <div class="panel">
     <h3><span class="dot soon"></span>Zuerst</h3>
     <ol>
-      <li><strong>Update holen:</strong> VeloPlay bietet 1.12.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Update holen:</strong> VeloPlay bietet 1.13.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
     </ol>
   </div>
   <div class="panel">
     <h3><span class="dot soon"></span>Neu, bitte ausprobieren</h3>
     <ol>
       <li><strong>Discord (1.11.1):</strong> Unter Einstellungen &gt; Erweitert &gt; Discord dein Spiel eintragen. Steht es oben auf der Karte, ohne „PS5“ als Text und ohne „VeloPlay über VeloPlay“?</li>
+      <li><strong>Von unterwegs spielen (1.13.0), der Reihe nach:</strong> (1) zu Hause den Laptop mit der PS5 koppeln; (2) in der FRITZ!Box der PS5 eine feste Adresse geben; (3) in der FRITZ!Box WireGuard für ein einzelnes Gerät anlegen und auf dem Laptop importieren; (4) zu Hause den Laptop mit dem Hotspot des Handys verbinden, WireGuard an, VeloPlay starten: Steht die PS5 in der Liste, verbinden. Steht im Menü im Spiel bei „Verbindung“ „Unterwegs“? Wie fühlt sich die Steuerung an? Die Schritte stehen im README unter „Von unterwegs spielen“, auch der Link auf der Startseite führt dorthin.</li>
       <li><strong>Hinweise abschalten (1.12.0):</strong> Einstellungen &gt; Erweitert &gt; „Hinweise über dem Bild“. Einmal „Einzeln wählen“ öffnen und einen Hinweis ausschalten, den du nicht brauchst. Verschwindet er im Spiel?</li>
       <li><strong>Hinweis bei unruhigem WLAN:</strong> Kommt er zu oft? Einmal pro halbe Stunde ist gedacht. Er sagt jetzt „Kabel oder Repeater kann helfen“.</li>
     </ol>
@@ -261,7 +262,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Von unterwegs spielen, außerhalb des Heimnetzes</li>
+        <li>Von unterwegs spielen: geht seit 1.13.0 über ein VPN ins Heimnetz, an einer echten PS5 noch nicht ausprobiert</li>
         <li>HDR</li>
       </ul>
       <p class="small muted">Zwischenbilder, Hochskalieren und Schärfen laufen seit dem 21.11.2026 auf einer RTX 4070: Am Bildschirm kommen etwa 60 Bilder pro Sekunde an, auch mit RTX Video. RTX Video verändert das Bild dort messbar, der sichtbare Unterschied ist bei gleicher Bildgröße aber gering.</p>
@@ -874,6 +875,15 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <li>Am Ende jedes Streams schreibt VeloPlay eine Zeile „Link summary“ ins Protokoll: wie ruhig die Verbindung war, die Antwortzeit beim Aufbau, die Zeit im PC und wie viel Verzögerung Zwischenbilder und das Warten auf verspätete Bilder dazugeben.</li>
     </ul>
   </details>
+  <h3>Von unterwegs</h3>
+  <p>Seit 1.13.0 geht das über ein VPN ins Heimnetz, etwa WireGuard der FRITZ!Box. Der Laptop muss einmal zu Hause gekoppelt werden, die PS5 braucht eine feste Adresse. VeloPlay merkt, wenn die PS5 über ein VPN oder ein anderes Netz erreicht wird, fängt dann mit 10 Mbit/s an und merkt sich für unterwegs eine eigene Datenrate. An einer echten PS5 ist das noch nicht ausprobiert.</p>
+  <details><summary>Technik</summary>
+    <ul>
+      <li>Zu Hause heißt: Ein Netzwerkadapter dieses PCs, der kein Tunnel ist, liegt im Netz der PS5. Tunnel erkennt VeloPlay am Adaptertyp von WireGuard und Tailscale (Windows meldet ihn als „virtuell“), nicht an OpenVPN mit TAP-Adapter.</li>
+      <li>Der Rundruf der Suche kommt durch ein VPN nicht an; VeloPlay fragt die gespeicherte Adresse der PS5 direkt, weckt sie dort und verbindet sich dorthin.</li>
+      <li>Unterwegs sagt der Hinweis zur unruhigen Verbindung nichts übers WLAN der PS5, weil dort zwei Internetanschlüsse dazwischen liegen.</li>
+    </ul>
+  </details>
   <h3>Wie die Messung bewertet</h3>
   <p>Gemessen wird mit denselben Suchpaketen, auf die die PS5 ohnehin antwortet. Eine PS5 lässt sich dafür rund 100 ms Zeit, auch auf einer schnellen Strecke. Deshalb zählt nicht, wie lange die schnellste Antwort braucht, sondern wie viel später die langsamen kommen, wie stark die Zeiten schwanken und wie viele Antworten fehlen. Wie viel Datenrate die Strecke trägt, kann diese Messung nicht sehen; die Vorschläge sind deshalb vorsichtig.</p>
   <div class="scroll"><table>
@@ -921,7 +931,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>328 automatische Tests unter Linux und 362 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>332 automatische Tests unter Linux und 366 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

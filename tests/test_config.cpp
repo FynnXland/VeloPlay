@@ -7,8 +7,10 @@
 #include <nlohmann/json.hpp>
 
 #include "FakeProtector.hpp"
+#include "app/AutoStream.hpp"
 #include "app/Config.hpp"
 #include "app/StreamAlerts.hpp"
+#include "net/Socket.hpp"
 
 using namespace veloplay;
 using json = nlohmann::json;
@@ -424,6 +426,40 @@ TEST(AutoStream, StartsCarefullyAndKeepsWhatItLearned) {
     EXPECT_EQ(weak.bitrateKbps, 5'000);
     // Whatever the file says, never beyond the limits.
     EXPECT_EQ(automaticStream({90'000, 0}).bitrateKbps, kAutoMaxBitrateKbps);
+}
+
+TEST(AutoStream, StartsLowerFromAwayAndKeepsBothMemories) {
+    EXPECT_EQ(automaticStream(LinkMemory{}, true).bitrateKbps, kAwayStartBitrateKbps);
+    EXPECT_EQ(automaticStream(LinkMemory{}, false).bitrateKbps, kAutoStartBitrateKbps);
+    EXPECT_EQ(automaticStream(LinkMemory{12'000, 0}, true).bitrateKbps, 12'000); // learned counts
+    test::FakeProtector protector;
+    AppConfig config;
+    config.consoles = {sampleConsole()};
+    config.consoles[0].link = {20'000, 0};
+    config.consoles[0].awayLink = {6'000, 8'000};
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back);
+    EXPECT_EQ(back->consoles[0].link, config.consoles[0].link);
+    EXPECT_EQ(back->consoles[0].awayLink, config.consoles[0].awayLink);
+    EXPECT_EQ(effectiveStream(*back, back->consoles[0].hostId, true).bitrateKbps, 6'000);
+    EXPECT_EQ(effectiveStream(*back, back->consoles[0].hostId, false).bitrateKbps, 20'000);
+}
+
+TEST(Network, TellsHomeFromAWayThroughATunnel) {
+    using net::LocalSubnet;
+    const std::uint32_t ps5 = *net::parseIpv4("192.168.178.20");
+    // At home: the Wi-Fi or cable is in the console's network.
+    EXPECT_TRUE(net::isAtHome(ps5, {LocalSubnet{*net::parseIpv4("192.168.178.31"), 24, false}}));
+    // At a friend's: her network is another one, the VPN adapter carries the home network.
+    const std::vector<LocalSubnet> away = {LocalSubnet{*net::parseIpv4("192.168.2.40"), 24, false},
+                                           LocalSubnet{*net::parseIpv4("192.168.178.201"), 24, true}};
+    EXPECT_FALSE(net::isAtHome(ps5, away));
+    // Nothing that holds it: also away (a forwarded port, say).
+    EXPECT_FALSE(net::isAtHome(ps5, {}));
+    EXPECT_TRUE(net::isAtHome(*net::parseIpv4("127.0.0.1"), {}));
+    EXPECT_TRUE(net::isAtHome(ps5, {LocalSubnet{ps5, 32, false}}));
 }
 
 TEST(AutoStream, RaisesAfterACleanSessionAndLowersAfterTrouble) {

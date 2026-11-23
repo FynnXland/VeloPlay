@@ -398,6 +398,9 @@ struct Strings {
     const char* alertBattery;
     const char* alertGraphicsRestored;
     const char* alertUnsteadyLink;
+    const char* alertUnsteadyAway;
+    const char* pauseAway;
+    const char* awayHelp;
     const char* notesTitle;
     const char* notesShow;
     const char* notesHint;
