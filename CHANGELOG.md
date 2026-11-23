@@ -3,6 +3,41 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.15.0
+
+- **The automatic picks the resolution from what really arrives.** On a link in trouble the PS5
+  lowers its own bitrate, at times to 3 or 4 Mbit/s, while 1080p was asked for. 720p looks better
+  at that rate. When a session of two minutes or more had an unsteady link or lost pictures and
+  less than 5 Mbit/s arrived, the next one asks for 720p; after two clean sessions at 720p in a
+  row 1080p is tried again. The request is no longer raised while the PS5 uses less than half of
+  it. Each decision is written to the log with its numbers.
+- **The sound buffer regulates itself.** New setting "Automatic" under Settings > Advanced >
+  Network buffer, now the default: VeloPlay keeps as little sound in store as it can (from
+  60 ms) and adds 20 ms as soon as the Wi-Fi leaves a gap, up to 140 ms; after a calm minute it
+  goes down again by 10 ms. "Low latency" (80 ms) and "Stable" (140 ms) stay to choose.
+- **From away it starts at 720p** (6 Mbit/s); one clean session takes it to 1080p.
+- **Try the way through Sony at home** with a switch under Settings > Advanced > Play from away,
+  instead of starting VeloPlay with `--through-sony`. It stays on until VeloPlay closes.
+
+**Deutsch**
+
+- **Die Automatik wählt die Auflösung nach dem, was wirklich ankommt.** Bei einer Verbindung mit
+  Problemen senkt die PS5 ihre Datenrate selbst, teils auf 3 bis 4 Mbit/s, obwohl 1080p angefragt
+  war. Bei so wenig sieht 720p besser aus. Hatte eine Sitzung von mindestens zwei Minuten eine
+  unruhige Verbindung oder verlorene Bilder und kamen weniger als 5 Mbit/s an, fragt die nächste
+  nach 720p; nach zwei sauberen Sitzungen in Folge mit 720p wird 1080p wieder versucht. Mehr
+  Datenrate wird nicht mehr angefragt, solange die PS5 weniger als die Hälfte davon nutzt. Jede
+  Entscheidung steht mit ihren Zahlen im Protokoll.
+- **Der Tonpuffer regelt sich selbst.** Neue Einstellung „Automatisch“ unter Einstellungen >
+  Erweitert > Netzwerkpuffer, jetzt die Voreinstellung: VeloPlay hält so wenig Ton vorrätig wie
+  möglich (ab 60 ms) und legt 20 ms nach, sobald das WLAN eine Lücke reißt, bis 140 ms; nach einer
+  ruhigen Minute geht es um 10 ms zurück. „Geringe Latenz“ (80 ms) und „Stabil“ (140 ms) bleiben
+  wählbar.
+- **Von unterwegs geht es mit 720p los** (6 Mbit/s); eine saubere Sitzung hebt auf 1080p.
+- **Den Weg über Sony zu Hause ausprobieren** mit einem Schalter unter Einstellungen > Erweitert >
+  Von unterwegs spielen, statt VeloPlay mit `--through-sony` zu starten. Er bleibt an, bis
+  VeloPlay geschlossen wird.
+
 ## 1.14.0
 
 - **Playing from away through Sony's servers (Beta).** No router settings and no VPN: as with

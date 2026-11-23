@@ -527,6 +527,64 @@ TEST(AutoStream, RaisesAfterACleanSessionAndLowersAfterTrouble) {
 
 // A weak Wi-Fi evening with two stalls used to leave a console at 720p for good: each stall lowered
 // the mark again, and nothing raised it. Now the mark drops once per session.
+TEST(AutoStream, GoesTo720pWhenTheConsoleSendsTooLittleOnALinkInTrouble) {
+    using namespace std::chrono_literals;
+    // From away it starts at 720p.
+    EXPECT_EQ(automaticStream(LinkMemory{}, true).height, 720);
+    EXPECT_EQ(automaticStream(LinkMemory{}, false).height, 1080);
+
+    // The user's evening: 15 Mbit/s asked at 1080p, 3.5 arrived, the link unsteady, a few pictures lost.
+    SessionOutcome evening;
+    evening.bitrateKbps = 15'000;
+    evening.streamed = 600s;
+    evening.frames = 36'000;
+    evening.framesLost = 30;
+    evening.deliveredKbps = 3'500;
+    evening.unsteady = true;
+    LinkMemory memory = learn(LinkMemory{}, evening);
+    EXPECT_TRUE(memory.lowResolution);
+    EXPECT_EQ(automaticStream(memory).height, 720);
+
+    // A quiet game sends little on a steady link: that says nothing about the link.
+    SessionOutcome quiet = evening;
+    quiet.unsteady = false;
+    quiet.framesLost = 0;
+    const LinkMemory calm = learn(LinkMemory{}, quiet);
+    EXPECT_FALSE(calm.lowResolution);
+    // And asking for more than the console uses brings nothing: the request stays.
+    EXPECT_EQ(calm.bitrateKbps, 15'000);
+
+    // Two clean sessions at 720p in a row, and 1080p is tried again; trouble in between starts the count anew.
+    SessionOutcome clean;
+    clean.bitrateKbps = memory.bitrateKbps;
+    clean.fullHd = false;
+    clean.streamed = 600s;
+    clean.frames = 36'000;
+    clean.deliveredKbps = 6'000;
+    memory = learn(memory, clean);
+    EXPECT_TRUE(memory.lowResolution);
+    SessionOutcome rough = clean;
+    rough.unsteady = true;
+    memory = learn(memory, rough);
+    EXPECT_EQ(memory.cleanAtLow, 0);
+    memory = learn(memory, clean);
+    memory = learn(memory, clean);
+    EXPECT_FALSE(memory.lowResolution);
+    EXPECT_EQ(automaticStream(memory).height, 1080);
+
+    // Kept in the settings file.
+    test::FakeProtector protector;
+    AppConfig config;
+    config.consoles = {sampleConsole()};
+    config.consoles[0].link = {12'000, 0, true, 1};
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back);
+    EXPECT_EQ(back->consoles[0].link, config.consoles[0].link);
+    EXPECT_EQ(effectiveStream(*back, back->consoles[0].hostId, false).height, 720);
+}
+
 TEST(AutoStream, LowersTheMarkOncePerSessionAndFindsBackUp) {
     using std::chrono::seconds;
     SessionOutcome first{15'000, seconds(5), 60, 0, true};
@@ -589,7 +647,7 @@ TEST(Config, MovesKeysNobodyChangedToTheNewStart) {
     before.controller.keyboardMouse.games.push_back(game);
     auto text = serializeConfig(before, protector);
     ASSERT_TRUE(text.ok());
-    const std::string marker = "\"settings_version\": 5";
+    const std::string marker = "\"settings_version\": 6";
     const std::size_t at = text->find(marker);
     ASSERT_NE(at, std::string::npos) << *text;
     std::string old = *text;
@@ -730,4 +788,28 @@ TEST(Config, OldFilesGetAutomaticFrameGenerationAndUpscaling) {
     ASSERT_TRUE(current.ok());
     EXPECT_EQ(current->graphics.frameGenerationFactor, 2);
     EXPECT_EQ(current->graphics.superResolutionLevel, 0);
+}
+
+TEST(Config, LeavesTheNetworkBufferToTheProgramUnlessStableWasChosen) {
+    test::FakeProtector protector;
+    EXPECT_EQ(AppConfig{}.network.jitter, JitterMode::Auto);
+    const auto old = parseConfig(R"({"settings_version":5,"network":{"jitter":"low_latency"}})", protector);
+    ASSERT_TRUE(old);
+    EXPECT_EQ(old->network.jitter, JitterMode::Auto);
+    const auto stable = parseConfig(R"({"settings_version":5,"network":{"jitter":"stable"}})", protector);
+    ASSERT_TRUE(stable);
+    EXPECT_EQ(stable->network.jitter, JitterMode::Stable);
+    // Chosen since 1.15, it stays what it is.
+    const auto chosen = parseConfig(R"({"settings_version":6,"network":{"jitter":"low_latency"}})", protector);
+    ASSERT_TRUE(chosen);
+    EXPECT_EQ(chosen->network.jitter, JitterMode::LowLatency);
+    AppConfig config;
+    for (const JitterMode mode : {JitterMode::Auto, JitterMode::LowLatency, JitterMode::Stable}) {
+        config.network.jitter = mode;
+        const auto text = serializeConfig(config, protector);
+        ASSERT_TRUE(text);
+        const auto back = parseConfig(*text, protector);
+        ASSERT_TRUE(back);
+        EXPECT_EQ(back->network.jitter, mode);
+    }
 }

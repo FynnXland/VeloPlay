@@ -145,6 +145,7 @@ private:
     std::deque<float> frameTimes_;
     std::chrono::steady_clock::time_point lastPicture_{};
     media::FramePacer pacer_;             // which picture is due when
+    media::SoundReserve soundReserve_;    // sound kept against late packets, with the network buffer on "automatic"
     media::InputRateDetector inputRate_;  // 30 or 60 fps, by what arrives
     media::CadenceDetector cadence_;      // a game at 30 fps inside a 60 fps stream
     bool skipRepeats_ = false;            // its repeated pictures are measured but not shown

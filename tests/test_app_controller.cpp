@@ -1672,3 +1672,29 @@ TEST(AppControllerSession, StaysAtHomeWhenTheConsoleWasOutOfReachForAMoment) {
     EXPECT_FALSE(a.h.sessions->configs[1].psn.has_value());
     EXPECT_EQ(a.h.sessions->configs[1].host, a.h.app->config().consoles[0].lastAddress);
 }
+
+TEST(AppControllerSession, TriesTheWayThroughSonyAtHomeWhenAsked) {
+    AwayHarness a("session_psn_try.json");
+    ASSERT_TRUE(a.h.pair());
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = a.h.app->config().consoles[0].name;
+    }
+    ASSERT_TRUE(a.signIn());
+    a.h.app->tryRemoteAtHome(true);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.psnRemote.tryAtHome && a.h.model.psnRemote.listed; }));
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    EXPECT_TRUE(a.h.sessions->configs[0].psn.has_value()); // the console answers here, and still Sony's way
+    a.h.app->disconnect();
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Idle; }));
+
+    a.h.app->tryRemoteAtHome(false);
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    EXPECT_FALSE(a.h.sessions->configs[1].psn.has_value());
+    // Never stored: a new start reaches the console at home directly.
+    EXPECT_EQ(a.h.app->config().psn.signedIn(), true);
+}

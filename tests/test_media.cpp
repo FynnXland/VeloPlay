@@ -1157,3 +1157,37 @@ TEST(FramePacer, KeepsItsRhythmWhenStepsFallRightOnTheRefreshes) {
         }
     }
 }
+
+TEST(SoundReserve, GrowsWithGapsInTheSoundAndShrinksOnACalmLink) {
+    using namespace std::chrono_literals;
+    using media::SoundReserve;
+    SoundReserve reserve;
+    const auto start = SoundReserve::Clock::time_point{} + 1h;
+    reserve.restart(start);
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kStart);
+    // The first count is only where counting starts, even if the output had gaps before.
+    EXPECT_FALSE(reserve.update(3, start));
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kStart);
+
+    // A gap raises it at once; more gaps up to the most it keeps.
+    EXPECT_TRUE(reserve.update(4, start + 1s));
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kStart + SoundReserve::kRaise);
+    for (int gap = 5; gap < 20; ++gap) reserve.update(static_cast<std::uint64_t>(gap), start + 2s);
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kHighest);
+
+    // A calm minute lowers it a little; it never goes below what a calm link needs.
+    EXPECT_FALSE(reserve.update(19, start + 30s));
+    EXPECT_TRUE(reserve.update(19, start + 2s + SoundReserve::kCalm));
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kHighest - SoundReserve::kLower);
+    for (int minute = 2; minute < 30; ++minute) reserve.update(19, start + 2s + SoundReserve::kCalm * minute);
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kLowest);
+
+    // A new device counts from zero: no false alarm, and what was learned stays.
+    EXPECT_FALSE(reserve.update(0, start + 1h));
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kLowest);
+    // A new stream: same, and its first gap still counts.
+    reserve.restart(start + 2h);
+    EXPECT_FALSE(reserve.update(0, start + 2h));
+    EXPECT_TRUE(reserve.update(1, start + 2h + 1s));
+    EXPECT_EQ(reserve.reserve(), SoundReserve::kLowest + SoundReserve::kRaise);
+}

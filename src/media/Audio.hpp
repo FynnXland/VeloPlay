@@ -31,6 +31,36 @@ public:
     /// A new reserve while playing, for example when the picture is held back longer. The sound
     /// moves to it gently, without a gap. Outputs that cannot do that ignore it.
     virtual void setDelay(std::chrono::milliseconds delay) { (void)delay; }
+    /// How often the sound ran dry while playing, one count per gap. May start again from zero when
+    /// the device changes.
+    [[nodiscard]] virtual std::uint64_t underruns() const { return 0; }
+};
+
+/// How much sound to keep against packets that come late, found while playing instead of chosen in
+/// the settings. Every gap in the sound raises it a step at once; a minute without one lowers it a
+/// little, down to what a calm link needs. Each millisecond of reserve is sound that plays that much
+/// after its picture, so it stays as small as the link allows.
+class SoundReserve {
+public:
+    using Clock = std::chrono::steady_clock;
+    static constexpr std::chrono::milliseconds kStart{80};   // what "low latency" always kept
+    static constexpr std::chrono::milliseconds kLowest{60};
+    static constexpr std::chrono::milliseconds kHighest{140}; // what "stable" always kept
+    static constexpr std::chrono::milliseconds kRaise{20};
+    static constexpr std::chrono::milliseconds kLower{10};
+    static constexpr std::chrono::seconds kCalm{60};
+
+    /// `underruns` is the output's count so far. Returns true when the reserve changed.
+    bool update(std::uint64_t underruns, Clock::time_point now);
+    /// A new stream: the count starts anew. What was learned stays; the link is likely the same.
+    void restart(Clock::time_point now);
+    [[nodiscard]] std::chrono::milliseconds reserve() const { return reserve_; }
+
+private:
+    std::chrono::milliseconds reserve_ = kStart;
+    std::uint64_t seen_ = 0;
+    bool known_ = false;
+    Clock::time_point since_{};
 };
 
 // The microphone's sound travels to the console in a fixed shape: 48 kHz,

@@ -216,4 +216,35 @@ RumbleLevel hapticsToRumble(std::span<const std::int16_t> stereo) {
     return {level(sumLeft), level(sumRight)};
 }
 
+
+bool SoundReserve::update(std::uint64_t underruns, Clock::time_point now) {
+    if (!known_ || underruns < seen_) {
+        // The first count of a stream, or a new device that counts from zero: a starting point only.
+        known_ = true;
+        seen_ = underruns;
+        if (since_ == Clock::time_point{}) since_ = now;
+        return false;
+    }
+    if (underruns > seen_) {
+        seen_ = underruns;
+        since_ = now;
+        const auto raised = std::min(kHighest, reserve_ + kRaise);
+        if (raised == reserve_) return false;
+        reserve_ = raised;
+        return true;
+    }
+    if (now - since_ >= kCalm && reserve_ > kLowest) {
+        since_ = now;
+        reserve_ = std::max(kLowest, reserve_ - kLower);
+        return true;
+    }
+    return false;
+}
+
+void SoundReserve::restart(Clock::time_point now) {
+    known_ = false;
+    seen_ = 0;
+    since_ = now;
+}
+
 } // namespace veloplay::media

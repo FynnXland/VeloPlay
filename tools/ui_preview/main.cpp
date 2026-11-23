@@ -72,6 +72,7 @@ public:
     void dismissAccountLookup() override {}
     void startRemoteLogin() override {}
     void signOutRemote() override {}
+    void tryRemoteAtHome(bool) override {}
 };
 
 /// Response times in ms for the connection scenes; negative means lost.

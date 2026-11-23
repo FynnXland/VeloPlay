@@ -81,6 +81,7 @@ public:
         bool hardware = false;
         std::string decoder;             // empty until the first picture
         bool audioPlaying = false;
+        std::uint64_t audioUnderruns = 0; // gaps in the sound so far (see IAudioOutput::underruns)
         bool hapticsPlaying = false;
     };
 

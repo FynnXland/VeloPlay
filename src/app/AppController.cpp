@@ -234,6 +234,7 @@ void AppController::fillModel(UiModel& model) {
     model.psnRemote.errorDetail = psnError_;
     model.psnRemote.listed = psnListed_;
     model.psnRemote.expired = psnExpired_;
+    model.psnRemote.tryAtHome = tryRemoteAtHome_;
     model.psnRemote.consoles.clear();
     for (const session::PsnConsole& console : psnConsoles_) {
         if (console.remotePlay) model.psnRemote.consoles.push_back(console.name);
@@ -903,6 +904,7 @@ void AppController::updateAlerts(const session::SessionStats& stats, Clock::time
     session_->alerts.update(observation, now);
     // Into the log as well: afterwards it says what the user saw and when.
     for (const StreamAlert alert : session_->alerts.raised()) {
+        if (alert == StreamAlert::UnsteadyLink) session_->unsteady = true;
         const char* what = "";
         switch (alert) {
             case StreamAlert::NoController: what = "no controller connected"; break;
@@ -962,6 +964,12 @@ void AppController::rememberLink(Clock::time_point now) {
     outcome.framesLost = stats.framesLost;
     outcome.stalled = session_->stalled;
     outcome.markLoweredBefore = session_->markLowered;
+    outcome.fullHd = session_->requested.height >= 1080;
+    outcome.unsteady = session_->unsteady;
+    if (outcome.streamed.count() > 0) {
+        outcome.deliveredKbps = static_cast<int>(static_cast<double>(stats.videoBytes) * 8.0 / 1000.0 /
+                                                 static_cast<double>(outcome.streamed.count()));
+    }
     // Away has its own memory: an evening over someone else's line must not spoil the rate at home.
     LinkMemory& memory = session_->away ? console->awayLink : console->link;
     const LinkMemory learned = learn(memory, outcome);
@@ -969,11 +977,15 @@ void AppController::rememberLink(Clock::time_point now) {
         (memory.ceilingKbps == 0 || learned.ceilingKbps < memory.ceilingKbps)) {
         session_->markLowered = true;
     }
+    // Every decision with its numbers: the thresholds are guesses, the log is what tunes them.
+    spdlog::info("Automatic for {}{}: {} kbit/s{} next time (this session asked {} kbit/s at {}p, {} kbit/s arrived, "
+                 "{} of {} pictures lost{}{}){}",
+                 console->name, session_->away ? " from away" : "", learned.bitrateKbps,
+                 learned.lowResolution ? " at 720p" : "", outcome.bitrateKbps, outcome.fullHd ? 1080 : 720,
+                 outcome.deliveredKbps, outcome.framesLost, outcome.frames + outcome.framesLost,
+                 outcome.stalled ? ", stream stood still" : "", outcome.unsteady ? ", link unsteady" : "",
+                 learned == memory ? ", nothing changes" : "");
     if (learned == memory) return;
-    spdlog::info("Automatic bitrate for {}{}: {} kbit/s next time (this session {} kbit/s, {} of {} pictures lost{})",
-                 console->name, session_->away ? " from away" : "", learned.bitrateKbps, outcome.bitrateKbps,
-                 outcome.framesLost, outcome.frames + outcome.framesLost,
-                 outcome.stalled ? ", stream stood still" : "");
     memory = learned;
     configDirty_ = true;
     saveAfter_ = Clock::now() + kSaveDelay;
@@ -1112,7 +1124,8 @@ void AppController::applyStreamAdvice() {
         console.link.bitrateKbps = std::min(advice.bitrateKbps, kAutoMaxBitrateKbps);
         console.link.ceilingKbps = 0;
     }
-    config_.network.jitter = advice.stableBuffer ? JitterMode::Stable : JitterMode::LowLatency;
+    // A measurement that finds the link steady leaves the buffer to the program, which keeps it small.
+    config_.network.jitter = advice.stableBuffer ? JitterMode::Stable : JitterMode::Auto;
     configChanged();
 }
 
@@ -1523,7 +1536,7 @@ bool AppController::goesThroughSony(const RegisteredConsole& console, Clock::tim
     if (!psnUsable()) return false;
     const session::PsnConsole* remote = psnConsoleFor(console);
     if (!remote || !remote->remotePlay) return false;
-    if (options_.alwaysThroughSony) return true;
+    if (options_.alwaysThroughSony || tryRemoteAtHome_) return true;
     if (foundAtHome(console.hostId)) return false;
     for (const auto& [hostId, seen] : seenAtHome_) {
         if (equalsIgnoreCase(hostId, console.hostId) && now - seen < options_.homeMemory) return false;
@@ -1563,6 +1576,14 @@ void AppController::startRemoteLogin() {
         psnPhase_ = UiModel::PsnRemoteView::Phase::Failed;
         psnError_ = "the sign-in page could not be opened";
     }
+}
+
+void AppController::tryRemoteAtHome(bool on) {
+    if (on == tryRemoteAtHome_) return;
+    tryRemoteAtHome_ = on;
+    psnNextList_ = {}; // the list is wanted now, not in a minute
+    spdlog::info("Playing from away: {}", on ? "trying the way through Sony's servers at home"
+                                             : "consoles at home are reached directly again");
 }
 
 void AppController::signOutRemote() {
@@ -1656,7 +1677,7 @@ void AppController::updatePsn(Clock::time_point now) {
 
     // The list only matters while a paired console is not found here.
     const bool someoneMissing =
-        options_.alwaysThroughSony || std::any_of(config_.consoles.begin(), config_.consoles.end(),
+        options_.alwaysThroughSony || tryRemoteAtHome_ || std::any_of(config_.consoles.begin(), config_.consoles.end(),
                                                   [&](const RegisteredConsole& c) { return !foundAtHome(c.hostId); });
     if (someoneMissing && !psnList_.valid() && now >= psnNextList_ && now - firstUpdate_ >= options_.psnFirstListAfter) {
         psnNextList_ = now + options_.psnRetry;

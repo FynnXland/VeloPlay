@@ -26,7 +26,7 @@ StreamSettings automaticStream(const LinkMemory& memory, bool away) {
     const int start = away ? kAwayStartBitrateKbps : kAutoStartBitrateKbps;
     stream.bitrateKbps = std::clamp(memory.bitrateKbps > 0 ? memory.bitrateKbps : start,
                                     kMinBitrateKbps, kAutoMaxBitrateKbps);
-    const bool fullHd = stream.bitrateKbps >= kFullHdFromKbps;
+    const bool fullHd = stream.bitrateKbps >= kFullHdFromKbps && !memory.lowResolution;
     stream.width = fullHd ? 1920 : 1280;
     stream.height = fullHd ? 1080 : 720;
     return stream;
@@ -54,9 +54,23 @@ LinkMemory learn(const LinkMemory& memory, const SessionOutcome& outcome) {
     if (outcome.streamed < kShortestSession || total == 0) return next;
 
     const double loss = static_cast<double>(outcome.framesLost) / static_cast<double>(total);
+    const bool troubled = outcome.unsteady || loss >= kLossFine;
+    // The console throttled itself on a link in trouble, far below 1080p's need: 720p next time.
+    if (outcome.fullHd && troubled && outcome.deliveredKbps > 0 && outcome.deliveredKbps < kFullHdDeliveredKbps) {
+        next.lowResolution = true;
+        next.cleanAtLow = 0;
+    } else if (!outcome.fullHd && next.lowResolution) {
+        next.cleanAtLow = troubled ? 0 : next.cleanAtLow + 1;
+        if (next.cleanAtLow >= 2) {
+            next.lowResolution = false;
+            next.cleanAtLow = 0;
+        }
+    }
+    // Asking for more than the console sends brings nothing; it only waits to be used.
+    const bool usedUp = outcome.deliveredKbps == 0 || outcome.deliveredKbps * 2 >= used;
     if (loss > kLossTooHigh) {
         lower(0.75);
-    } else if (loss < kLossFine) {
+    } else if (loss < kLossFine && usedUp) {
         // Clean at the mark itself: the trouble back then may have been the evening, not the link.
         // The mark moves up a tenth, and goes once it reaches the most automatic asks for.
         if (next.ceilingKbps > 0 && used >= next.ceilingKbps * 9 / 10) {

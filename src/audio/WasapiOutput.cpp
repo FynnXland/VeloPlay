@@ -95,6 +95,11 @@ void WasapiOutput::setDelay(std::chrono::milliseconds delay) {
     if (buffer_) buffer_->setTarget(delay, delay + kExtraBeforeDrop);
 }
 
+std::uint64_t WasapiOutput::underruns() const {
+    std::lock_guard lock(mutex_);
+    return buffer_ ? buffer_->underruns() : 0;
+}
+
 bool WasapiOutput::start(int sampleRate, int channels, std::chrono::milliseconds delay) {
     stop();
     if (!stopEvent_ || sampleRate <= 0 || channels <= 0) return false;

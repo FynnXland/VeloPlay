@@ -29,6 +29,7 @@ public:
     void stop() override;
     [[nodiscard]] bool running() const override { return running_.load(); }
     void setDelay(std::chrono::milliseconds delay) override;
+    [[nodiscard]] std::uint64_t underruns() const override;
 
     /// Waits for the outcome of start(): true once the device plays, false if
     /// it could not be opened or the time ran out.
@@ -46,7 +47,7 @@ private:
     std::future<bool> opened_;
     void* stopEvent_ = nullptr; // HANDLE
 
-    std::mutex mutex_; // guards buffer_ against start() and stop()
+    mutable std::mutex mutex_; // guards buffer_ against start() and stop()
     std::unique_ptr<media::AudioBuffer> buffer_;
     Tap tap_; // guarded by mutex_
 };

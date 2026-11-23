@@ -21,7 +21,14 @@ using json = nlohmann::json;
 constexpr int kConfigVersion = 1;
 
 std::string_view codecName(VideoCodec codec) { return codec == VideoCodec::H264 ? "h264" : "hevc"; }
-std::string_view jitterName(JitterMode mode) { return mode == JitterMode::Stable ? "stable" : "low_latency"; }
+std::string_view jitterName(JitterMode mode) {
+    switch (mode) {
+        case JitterMode::Stable: return "stable";
+        case JitterMode::LowLatency: return "low_latency";
+        case JitterMode::Auto: break;
+    }
+    return "auto";
+}
 
 /// Reads `key` into `target` if it exists and has a compatible type.
 template <class T>
@@ -142,12 +149,14 @@ void sanitize(AppConfig& config) {
             console.awayLink.bitrateKbps = std::clamp(console.awayLink.bitrateKbps, kMinBitrateKbps, kAutoMaxBitrateKbps);
         }
         console.awayLink.ceilingKbps = std::clamp(console.awayLink.ceilingKbps, 0, kMaxBitrateKbps);
+        console.link.cleanAtLow = std::clamp(console.link.cleanAtLow, 0, 2);
+        console.awayLink.cleanAtLow = std::clamp(console.awayLink.cleanAtLow, 0, 2);
     }
     detectProfile(config);
 }
 
 // Raised when defaults change in a way that old files have to follow.
-constexpr int kSettingsVersion = 5;
+constexpr int kSettingsVersion = 6;
 
 bool applyProfile(AppConfig& config, std::string_view profileId) {
     if (profileId == kProfileAuto) {
@@ -302,6 +311,10 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             {"auto_ceiling_kbps", console.link.ceilingKbps},
             {"away_bitrate_kbps", console.awayLink.bitrateKbps},
             {"away_ceiling_kbps", console.awayLink.ceilingKbps},
+            {"auto_low_resolution", console.link.lowResolution},
+            {"auto_clean_at_low", console.link.cleanAtLow},
+            {"away_low_resolution", console.awayLink.lowResolution},
+            {"away_clean_at_low", console.awayLink.cleanAtLow},
         };
         // A console whose keys could not be read keeps its place in the list
         // (the user sees "pair again"), but there is nothing to encrypt.
@@ -420,7 +433,9 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     const json& network = section(root, "network");
     std::string jitter;
     read(network, "jitter", jitter);
-    config.network.jitter = jitter == "stable" ? JitterMode::Stable : JitterMode::LowLatency;
+    config.network.jitter = jitter == "stable"        ? JitterMode::Stable
+                            : jitter == "low_latency" ? JitterMode::LowLatency
+                                                      : JitterMode::Auto;
     read(network, "stats_overlay", config.network.statsOverlay);
     read(network, "stats_compact", config.network.statsCompact);
     read(network, "stats_corner", config.network.statsCorner);
@@ -455,6 +470,10 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             read(entry, "auto_ceiling_kbps", console.link.ceilingKbps);
             read(entry, "away_bitrate_kbps", console.awayLink.bitrateKbps);
             read(entry, "away_ceiling_kbps", console.awayLink.ceilingKbps);
+            read(entry, "auto_low_resolution", console.link.lowResolution);
+            read(entry, "auto_clean_at_low", console.link.cleanAtLow);
+            read(entry, "away_low_resolution", console.awayLink.lowResolution);
+            read(entry, "away_clean_at_low", console.awayLink.cleanAtLow);
             std::string credentials;
             read(entry, "credentials", credentials);
             console.credentialsValid = unprotectCredentials(credentials, protector, console);
@@ -502,6 +521,10 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             if (game.keys == input::firstKeyBindings()) game.keys = input::defaultKeyBindings();
         }
     }
+
+    // Up to 1.14 the network buffer was "low latency" unless somebody chose "stable". Since 1.15 the
+    // program finds the amount itself; the old start moves along, a choice of "stable" stays.
+    if (version < 6 && config.network.jitter == JitterMode::LowLatency) config.network.jitter = JitterMode::Auto;
 
     sanitize(config);
     return config;

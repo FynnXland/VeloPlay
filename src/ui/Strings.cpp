@@ -204,9 +204,11 @@ constexpr Strings kGerman = {
     .remoteRunning = "Aktiv auf 127.0.0.1:{0}",
     .remoteDocs = "Befehle ansehen",
     .jitter = "Netzwerkpuffer",
+    .jitterAuto = "Automatisch",
     .jitterLow = "Geringe Latenz",
     .jitterStable = "Stabil",
-    .jitterHint = "„Stabil“ gleicht Schwankungen im WLAN aus und kostet einige Millisekunden.",
+    .jitterHint = "Gilt für den Ton. „Automatisch“ hält so wenig Ton vorrätig wie möglich und legt nach, sobald "
+                  "das WLAN eine Lücke reißt. „Geringe Latenz“ hält immer 80 ms, „Stabil“ immer 140 ms.",
     .statsOverlay = "Statistik im Stream anzeigen",
     .extraAddresses = "Zusätzliche Adressen",
     .extraAddressesHint = "Für Konsolen, die die automatische Suche nicht findet, etwa in einem anderen Netzwerksegment.",
@@ -440,6 +442,9 @@ constexpr Strings kGerman = {
     .awayNoConsole = "Angemeldet. Sony nennt keine PS5 mit eingeschaltetem Remote Play.",
     .awayExpired = "Die Anmeldung ist abgelaufen. Melde dich neu an.",
     .awayFailed = "Die Anmeldung hat nicht geklappt.",
+    .awayTryAtHome = "Zu Hause über Sony ausprobieren",
+    .awayTryAtHomeHint = "Verbinden geht dann auch zu Hause über die Server von Sony, bis du VeloPlay schließt. So "
+                         "weißt du vorher, ob der Weg bei dir klappt.",
     .awayKept = "VeloPlay behält einen Schlüssel von Sony, verschlüsselt für dein Windows-Konto. Dein Passwort sieht "
                 "und speichert es nicht.",
     .notesTitle = "Hinweise über dem Bild",
@@ -725,9 +730,11 @@ constexpr Strings kEnglish = {
     .remoteRunning = "Listening on 127.0.0.1:{0}",
     .remoteDocs = "View commands",
     .jitter = "Network buffer",
+    .jitterAuto = "Automatic",
     .jitterLow = "Low latency",
     .jitterStable = "Stable",
-    .jitterHint = "\"Stable\" evens out Wi-Fi hiccups and costs a few milliseconds.",
+    .jitterHint = "For the sound. \"Automatic\" keeps as little sound in store as it can and adds more as soon "
+                  "as the Wi-Fi leaves a gap. \"Low latency\" always keeps 80 ms, \"Stable\" always 140 ms.",
     .statsOverlay = "Show statistics while streaming",
     .extraAddresses = "Additional addresses",
     .extraAddressesHint = "For consoles that the automatic search does not find, for example on another network segment.",
@@ -955,6 +962,9 @@ constexpr Strings kEnglish = {
     .awayNoConsole = "Signed in. Sony lists no PS5 with Remote Play switched on.",
     .awayExpired = "The sign-in ran out. Sign in again.",
     .awayFailed = "Signing in did not work.",
+    .awayTryAtHome = "Try the way through Sony at home",
+    .awayTryAtHomeHint = "Connect then goes through Sony's servers at home as well, until you close VeloPlay. So "
+                         "you know beforehand whether the way works for you.",
     .awayKept = "VeloPlay keeps a key from Sony, encrypted for your Windows account. It neither sees nor stores your "
                 "password.",
     .notesTitle = "Notes over the picture",

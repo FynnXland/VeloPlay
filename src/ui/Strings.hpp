@@ -208,6 +208,7 @@ struct Strings {
     const char* remoteRunning; // {0} = port
     const char* remoteDocs;
     const char* jitter;
+    const char* jitterAuto;
     const char* jitterLow;
     const char* jitterStable;
     const char* jitterHint;
@@ -415,6 +416,8 @@ struct Strings {
     const char* awayNoConsole;
     const char* awayExpired;
     const char* awayFailed;
+    const char* awayTryAtHome;
+    const char* awayTryAtHomeHint;
     const char* awayKept;
     const char* notesTitle;
     const char* notesShow;

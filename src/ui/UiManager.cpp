@@ -3382,6 +3382,12 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
             }
             paragraph(TextStyle::Body, state, p.text);
             space(10.0f);
+            // Trying the way at home is the only check it gets before the first evening away.
+            bool tryAtHome = away.tryAtHome;
+            const bool idle = model.state == AppState::Idle || model.state == AppState::Error;
+            if (toggleRow(t.awayTryAtHome, &tryAtHome, idle)) actions_.tryRemoteAtHome(tryAtHome);
+            hint(t.awayTryAtHomeHint);
+            space(10.0f);
             if (button(t.awaySignOut, ButtonKind::Secondary, ImVec2(0, 0), model.state != AppState::Streaming)) {
                 actions_.signOutRemote();
             }
@@ -3423,10 +3429,14 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     }
 
     sectionTitle(t.jitter);
-    const std::array<const char*, 2> jitter = {t.jitterLow, t.jitterStable};
-    config.network.jitter = segmented("jitter", jitter, config.network.jitter == JitterMode::Stable ? 1 : 0) == 1
-                                ? JitterMode::Stable
-                                : JitterMode::LowLatency;
+    {
+        const std::array<const char*, 3> jitter = {t.jitterAuto, t.jitterLow, t.jitterStable};
+        const std::array<JitterMode, 3> modes = {JitterMode::Auto, JitterMode::LowLatency, JitterMode::Stable};
+        const int current = config.network.jitter == JitterMode::Stable       ? 2
+                            : config.network.jitter == JitterMode::LowLatency ? 1
+                                                                              : 0;
+        config.network.jitter = modes[static_cast<std::size_t>(segmented("jitter", jitter, current))];
+    }
     hint(t.jitterHint);
     space(10.0f);
     toggleRow(t.statsOverlay, &config.network.statsOverlay);

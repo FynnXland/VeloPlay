@@ -312,6 +312,7 @@ MediaPipeline::Stats MediaPipeline::stats() {
         out = stats_;
     }
     out.audioPlaying = options_.audio && options_.audio->running();
+    out.audioUnderruns = options_.audio ? options_.audio->underruns() : 0;
     out.hapticsPlaying = options_.haptics && options_.haptics->running();
     return out;
 }

@@ -264,7 +264,8 @@ connection through Sony. That takes longer than at home, often half a minute.
 
 **If it does not work:** Some networks do not allow this way, such as company Wi-Fi, some hotel
 Wi-Fi and often a phone's hotspot. Try a few times and otherwise in another network, or take the
-way through a VPN. With `VeloPlay.exe --through-sony` you can try the way at home as well.
+way through a VPN. With the switch "Try the way through Sony at home" in the same section you can
+test the way at home as well.
 
 **What is stored:** a key from Sony that lets VeloPlay sign in again without your password,
 encrypted like the console's keys. VeloPlay neither sees nor stores your password. Signing out

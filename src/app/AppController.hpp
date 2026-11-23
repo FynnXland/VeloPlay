@@ -211,6 +211,7 @@ public:
     void startAccountLoginInBrowser() override;
     void startRemoteLogin() override;
     void signOutRemote() override;
+    void tryRemoteAtHome(bool on) override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
 
@@ -262,6 +263,7 @@ private:
         bool restart = false;          // we stopped it to connect again with new settings
         bool away = false;             // reached from away: its own learned bitrate, other advice
         bool viaPsn = false;           // through Sony's servers, not to an address
+        bool unsteady = false;         // the note about an unsteady link came in this session
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
         bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn
@@ -356,6 +358,7 @@ private:
     std::vector<std::pair<std::string, Clock::time_point>> seenAtHome_;
     Clock::time_point firstUpdate_{};
     bool remoteLogin_ = false; // the sign-in window that is open is the one for playing from away
+    bool tryRemoteAtHome_ = false; // until the program closes; never stored, so it cannot stay on by mistake
     UiModel::PsnRemoteView::Phase psnPhase_ = UiModel::PsnRemoteView::Phase::Idle;
     std::string psnError_;
     bool psnExpired_ = false;

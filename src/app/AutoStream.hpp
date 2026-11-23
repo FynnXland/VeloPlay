@@ -13,14 +13,22 @@ namespace veloplay {
 
 inline constexpr int kAutoStartBitrateKbps = 15'000;
 inline constexpr int kAutoMaxBitrateKbps = 30'000;
-/// Away from home (VPN or another network) the way runs over two internet lines, one of them the
-/// upload at home. A guess, not measured: a careful start that learning raises like at home.
-inline constexpr int kAwayStartBitrateKbps = 10'000;
+/// Away from home (VPN, another network, Sony's servers) the way runs over two internet lines, one of
+/// them the upload at home. A guess, not measured: a careful start at 720p, as chiaki-ng does it from
+/// away, that one clean session raises to 1080p.
+inline constexpr int kAwayStartBitrateKbps = 6'000;
+/// Below this much arriving, 1080p shows more blocks than 720p would. Only taken as a sign when the
+/// link was in trouble too: a quiet scene or a menu sends little on any link.
+inline constexpr int kFullHdDeliveredKbps = 5'000;
 
 /// What earlier sessions with one console showed. Zero means nothing yet.
 struct LinkMemory {
     int bitrateKbps = 0; // what to ask for next time
     int ceilingKbps = 0; // a rate that turned out too high lies above this
+    /// The console sent too little for 1080p on a link in trouble: ask for 720p until two sessions in
+    /// a row went cleanly at 720p.
+    bool lowResolution = false;
+    int cleanAtLow = 0;
 
     friend bool operator==(const LinkMemory&, const LinkMemory&) = default;
 };
@@ -32,6 +40,11 @@ struct SessionOutcome {
     std::uint64_t frames = 0;          // pictures that arrived
     std::uint64_t framesLost = 0;      // pictures that did not
     bool stalled = false;              // the stream stood still and was started again
+    bool fullHd = true;                // 1080p was asked for
+    /// What arrived, averaged over the time with a picture; 0 when unknown. The console lowers its rate
+    /// by itself when it hears of losses, so this can lie far below what was asked for.
+    int deliveredKbps = 0;
+    bool unsteady = false;             // pictures came unevenly for a while (the note about the link)
     /// The mark was already lowered once in this session (an evening with reconnects counts as one):
     /// a second hitch lowers the rate, not the mark again, or one bad evening ends at 720p for good.
     bool markLoweredBefore = false;

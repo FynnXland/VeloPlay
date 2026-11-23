@@ -652,8 +652,17 @@ void Application::frame() {
 
         // A console on Wi-Fi delivers in bursts with gaps of tens of milliseconds
         // between them; chiaki-ng keeps about 100 ms of sound for that reason.
+        // "Automatic" finds the amount while playing: a gap in the sound raises it.
         // Pictures held back for frame generation hold the sound back as well.
-        const std::chrono::milliseconds reserve{config.network.jitter == JitterMode::Stable ? 140 : 80};
+        std::chrono::milliseconds reserve{config.network.jitter == JitterMode::Stable ? 140 : 80};
+        if (config.network.jitter == JitterMode::Auto) {
+            const std::uint64_t gaps = streaming ? pipeline_->stats().audioUnderruns : 0;
+            if (streaming && soundReserve_.update(gaps, now)) {
+                spdlog::info("Sound: {} ms kept against late packets now (gaps in the sound so far: {})",
+                             soundReserve_.reserve().count(), gaps);
+            }
+            reserve = soundReserve_.reserve();
+        }
         pipeline_->setAudioDelay(reserve + std::chrono::duration_cast<std::chrono::milliseconds>(pacer_.addedDelay()));
 
         if (model_.stream && videoRenderer_.hasPicture()) {
@@ -837,6 +846,7 @@ void Application::forgetPictures() {
     lastPicture_ = {};
     lastChoice_ = {};
     pacer_.reset();
+    soundReserve_.restart(std::chrono::steady_clock::now());
     lastRefresh_ = {};
     refreshMs_ = 0.0;
     insideMs_ = 0.0;

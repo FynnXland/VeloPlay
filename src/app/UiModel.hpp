@@ -189,6 +189,7 @@ struct UiModel {
         bool listed = false;               // Sony's servers answered with the account's consoles
         std::vector<std::string> consoles; // their names, those with Remote Play on
         bool expired = false;              // the sign-in ran out and has to be done again
+        bool tryAtHome = false;            // connect through Sony even to a console found here
     };
     PsnRemoteView psnRemote;
     std::vector<Notice> notices;
@@ -348,6 +349,9 @@ public:
     /// Sign in at Sony for playing from away, and sign out again (forgets the tokens).
     virtual void startRemoteLogin() = 0;
     virtual void signOutRemote() = 0;
+    /// Try the way through Sony's servers at home: until the program closes, connecting goes that way
+    /// even to a console found in this network.
+    virtual void tryRemoteAtHome(bool on) = 0;
 };
 
 } // namespace veloplay

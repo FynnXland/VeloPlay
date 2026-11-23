@@ -68,10 +68,10 @@ struct RemoteApiSettings {
     friend bool operator==(const RemoteApiSettings&, const RemoteApiSettings&) = default;
 };
 
-enum class JitterMode { LowLatency, Stable };
+enum class JitterMode { LowLatency, Stable, Auto };
 
 struct NetworkSettings {
-    JitterMode jitter = JitterMode::LowLatency;
+    JitterMode jitter = JitterMode::Auto;
     bool statsOverlay = true;
     /// With the display on: only the few figures everybody wants (pictures per second, link), not all of them.
     bool statsCompact = false;

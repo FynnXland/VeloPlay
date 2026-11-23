@@ -258,8 +258,8 @@ eine halbe Minute.
 
 **Wenn es nicht klappt:** Manche Netze lassen diesen Weg nicht zu, etwa Firmen-WLAN, manche
 Hotel-WLANs und oft der Hotspot vom Handy. Probier es ein paarmal und sonst in einem anderen Netz,
-oder nimm den Weg über ein VPN. Mit `VeloPlay.exe --through-sony` kannst du den Weg auch zu Hause
-ausprobieren.
+oder nimm den Weg über ein VPN. Mit dem Schalter „Zu Hause über Sony ausprobieren“ in demselben
+Abschnitt kannst du den Weg auch zu Hause testen.
 
 **Was dabei gespeichert wird:** Ein Schlüssel von Sony, mit dem VeloPlay sich ohne dein Passwort
 erneut anmeldet, verschlüsselt wie die Schlüssel der Konsole. Dein Passwort sieht und speichert
