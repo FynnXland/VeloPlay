@@ -1698,3 +1698,80 @@ TEST(AppControllerSession, TriesTheWayThroughSonyAtHomeWhenAsked) {
     // Never stored: a new start reaches the console at home directly.
     EXPECT_EQ(a.h.app->config().psn.signedIn(), true);
 }
+
+TEST(AppControllerSession, KeepsTheLinkSecondBySecondForThePageNetwork) {
+    test::MockConsole console({});
+    Harness h(console, "session_link_history.json");
+    ASSERT_TRUE(h.pair());
+    EXPECT_TRUE(h.model.link.consoleName.empty()); // nothing streamed yet
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    h.sessions->stats.bitrateMbps = 8.5;
+    h.sessions->stats.streamFps = 60.0;
+    ASSERT_TRUE(h.runUntil(
+        [&] {
+            h.sessions->stats.videoFrames += 2; // pictures keep coming
+            h.sessions->stats.framesLost = 3;
+            return h.model.link.samples.size() >= 2;
+        },
+        5000ms));
+    EXPECT_TRUE(h.model.link.live);
+    EXPECT_EQ(h.model.link.hostId, Harness::kHostId);
+    EXPECT_FALSE(h.model.link.consoleName.empty());
+    const LinkSample& first = h.model.link.samples.front();
+    EXPECT_EQ(first.second, 0);
+    EXPECT_FLOAT_EQ(first.mbps, 8.5f);
+    EXPECT_FALSE(first.stalled);
+    std::uint64_t lost = 0;
+    for (const LinkSample& sample : h.model.link.samples) lost += sample.lost;
+    EXPECT_EQ(lost, 3u); // counted once, in the second it happened
+
+    // After the stream the page still shows it, no longer live.
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    EXPECT_FALSE(h.model.link.live);
+    EXPECT_FALSE(h.model.link.samples.empty());
+}
+
+TEST(AppControllerSession, CountsTheTimeOfAReconnectAsOneDropOutInTheLinkHistory) {
+    // The longest outages are the seconds between two attempts; the chart must show them, at their width.
+    test::MockConsole console({});
+    Harness h(console, "session_link_gap.json", true, 700ms);
+    ASSERT_TRUE(h.pair());
+    h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    h.sessions->scripts.push_back({}); // the second attempt waits until the test lets it connect
+    h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    h.sessions->stats.bitrateMbps = 9.0;
+    const auto feed = [&](std::chrono::milliseconds length) {
+        const auto until = std::chrono::steady_clock::now() + length;
+        while (std::chrono::steady_clock::now() < until) {
+            h.sessions->stats.videoFrames += 2;
+            h.app->update();
+            h.app->fillModel(h.model);
+            std::this_thread::sleep_for(10ms);
+        }
+    };
+    feed(1500ms);
+    // Pictures stop: after the stall timeout the session is started again and waits.
+    ASSERT_TRUE(h.runUntil([&] { return h.sessions->configs.size() == 2; }));
+    const auto until = std::chrono::steady_clock::now() + 2200ms;
+    while (std::chrono::steady_clock::now() < until) {
+        h.app->update();
+        h.app->fillModel(h.model);
+        std::this_thread::sleep_for(10ms);
+    }
+    h.sessions->emit(test::FakeSessionHub::connected());
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+    h.sessions->stats.videoFrames = 0;
+    feed(1500ms);
+
+    const auto& samples = h.model.link.samples;
+    ASSERT_GE(samples.size(), 5u);
+    for (std::size_t i = 1; i < samples.size(); ++i) EXPECT_EQ(samples[i].second, samples[i - 1].second + 1) << i;
+    const auto stalled = std::count_if(samples.begin(), samples.end(), [](const LinkSample& s) { return s.stalled; });
+    EXPECT_GE(stalled, 2);
+    EXPECT_EQ(h.model.link.summary.stalls, 1);
+    EXPECT_FALSE(samples.back().stalled);
+}

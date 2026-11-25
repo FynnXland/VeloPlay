@@ -47,6 +47,8 @@ Gerendert mit `tools/ui_preview` in der englischen Fassung. Unter Windows nutzt 
 - Sendet dein Mikrofon für den Sprachchat an die Konsole
 - Zeigt auf Wunsch Bildrate, Datenrate, Antwortzeit und Paketverlust über dem Bild, in der Ecke
   deiner Wahl, und sagt, wenn die Verbindung hakt oder das WLAN der PS5 unruhig ist
+- Zeigt unter Einstellungen > Eingang > Netzwerk den Verlauf der Verbindung Sekunde für Sekunde,
+  mit Einbrüchen, Aussetzern und verlorenen Bildern
 - Speichert mit F12 Fotos vom Spiel und nimmt mit F10 Videos mit Ton auf
 - Verbindet nach einem Abbruch von selbst neu und kann die PS5 in den Ruhemodus schicken
 - Baut das Bild selbst wieder auf, wenn der Grafiktreiber neu startet, statt sich zu beenden

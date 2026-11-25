@@ -228,6 +228,13 @@ void AppController::fillModel(UiModel& model) {
             }
         }
     }
+    model.link.consoleName = linkConsole_;
+    model.link.hostId = linkHostId_;
+    model.link.live = session_ && session_->connected && !session_->capture && linkHostId_ == session_->hostId;
+    model.link.away = linkAway_;
+    model.link.roundTripMs = linkRoundTripMs_;
+    model.link.samples.assign(linkHistory_.samples().begin(), linkHistory_.samples().end());
+    model.link.summary = linkHistory_.summary();
     model.psnRemote.available = static_cast<bool>(options_.psnConsoles) && options_.http && options_.showLogin;
     model.psnRemote.signedIn = config_.psn.signedIn();
     model.psnRemote.phase = psnPhase_;
@@ -607,6 +614,7 @@ void AppController::applyStreamSettings() {
     }
     spdlog::info("Connecting again to apply the stream settings");
     session_->restart = true;
+    session_->applyingSettings = true;
     // A rate lowered after a stall belonged to the old settings.
     session_->bitrateKbps = 0;
     session_->stalls = 0;
@@ -678,6 +686,10 @@ bool AppController::startAttempt() {
 void AppController::updateSession(Clock::time_point now) {
     sessionActive_.store(session_ && session_->session && session_->connected);
     if (!session_) return;
+    // A stream that broke and is being set up again: those seconds belong in the history as drop-outs.
+    if (!session_->connected && session_->everConnected && !session_->capture && !session_->applyingSettings) {
+        sampleLink(nullptr, now);
+    }
 
     if (session_->retryAt && now >= *session_->retryAt) {
         session_->retryAt.reset();
@@ -706,6 +718,7 @@ void AppController::updateSession(Clock::time_point now) {
             session_->lastPicture = now;
         }
         updateAlerts(stats, now);
+        if (!session_->capture) sampleLink(&stats, now);
         // A stream that stands still does not recover by waiting: on a link
         // that cannot carry the bitrate, the requests for repair get lost
         // too. Start over at half the rate instead.
@@ -727,8 +740,19 @@ void AppController::updateSession(Clock::time_point now) {
     for (session::SessionEvent& event : session_->session->pollEvents()) {
         switch (event.type) {
             case session::SessionEvent::Type::Connected:
+                // A new session starts a new history; a reconnect within one goes on with it.
+                if (!session_->everConnected && !session_->capture) {
+                    linkHistory_.clear();
+                    linkConsole_ = session_->name;
+                    linkHostId_ = session_->hostId;
+                    linkStart_ = now;
+                    nextLinkSample_ = now + std::chrono::seconds(1);
+                    linkLostBefore_ = 0;
+                    linkRoundTripMs_ = 0.0f;
+                }
                 session_->connected = true;
                 session_->everConnected = true;
+                session_->applyingSettings = false;
                 session_->connectedAt = now;
                 session_->alerts.reset(now);
                 session_->waitingForRelease = false;
@@ -989,6 +1013,32 @@ void AppController::rememberLink(Clock::time_point now) {
     memory = learned;
     configDirty_ = true;
     saveAfter_ = Clock::now() + kSaveDelay;
+}
+
+void AppController::sampleLink(const session::SessionStats* stats, Clock::time_point now) {
+    if (now < nextLinkSample_) return;
+    // Seconds on the clock of the stream; a late call does not stretch the chart.
+    nextLinkSample_ = std::max(nextLinkSample_ + std::chrono::seconds(1), now - std::chrono::milliseconds(500));
+    LinkSample sample;
+    sample.second = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - linkStart_).count()) - 1;
+    if (!stats) {
+        // Between attempts: the stream stands, the console is asked again. That is the link failing too.
+        sample.stalled = true;
+        linkLostBefore_ = 0; // the next attempt counts from zero
+        linkHistory_.add(sample);
+        return;
+    }
+    sample.mbps = static_cast<float>(stats->bitrateMbps);
+    sample.fps = static_cast<float>(stats->streamFps);
+    sample.unevenMs = static_cast<float>(pictureLatenessMs_);
+    // The counter starts anew with each attempt; a smaller value is a reconnect, not lost pictures in reverse.
+    if (stats->framesLost < linkLostBefore_) linkLostBefore_ = 0;
+    sample.lost = static_cast<std::uint32_t>(stats->framesLost - linkLostBefore_);
+    linkLostBefore_ = stats->framesLost;
+    sample.stalled = now - session_->lastPicture >= std::chrono::seconds(1);
+    linkHistory_.add(sample);
+    linkAway_ = session_->away;
+    if (stats->roundTripMs > 0.0) linkRoundTripMs_ = static_cast<float>(stats->roundTripMs);
 }
 
 void AppController::failSession(session::QuitReason reason, const std::string& detail) {

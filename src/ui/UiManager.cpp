@@ -367,6 +367,7 @@ void UiManager::openSettings(SettingsTab tab) {
     ++sheetGeneration_;
     settingsTab_ = tab;
     if (tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel) controlsTab_ = tab;
+    if (tab == SettingsTab::Stream || tab == SettingsTab::Network) inputTab_ = tab;
     editedGameChosen_ = false; // the key layout shown is picked anew: the one in use now
 }
 
@@ -1981,7 +1982,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
                         std::string(session.away ? std::string(t.pauseAway) + "  ·  " : std::string()) +
                             format(t.pauseLinkDetail, {number(stats.bitrateMbps, 1), number(stats.roundTripMs, 0),
                                                        number(stats.packetLossPercent, 1)}),
-                        rough ? p.standby : p.ready, SettingsTab::Stream},
+                        rough ? p.standby : p.ready, SettingsTab::Network},
         fromCard ? Tile{t.pauseTileControl, t.pauseCaptureControl, std::string(), p.ready, SettingsTab::Controller}
                  : Tile{t.pauseTileControl, controlValue, controlDetail,
                         !model.controllerConnected && !keys ? p.standby : lowBattery ? p.standby : p.ready,
@@ -2316,8 +2317,10 @@ void UiManager::drawSettings(const UiModel& model) {
     const auto controls = [](SettingsTab tab) {
         return tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel;
     };
+    const auto input = [](SettingsTab tab) { return tab == SettingsTab::Stream || tab == SettingsTab::Network; };
     const auto topOf = [&](SettingsTab tab) {
         if (controls(tab)) return 2;
+        if (input(tab)) return 0;
         return static_cast<int>(std::find(kTop.begin(), kTop.end(), tab) - kTop.begin());
     };
     const std::array<const char*, 5> tabs = {t.tabStream, t.tabPicture, t.tabControls, t.tabCapture, t.tabAdvanced};
@@ -2326,7 +2329,9 @@ void UiManager::drawSettings(const UiModel& model) {
     // On a controller the shoulder buttons turn the pages, as they do on the console.
     if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) chosen = (chosen + 1) % 5;
     if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) chosen = (chosen + 4) % 5;
-    if (chosen != top) settingsTab_ = chosen == 2 ? controlsTab_ : kTop[static_cast<std::size_t>(chosen)];
+    if (chosen != top) {
+        settingsTab_ = chosen == 2 ? controlsTab_ : chosen == 0 ? inputTab_ : kTop[static_cast<std::size_t>(chosen)];
+    }
     // The row under "Controls" takes its height from the list below, so the sheet keeps its size.
     float rowHeight = 0.0f;
     if (controls(settingsTab_)) {
@@ -2337,6 +2342,16 @@ void UiManager::drawSettings(const UiModel& model) {
         const int picked = segmented("controls-tabs", pages, page, ImGui::GetContentRegionAvail().x * 0.75f);
         settingsTab_ = static_cast<SettingsTab>(static_cast<int>(SettingsTab::Controller) + picked);
         controlsTab_ = settingsTab_;
+        rowHeight = ImGui::GetCursorScreenPos().y - rowTop;
+    } else if (input(settingsTab_)) {
+        // "Input": what is asked of the console, and how the link to it went.
+        const float rowTop = ImGui::GetCursorScreenPos().y;
+        space(10.0f);
+        const std::array<const char*, 2> pages = {t.tabInputStream, t.tabNetwork};
+        const int picked = segmented("input-tabs", pages, settingsTab_ == SettingsTab::Network ? 1 : 0,
+                                     ImGui::GetContentRegionAvail().x * 0.5f);
+        settingsTab_ = picked == 1 ? SettingsTab::Network : SettingsTab::Stream;
+        inputTab_ = settingsTab_;
         rowHeight = ImGui::GetCursorScreenPos().y - rowTop;
     }
     space(18.0f);
@@ -2355,6 +2370,7 @@ void UiManager::drawSettings(const UiModel& model) {
                       ImGuiWindowFlags_NoBackground);
     switch (settingsTab_) {
         case SettingsTab::Stream: drawStreamTab(model, config); break;
+        case SettingsTab::Network: drawNetworkTab(model); break;
         case SettingsTab::Picture: drawPictureTab(model, config); break;
         case SettingsTab::Controller: drawControllerTab(model, config); break;
         case SettingsTab::Keyboard: drawKeyboardMouse(model, config); break;
@@ -3232,6 +3248,322 @@ void UiManager::drawKeyboardMouse(const UiModel& model, AppConfig& config) {
     }
 
     space(4.0f);
+}
+
+// ---- page "Network": how the link went, second by second ------------------
+
+namespace {
+
+/// "4:07", or "1:04:07" past an hour.
+std::string clockText(int seconds) {
+    seconds = std::max(0, seconds);
+    char buffer[24];
+    if (seconds >= 3600) {
+        std::snprintf(buffer, sizeof(buffer), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "%d:%02d", seconds / 60, seconds % 60);
+    }
+    return buffer;
+}
+
+/// A step for the axis: 1, 2 or 5 times a power of ten, so that about three lines fit under `top`.
+float niceStep(float top) {
+    const float rough = std::max(top, 0.001f) / 3.0f;
+    const float power = std::pow(10.0f, std::floor(std::log10(rough)));
+    for (const float m : {1.0f, 2.0f, 5.0f, 10.0f}) {
+        if (m * power >= rough) return m * power;
+    }
+    return 10.0f * power;
+}
+
+} // namespace
+
+void UiManager::drawLinkChart(const char* id, const UiModel::LinkView& link, bool held, float height) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const auto& samples = link.samples;
+    const float width = ImGui::GetContentRegionAvail().x;
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    const float axisWidth = px(34.0f);
+    const float labelHeight = measure(TextStyle::Caption, "0").y;
+    const ImVec2 plotMin(origin.x + axisWidth, origin.y + px(4.0f));
+    const ImVec2 plotMax(origin.x + width, origin.y + px(height));
+    const float plotWidth = plotMax.x - plotMin.x;
+    const float plotHeight = plotMax.y - plotMin.y;
+
+    const auto valueOf = [held](const LinkSample& sample) { return held ? sample.unevenMs : sample.mbps; };
+    float top = held ? kUnsteadyMs * 2.0f : 1.0f;
+    for (const LinkSample& sample : samples) top = std::max(top, valueOf(sample));
+    const float step = niceStep(top);
+    top = std::ceil(top / step) * step;
+    const auto yOf = [&](float value) { return plotMax.y - std::clamp(value / top, 0.0f, 1.0f) * plotHeight; };
+
+    // Recessive grid: a hairline per step, the numbers on the left.
+    for (float value = 0.0f; value <= top + step * 0.01f; value += step) {
+        const float y = yOf(value);
+        draw->AddLine(ImVec2(plotMin.x, y), ImVec2(plotMax.x, y), toU32(p.hairline), 1.0f);
+        const std::string text = number(value, step < 1.0f ? 1 : 0);
+        const ImVec2 size = measure(TextStyle::Caption, text);
+        drawText(draw, ImVec2(plotMin.x - px(6.0f) - size.x, y - size.y * 0.5f), TextStyle::Caption, p.textTertiary, text);
+    }
+
+    const std::size_t count = samples.size();
+    // Along the time of the stream, not along the samples: seconds without any (a reconnect for changed
+    // settings) keep their width. One column per pixel at most; a long stream is drawn as the lowest,
+    // mean and highest of each column.
+    const int first = count > 0 ? samples.front().second : 0;
+    const int last = count > 0 ? samples.back().second : 0;
+    const int span = std::max(1, last - first);
+    const int columns = std::max(1, std::min(span + 1, static_cast<int>(plotWidth)));
+    const auto columnOf = [&](int second) { return (second - first) * (columns - 1) / span; };
+    const auto xOfColumn = [&](float column) {
+        return plotMin.x + (columns <= 1 ? 0.0f : column / static_cast<float>(columns - 1) * plotWidth);
+    };
+    const auto xOfSecond = [&](int second) {
+        return plotMin.x + static_cast<float>(second - first) / static_cast<float>(span) * plotWidth;
+    };
+    struct Column {
+        float low = 0.0f, high = 0.0f, sum = 0.0f;
+        int n = 0;
+        bool stalled = false;
+        std::uint32_t lost = 0;
+    };
+    std::vector<Column> cols(static_cast<std::size_t>(columns));
+    for (std::size_t i = 0; i < count; ++i) {
+        Column& c = cols[static_cast<std::size_t>(std::clamp(columnOf(samples[i].second), 0, columns - 1))];
+        const float v = valueOf(samples[i]);
+        c.low = c.n == 0 ? v : std::min(c.low, v);
+        c.high = c.n == 0 ? v : std::max(c.high, v);
+        c.sum += v;
+        ++c.n;
+        c.stalled = c.stalled || samples[i].stalled;
+        c.lost += samples[i].lost;
+    }
+
+    // Drop-outs as a band over the whole height, lost pictures as a tick at the foot: both named below the chart.
+    const float columnWidth = std::max(px(2.0f), plotWidth / static_cast<float>(std::max(columns, 1)));
+    for (int i = 0; i < columns; ++i) {
+        const Column& c = cols[static_cast<std::size_t>(i)];
+        const float x = xOfColumn(static_cast<float>(i));
+        if (c.stalled) fill(draw, ImVec2(x - columnWidth * 0.5f, plotMin.y), ImVec2(x + columnWidth * 0.5f, plotMax.y), toU32(p.danger, 0.28f));
+        if (!held && c.lost > 0) {
+            fill(draw, ImVec2(x - px(1.0f), plotMax.y - px(8.0f)), ImVec2(x + px(1.0f), plotMax.y), toU32(p.standby));
+        }
+    }
+    if (held) {
+        // The mark from which a stream counts as unsteady, named on the line.
+        const float y = yOf(kUnsteadyMs);
+        for (float x = plotMin.x; x < plotMax.x; x += px(8.0f)) {
+            draw->AddLine(ImVec2(x, y), ImVec2(std::min(x + px(4.0f), plotMax.x), y), toU32(p.standby), 1.0f);
+        }
+        const ImVec2 size = measure(TextStyle::Caption, t.netThreshold);
+        drawText(draw, ImVec2(plotMax.x - size.x, y - size.y - px(2.0f)), TextStyle::Caption, p.textSecondary, t.netThreshold);
+    }
+
+    // Lowest to highest of each column as a faint band, the mean as the line.
+    // A column without seconds breaks the line: nothing was measured there.
+    std::vector<ImVec2> line;
+    line.reserve(static_cast<std::size_t>(columns));
+    const auto flush = [&] {
+        if (line.size() >= 2) draw->AddPolyline(line.data(), static_cast<int>(line.size()), toU32(p.accent), ImDrawFlags_None, px(2.0f));
+        else if (line.size() == 1) draw->AddCircleFilled(line.front(), px(2.0f), toU32(p.accent));
+        line.clear();
+    };
+    const bool dense = static_cast<int>(count) > columns;
+    for (int i = 0; i < columns; ++i) {
+        const Column& c = cols[static_cast<std::size_t>(i)];
+        if (c.n == 0) {
+            flush();
+            continue;
+        }
+        const float x = xOfColumn(static_cast<float>(i));
+        if (c.high > c.low && dense) {
+            fill(draw, ImVec2(x - columnWidth * 0.5f, yOf(c.high)), ImVec2(x + columnWidth * 0.5f, yOf(c.low)), toU32(p.accent, 0.18f));
+        }
+        line.emplace_back(x, yOf(c.sum / static_cast<float>(c.n)));
+    }
+    flush();
+
+    // Time along the foot: start, middle, end.
+    const float footY = plotMax.y + px(6.0f);
+    if (count > 0) {
+        const std::string left = clockText(first), middle = clockText((first + last) / 2), right = clockText(last);
+        drawText(draw, ImVec2(plotMin.x, footY), TextStyle::Caption, p.textTertiary, left);
+        const ImVec2 midSize = measure(TextStyle::Caption, middle);
+        if (last - first >= 4) drawText(draw, ImVec2(plotMin.x + (plotWidth - midSize.x) * 0.5f, footY), TextStyle::Caption, p.textTertiary, middle);
+        const ImVec2 rightSize = measure(TextStyle::Caption, right);
+        if (last > first) drawText(draw, ImVec2(plotMax.x - rightSize.x, footY), TextStyle::Caption, p.textTertiary, right);
+    }
+
+    // Hover: a crosshair and the values of that second.
+    ImGui::SetCursorScreenPos(plotMin);
+    ImGui::InvisibleButton(id, ImVec2(plotWidth, plotHeight));
+    if (ImGui::IsItemHovered() && count > 0) {
+        // The second under the pointer, then the nearest one that was measured.
+        const float share = std::clamp((ImGui::GetIO().MousePos.x - plotMin.x) / std::max(plotWidth, 1.0f), 0.0f, 1.0f);
+        const int wanted = first + static_cast<int>(share * static_cast<float>(span) + 0.5f);
+        auto it = std::lower_bound(samples.begin(), samples.end(), wanted,
+                                   [](const LinkSample& sample, int second) { return sample.second < second; });
+        if (it == samples.end()) --it;
+        if (it != samples.begin() && wanted - std::prev(it)->second < it->second - wanted) --it;
+        const LinkSample& sample = *it;
+        const float x = xOfSecond(sample.second);
+        draw->AddLine(ImVec2(x, plotMin.y), ImVec2(x, plotMax.y), toU32(p.textSecondary), 1.0f);
+        draw->AddCircleFilled(ImVec2(x, yOf(valueOf(sample))), px(4.0f), toU32(p.accent));
+        const std::string head = format(t.netHover, {clockText(sample.second), number(sample.mbps, 1), number(sample.fps, 0)});
+        std::string more;
+        if (sample.stalled) more = t.netHoverStall;
+        if (sample.lost > 0) more += (more.empty() ? "" : "  ·  ") + format(t.netHoverLost, {std::to_string(sample.lost)});
+        more += (more.empty() ? "" : "  ·  ") + format(t.netHoverHeld, {number(sample.unevenMs, 0)});
+        ImDrawList* front = ImGui::GetForegroundDrawList();
+        const ImVec2 headSize = measure(TextStyle::Caption, head);
+        const ImVec2 moreSize = measure(TextStyle::Caption, more);
+        const float pad = px(8.0f);
+        const float boxWidth = std::max(headSize.x, moreSize.x) + pad * 2.0f;
+        const float boxHeight = headSize.y + moreSize.y + px(4.0f) + pad * 2.0f;
+        // Centred on the line, kept inside the chart's width as far as it fits (left edge wins if it does not).
+        const float boxX = std::max(plotMin.x, std::min(x - boxWidth * 0.5f, plotMax.x - boxWidth));
+        const ImVec2 boxMin(boxX, plotMin.y - boxHeight - px(4.0f));
+        const ImVec2 boxMax(boxMin.x + boxWidth, boxMin.y + boxHeight);
+        fill(front, boxMin, boxMax, toU32(p.surfaceRaised), px(8.0f));
+        front->AddRect(boxMin, boxMax, toU32(p.hairline), px(8.0f));
+        drawText(front, ImVec2(boxMin.x + pad, boxMin.y + pad), TextStyle::Caption, p.text, head);
+        drawText(front, ImVec2(boxMin.x + pad, boxMin.y + pad + headSize.y + px(4.0f)), TextStyle::Caption, p.textSecondary, more);
+    }
+    ImGui::SetCursorScreenPos(ImVec2(origin.x, footY + labelHeight));
+}
+
+void UiManager::drawNetworkTab(const UiModel& model) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const UiModel::LinkView& link = model.link;
+    const bool streaming = model.state == AppState::Streaming;
+
+    // The console to test: the one of the last stream, or else the first paired one that answers.
+    std::string testHost = link.hostId;
+    if (testHost.empty()) {
+        for (const ConsoleEntry& console : model.consoles) {
+            if (console.registered && console.status != ConsoleStatus::Offline) {
+                testHost = console.hostId;
+                break;
+            }
+        }
+    }
+    // As in the row of a console: the test only while nothing else talks to the console.
+    const bool idle = model.state == AppState::Idle || model.state == AppState::Error;
+    const auto testButton = [&] {
+        if (streaming) {
+            hint(t.netTestInGame);
+            return;
+        }
+        if (testHost.empty() || !idle) return;
+        space(16.0f);
+        if (button(t.netTest, ButtonKind::Secondary)) openConnection(testHost);
+        hint(t.netTestHint);
+    };
+
+    if (link.consoleName.empty() || link.samples.empty()) {
+        paragraph(TextStyle::Body, t.netEmpty, p.textSecondary);
+        testButton();
+        return;
+    }
+
+    const LinkSummary& s = link.summary;
+    // ---- headline: which stream, how long, and the verdict in one sentence
+    label(TextStyle::Strong, format(link.live ? t.netLive : t.netLast, {link.consoleName}));
+    space(4.0f);
+    const int length = link.samples.back().second + 1;
+    std::string sub = format(t.netLength, {clockText(length)});
+    if (link.away) sub += std::string("  ·  ") + t.pauseAway;
+    paragraph(TextStyle::Caption, sub, p.textSecondary);
+    space(12.0f);
+    const int steady = s.steadyPercent();
+    const bool settled = s.seconds > 0;
+    const char* verdict = !settled ? t.netSteady : steady >= 90 && s.stalls == 0 ? t.netSteady : steady >= 60 ? t.netSomewhat : t.netRough;
+    const ImVec4 dot = !settled || (steady >= 90 && s.stalls == 0) ? p.ready : steady >= 60 ? p.standby : p.danger;
+    {
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float lineHeight = measure(TextStyle::Body, "X").y;
+        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(at.x + px(5.0f), at.y + lineHeight * 0.5f), px(5.0f), toU32(dot));
+        ImGui::SetCursorScreenPos(ImVec2(at.x + px(18.0f), at.y));
+        paragraph(TextStyle::Body, verdict, p.text);
+    }
+    if (settled && verdict != t.netSteady) {
+        space(4.0f);
+        paragraph(TextStyle::Caption, link.away ? t.netAdviceAway : t.netAdviceHome, p.textSecondary);
+    }
+    space(16.0f);
+
+    // ---- four figures for the whole stream
+    const auto tiles = [&](const std::array<std::pair<const char*, std::string>, 4>& items,
+                           const std::array<std::string, 4>& notes) {
+        const float gap = px(8.0f);
+        const float width = ImGui::GetContentRegionAvail().x;
+        const int perRow = width < px(460.0f) ? 2 : 4;
+        const float tileWidth = std::floor((width - gap * static_cast<float>(perRow - 1)) / static_cast<float>(perRow));
+        const float tileHeight = px(68.0f);
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            const int row = static_cast<int>(i) / perRow;
+            const int col = static_cast<int>(i) % perRow;
+            const ImVec2 min(origin.x + static_cast<float>(col) * (tileWidth + gap), origin.y + static_cast<float>(row) * (tileHeight + gap));
+            const ImVec2 max(min.x + tileWidth, min.y + tileHeight);
+            fill(draw, min, max, toU32(p.control), px(10.0f));
+            draw->PushClipRect(ImVec2(min.x + px(10.0f), min.y), ImVec2(max.x - px(10.0f), max.y), true);
+            drawText(draw, ImVec2(min.x + px(12.0f), min.y + px(10.0f)), TextStyle::Caption, p.textSecondary, items[i].first);
+            drawText(draw, ImVec2(min.x + px(12.0f), min.y + px(28.0f)), TextStyle::Strong, p.text, items[i].second);
+            if (!notes[i].empty()) {
+                const ImVec2 size = measure(TextStyle::Strong, items[i].second);
+                drawText(draw, ImVec2(min.x + px(18.0f) + size.x, min.y + px(30.0f)), TextStyle::Caption, p.textTertiary, notes[i]);
+            }
+            draw->PopClipRect();
+        }
+        const int rows = (static_cast<int>(items.size()) + perRow - 1) / perRow;
+        ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + static_cast<float>(rows) * (tileHeight + gap) - gap));
+        ImGui::Dummy(ImVec2(width, 0.0f));
+    };
+    const std::string dash = "–";
+    tiles({{{t.netAverage, settled ? format(t.netMbps, {number(s.averageMbps, 1)}) : dash},
+            {t.netPeak, settled ? format(t.netMbps, {number(s.peakMbps, 1)}) : dash},
+            {t.netLowest, s.lowestAt >= 0 ? format(t.netMbps, {number(s.lowestMbps, 1)}) : dash},
+            {t.netSteadyShare, settled ? format(t.netPercent, {std::to_string(steady)}) : dash}}},
+          {std::string(), std::string(), s.lowestAt >= 0 ? format(t.netLowestAt, {clockText(s.lowestAt)}) : std::string(),
+           std::string()});
+    space(22.0f);
+
+    // ---- the bitrate, then how late the pictures were: two charts, each with its own scale
+    label(TextStyle::Strong, t.netRateChart);
+    space(10.0f);
+    drawLinkChart("rate-chart", link, false, 150.0f);
+    space(8.0f);
+    {
+        // What the marks mean, so the colour is never all that tells it.
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float h = measure(TextStyle::Caption, "X").y;
+        fill(draw, ImVec2(at.x, at.y + h * 0.2f), ImVec2(at.x + px(10.0f), at.y + h * 0.8f), toU32(p.danger, 0.5f), px(2.0f));
+        drawText(draw, ImVec2(at.x + px(16.0f), at.y), TextStyle::Caption, p.textSecondary, t.netStallMark);
+        const float second = at.x + px(32.0f) + measure(TextStyle::Caption, t.netStallMark).x;
+        fill(draw, ImVec2(second, at.y + h * 0.1f), ImVec2(second + px(2.0f), at.y + h * 0.9f), toU32(p.standby));
+        drawText(draw, ImVec2(second + px(8.0f), at.y), TextStyle::Caption, p.textSecondary, t.netLostMark);
+        ImGui::Dummy(ImVec2(1.0f, h));
+    }
+    space(22.0f);
+    label(TextStyle::Strong, t.netHeldChart);
+    space(10.0f);
+    drawLinkChart("held-chart", link, true, 90.0f);
+    space(22.0f);
+
+    tiles({{{t.netFps, settled ? number(s.averageFps, 0) : dash},
+            {t.netLostPictures, std::to_string(s.lostPictures)},
+            {t.netStalls, std::to_string(s.stalls)},
+            {t.netRoundTrip, link.roundTripMs > 0.0f ? format(t.netMs, {number(link.roundTripMs, 0)}) : dash}}},
+          {std::string(), std::string(), std::string(), std::string()});
+    space(10.0f);
+    paragraph(TextStyle::Caption, t.netKept, p.textTertiary);
+    testButton();
 }
 
 void UiManager::drawCaptureTab(const UiModel& model) {

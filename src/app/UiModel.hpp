@@ -9,6 +9,7 @@
 #include "app/AppState.hpp"
 #include "app/Config.hpp"
 #include "app/ConsoleList.hpp"
+#include "app/LinkHistory.hpp"
 #include "app/StreamAlerts.hpp"
 #include "app/StreamStats.hpp"
 #include "input/ControllerState.hpp"
@@ -192,6 +193,18 @@ struct UiModel {
         bool tryAtHome = false;            // connect through Sony even to a console found here
     };
     PsnRemoteView psnRemote;
+
+    /// The link of the stream now, or of the last one, second by second (page "Network").
+    struct LinkView {
+        std::string consoleName; // empty: no stream yet since the program started
+        std::string hostId;
+        bool live = false;       // the stream runs
+        bool away = false;
+        float roundTripMs = 0.0f; // measured when the stream was set up
+        std::vector<LinkSample> samples;
+        LinkSummary summary;
+    };
+    LinkView link;
     std::vector<Notice> notices;
 
     ConnectionTest connectionTest;

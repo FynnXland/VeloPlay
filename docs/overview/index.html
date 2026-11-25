@@ -171,7 +171,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h1>Was VeloPlay kann und wie es das macht</h1>
   <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.15.1</span>
+    <span class="pill">Version 1.16.0</span>
     <span class="pill">Stand 22.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
@@ -193,11 +193,11 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 
 <section id="naechstes">
   <h2>Dein nächster Test</h2>
-  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 25.11.2026, Version 1.15.1.</p>
+  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 25.11.2026, Version 1.16.0.</p>
   <div class="panel">
     <h3><span class="dot soon"></span>Zuerst</h3>
     <ol>
-      <li><strong>Update holen:</strong> VeloPlay bietet 1.15.1 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Update holen:</strong> VeloPlay bietet 1.16.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
     </ol>
   </div>
   <div class="panel">
@@ -213,6 +213,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="panel">
     <h3><span class="dot soon"></span>Neu, bitte ausprobieren</h3>
     <ol>
+      <li><strong>Seite „Netzwerk“ (1.16.0):</strong> Im Spiel Esc, dann auf die Kachel „Verbindung“ klicken. Stimmen die Zahlen mit dem, was du merkst? Fahr mit der Maus über das Diagramm: Stehen dort die Werte der Sekunde? Nach dem Spiel bleibt der letzte Stream unter Einstellungen &gt; Eingang &gt; Netzwerk zu sehen.</li>
+      <li><strong>Mauszeiger (1.15.1):</strong> Verschwindet er im Spiel nach kurzer Zeit und kommt mit der ersten Bewegung zurück?</li>
       <li><strong>Automatik (1.15.0):</strong> Einfach spielen wie immer, ruhig eine längere Runde. Danach interessiert mich: Hakte der Ton einmal kurz? Und stand im Protokoll eine Zeile „Automatic for …“ (am Ende jeder Runde) und „Sound: … ms kept“? Wenn du magst, schick mir diese Zeilen. Bei einer unruhigen Runde fragt VeloPlay beim nächsten Mal nach 720p; sieht das Bild dann ruhiger und weniger matschig aus?</li>
       <li><strong>Discord (1.11.1):</strong> Unter Einstellungen &gt; Erweitert &gt; Discord dein Spiel eintragen. Steht es oben auf der Karte, ohne „PS5“ als Text und ohne „VeloPlay über VeloPlay“?</li>
       <li><strong>Von unterwegs über Sony (1.14.0, Beta), der Reihe nach:</strong> (1) Auf dem PC unter Einstellungen &gt; Erweitert &gt; „Von unterwegs spielen“ bei PlayStation anmelden. Steht danach „Sony kennt: …“ mit deiner PS5? (2) Zu Hause ausprobieren: im selben Abschnitt „Zu Hause über Sony ausprobieren“ einschalten, dann „Verbinden“. Das darf eine halbe Minute dauern. Kommt ein Bild? (3) Auf dem Laptop VeloPlay installieren, zu Hause koppeln und dort ebenfalls anmelden. (4) Den Laptop mit dem Hotspot deines Handys verbinden (nicht mit dem WLAN zu Hause) und „Verbinden“. Bei der PS5 sollte „Hier nicht gefunden. Verbinden versucht es über das Internet“ stehen. Der Hotspot ist das schwierigste Netz; klappt es dort nicht, sagt das noch nichts über das WLAN deiner Freundin. (5) Bei deiner Freundin: PS5 zu Hause an lassen, dann verbinden. Bitte jedes Mal sagen, was passiert, und bei einem Fehler die Uhrzeit; das Protokoll liegt in „%APPDATA%\VeloPlay“.</li>
@@ -878,6 +880,17 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <section id="netzwerk">
   <h2>Netzwerk und WLAN</h2>
   <p>Remote Play läuft über das Heimnetz. Die schwächste Strecke entscheidet: Hängt die PS5 an schwachem WLAN, hilft ein PC am Kabel nicht. Typisch sind dann Eingaben, die sich eine Weile verzögert anfühlen, während die Verbindung sonst stabil wirkt.</p>
+  <h3>Die Seite „Netzwerk“ (seit 1.16.0)</h3>
+  <p>Unter Einstellungen &gt; Eingang &gt; Netzwerk, oder im Spiel mit einem Klick auf die Kachel „Verbindung“, steht der laufende oder der letzte Stream Sekunde für Sekunde: ein Satz, wie ruhig er war, und was hilft; die Datenrate im Mittel, der Höchstwert, der tiefste Einbruch mit Zeitpunkt und der Anteil ruhiger Sekunden; ein Diagramm der Datenrate mit Aussetzern (rot, kein Bild) und verlorenen Bildern (orange Striche); ein zweites, wie spät die Bilder in den Sekunden davor kamen, mit der gestrichelten Marke, ab der es als unruhig gilt. Wer auf ein Diagramm zeigt, sieht die Werte dieser Sekunde. Außerhalb des Spiels misst „Verbindung testen“ die Strecke zur PS5.</p>
+  <img class="shot" src="img/netzwerk.png" alt="Einstellungen, Eingang, Seite Netzwerk: Urteil etwas unruhig, vier Zahlen, Diagramm der Datenrate mit einem Einbruch und einem Aussetzer" width="1100" height="720">
+  <details><summary>Technik</summary>
+    <ul>
+      <li>Einmal pro Sekunde nimmt VeloPlay auf, was ankam (Datenrate, Bilder), wie viele Bilder verloren gingen, ob eine ganze Sekunde ohne Bild war und wie spät die Bilder kamen. Die Verspätung ist dieselbe Messung wie für den Hinweis „unruhig“ (ab 6 ms): ein Wert über die letzten gut 250 Bilder, also rund vier Sekunden. Ein einzelner Ruck steht deshalb einige Sekunden lang im unteren Diagramm, und diese Sekunden zählen nicht als ruhig. Die ersten drei Sekunden eines Streams zählen nicht für die Zahlen: Da sucht die PS5 noch ihre Datenrate.</li>
+      <li>Bricht der Stream ab und VeloPlay verbindet neu, zählt jede Sekunde bis zum nächsten Bild als Aussetzer; so steht ein langer Ausfall in voller Breite im Diagramm. Ein Neuverbinden, weil du Einstellungen geändert hast, ist kein Fehler der Verbindung: Dort bleibt eine Lücke ohne Linie.</li>
+      <li>Das Diagramm behält die letzten 30 Minuten. Ist ein Stream länger als das Diagramm breit, zeigt die Linie den Mittelwert jeder Spalte und das helle Band dahinter den tiefsten und höchsten Wert darin, damit kein Einbruch verschwindet.</li>
+      <li>Ein neuer Stream beginnt einen neuen Verlauf; ein Neuverbinden mitten im Spiel setzt ihn fort. Gespeichert wird der Verlauf nicht, er gilt bis zum Schließen von VeloPlay.</li>
+    </ul>
+  </details>
   <h3>Während des Spiels</h3>
   <p>VeloPlay achtet im Stream selbst darauf, ob die Bilder der PS5 gleichmäßig ankommen. Kommen sie eine Weile verspätet und gleich danach gehäuft, hat die Strecke sie aufgehalten, meist das WLAN der Konsole. Dann sagt ein Hinweis über dem Bild das einmal, mit dem Tipp „Kabel oder Repeater kann helfen“, und im Menü im Spiel steht bei „Verbindung“ „Unruhig“. Ein Bild, das die PS5 gar nicht geschickt hat, weil das Spiel selbst ruckelt, zählt nicht. Welches Band die PS5 benutzt, sieht VeloPlay nicht; die PS5 zeigt es unter Einstellungen &gt; Netzwerk &gt; Verbindungsstatus.</p>
   <details><summary>Technik</summary>
@@ -952,7 +965,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>342 automatische Tests unter Linux und 376 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>345 automatische Tests unter Linux und 379 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>

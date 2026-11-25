@@ -6,6 +6,7 @@
 //   xvfb-run -a ./ui_preview out
 
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -140,6 +141,37 @@ void withController(UiModel& model) {
     model.controller.type = input::ControllerType::DualSense;
     model.controller.connection = input::ConnectionType::Usb;
     model.controllers = {model.controller};
+}
+
+/// Six minutes of a stream over Wi-Fi that is not quite steady: dips, a few lost pictures, one drop-out.
+void fillLink(UiModel& model) {
+    UiModel::LinkView& link = model.link;
+    link.consoleName = "Wohnzimmer";
+    link.hostId = "001122AABBCC";
+    link.roundTripMs = 4.0f;
+    LinkHistory history;
+    for (int second = 0; second < 360; ++second) {
+        LinkSample sample;
+        sample.second = second;
+        const float wave = 9.0f + 1.6f * std::sin(static_cast<float>(second) * 0.07f) + 0.8f * std::sin(static_cast<float>(second) * 0.31f);
+        sample.mbps = second < 3 ? 2.0f + 2.0f * static_cast<float>(second) : wave;
+        sample.fps = 60.0f;
+        sample.unevenMs = 2.5f + 1.5f * std::sin(static_cast<float>(second) * 0.13f);
+        if (second >= 140 && second < 170) {
+            sample.mbps = 3.6f + 0.4f * std::sin(static_cast<float>(second));
+            sample.unevenMs = 9.0f + 3.0f * std::sin(static_cast<float>(second) * 0.5f);
+            sample.fps = 57.0f;
+        }
+        if (second == 150 || second == 158 || second == 231) sample.lost = 3;
+        if (second == 232 || second == 233) {
+            sample.stalled = true;
+            sample.mbps = 0.0f;
+            sample.fps = 0.0f;
+        }
+        history.add(sample);
+    }
+    link.samples.assign(history.samples().begin(), history.samples().end());
+    link.summary = history.summary();
 }
 
 void withConsoles(UiModel& model) {
@@ -644,6 +676,51 @@ std::vector<Scene> scenes() {
                  console.viaInternet = true;
                  break;
              }
+         }},
+        {"60-settings-network",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             fillLink(model);
+             ui.openSettings(UiManager::SettingsTab::Network);
+         }},
+        {"61-settings-network-charts",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             fillLink(model);
+             ui.openSettings(UiManager::SettingsTab::Network);
+             ui.scrollSettingsTo(1.0f);
+         }},
+        {"63-in-game-network",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.state = AppState::Streaming;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.connectedSeconds = 360;
+             model.stream = playingStats();
+             fillLink(model);
+             model.link.live = true;
+             ui.showSettingsInGame(UiManager::SettingsTab::Network);
+             ui.scrollSettingsTo(1.0f);
+         }},
+        {"64-settings-network-pointing",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             fillLink(model);
+             ui.openSettings(UiManager::SettingsTab::Network);
+         },
+         // Over the drop-out with lost pictures just before it: the longest line the box can hold.
+         [](UiModel&, int) { ImGui::GetIO().AddMousePosEvent(641.0f, 480.0f); }},
+        {"65-settings-network-pointing-edge",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             fillLink(model);
+             ui.openSettings(UiManager::SettingsTab::Network);
+         },
+         [](UiModel&, int) { ImGui::GetIO().AddMousePosEvent(818.0f, 480.0f); }},
+        {"62-settings-network-empty",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             ui.openSettings(UiManager::SettingsTab::Network);
          }},
         {"28-settings-in-game",
          [](UiModel& model, UiManager& ui) {

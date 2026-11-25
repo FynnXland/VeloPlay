@@ -16,6 +16,7 @@
 #include "app/Config.hpp"
 #include "app/DiscordPresence.hpp"
 #include "app/Installer.hpp"
+#include "app/LinkHistory.hpp"
 #include "app/UiModel.hpp"
 #include "input/ControllerManager.hpp"
 #include "input/RemoteControl.hpp"
@@ -264,6 +265,7 @@ private:
         bool away = false;             // reached from away: its own learned bitrate, other advice
         bool viaPsn = false;           // through Sony's servers, not to an address
         bool unsteady = false;         // the note about an unsteady link came in this session
+        bool applyingSettings = false; // connecting again for changed settings: a gap that is not the link's fault
         StreamSettings requested{};    // what the running attempt asked the console for
         StreamAlerts alerts;           // what is wrong with the stream right now
         bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn
@@ -345,6 +347,18 @@ private:
     void updateInstall();
 
     std::unique_ptr<protocol::PsnAccountLookup> accountLookup_;
+
+    // The link second by second, for the page "Network". Kept after the stream ends, until the next one.
+    /// One second of the link; without stats a second between attempts, counted as a drop-out.
+    void sampleLink(const session::SessionStats* stats, Clock::time_point now);
+    LinkHistory linkHistory_;
+    std::string linkConsole_;
+    std::string linkHostId_;
+    bool linkAway_ = false;
+    float linkRoundTripMs_ = 0.0f;
+    Clock::time_point linkStart_{};
+    Clock::time_point nextLinkSample_{};
+    std::uint64_t linkLostBefore_ = 0;
 
     // Playing from away through Sony's servers. Every request runs in a future; update() collects.
     void updatePsn(Clock::time_point now);

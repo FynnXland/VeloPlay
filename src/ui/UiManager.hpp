@@ -18,7 +18,7 @@ public:
     enum class Sheet { None, Pairing, Settings, Connection };
     enum class PairingStep { Console, Account, Pin, Progress };
     /// Controller, Keyboard and Wheel are the three pages under "Controls", which has a row of its own.
-    enum class SettingsTab { Stream, Picture, Controller, Keyboard, Wheel, Capture, Advanced };
+    enum class SettingsTab { Stream, Network, Picture, Controller, Keyboard, Wheel, Capture, Advanced };
 
     explicit UiManager(IUiActions& actions);
 
@@ -86,6 +86,8 @@ private:
     void drawRecordingBadge(const UiModel& model);
     void drawCaptureCards(const UiModel& model);
     void drawWheel(const UiModel& model, AppConfig& config);
+    void drawNetworkTab(const UiModel& model);
+    void drawLinkChart(const char* id, const UiModel::LinkView& link, bool held, float height);
     void drawCaptureTab(const UiModel& model);
     /// Where the display goes for its size, in the corner the settings name.
     [[nodiscard]] ImVec2 statsCornerAt(const UiModel& model, ImVec2 size) const;
@@ -128,6 +130,7 @@ private:
 
     SettingsTab settingsTab_ = SettingsTab::Stream;
     SettingsTab controlsTab_ = SettingsTab::Controller; // the page under "Controls" seen last
+    SettingsTab inputTab_ = SettingsTab::Stream;        // the page under "Input" seen last
     std::string newAddress_;
     int remotePortEdit_ = 0;
     bool remotePortActive_ = false;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 
+#include "app/LinkHistory.hpp"
 #include "app/StreamAlerts.hpp"
 
 using namespace veloplay;
@@ -277,4 +278,48 @@ TEST(StreamAlerts, AdviseOnceAboutPicturesThatComeUnevenlyForAWhile) {
         alerts.update(with(i % 2 ? 5.0 : 9.0), now);
         EXPECT_TRUE(std::count(alerts.raised().begin(), alerts.raised().end(), StreamAlert::UnsteadyLink) == 0);
     }
+}
+
+TEST(LinkHistory, SumsUpTheSessionAndKeepsTheLastHalfHourForTheChart) {
+    LinkHistory history;
+    // The first seconds are the console finding its rate: in the chart, not in the figures.
+    history.add({0, 0.5f, 10.0f, 0.0f, 0, false});
+    history.add({1, 1.0f, 30.0f, 0.0f, 0, false});
+    history.add({2, 2.0f, 50.0f, 0.0f, 0, false});
+    EXPECT_EQ(history.summary().seconds, 0);
+    EXPECT_EQ(history.samples().size(), 3u);
+
+    history.add({3, 10.0f, 60.0f, 2.0f, 0, false});   // steady
+    history.add({4, 12.0f, 60.0f, 9.0f, 0, false});   // held up
+    history.add({5, 3.5f, 58.0f, 4.0f, 2, false});    // the dip, with two lost
+    history.add({6, 0.0f, 0.0f, 0.0f, 0, true});      // a stall of two seconds
+    history.add({7, 0.0f, 0.0f, 0.0f, 0, true});
+    history.add({8, 9.0f, 60.0f, 1.0f, 0, false});
+    history.add({9, 0.0f, 0.0f, 0.0f, 0, true});      // and another
+
+    const LinkSummary& s = history.summary();
+    EXPECT_EQ(s.seconds, 7);
+    EXPECT_FLOAT_EQ(s.peakMbps, 12.0f);
+    EXPECT_FLOAT_EQ(s.lowestMbps, 3.5f); // a stall is no rate; it is counted as a stall
+    EXPECT_EQ(s.lowestAt, 5);
+    EXPECT_FLOAT_EQ(s.worstUnevenMs, 9.0f);
+    EXPECT_EQ(s.worstUnevenAt, 4);
+    EXPECT_EQ(s.steadySeconds, 2);
+    EXPECT_EQ(s.steadyPercent(), 28);
+    EXPECT_EQ(s.lostPictures, 2u);
+    EXPECT_EQ(s.stalls, 2);
+    EXPECT_NEAR(s.averageMbps, (10.0f + 12.0f + 3.5f + 9.0f) / 7.0f, 0.001f);
+
+    // A long evening: the chart keeps the last half hour, the figures keep everything.
+    for (int second = 10; second < 10 + LinkHistory::kKeptSeconds + 5; ++second) {
+        history.add({second, 8.0f, 60.0f, 1.0f, 0, false});
+    }
+    EXPECT_EQ(history.samples().size(), static_cast<std::size_t>(LinkHistory::kKeptSeconds));
+    EXPECT_EQ(history.samples().front().second, 15);
+    EXPECT_EQ(history.summary().lowestAt, 5);
+    EXPECT_EQ(history.summary().stalls, 2);
+
+    history.clear();
+    EXPECT_TRUE(history.empty());
+    EXPECT_EQ(history.summary().seconds, 0);
 }

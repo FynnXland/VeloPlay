@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.15.1
+    VERSION 1.16.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -79,6 +79,7 @@ add_library(veloplay_core STATIC
     src/input/DualSenseEffects.cpp
     src/session/ChiakiSession.cpp
     src/app/AutoStream.cpp
+    src/app/LinkHistory.cpp
     src/app/StreamAlerts.cpp
     src/app/StreamProfile.cpp
     src/app/Config.cpp

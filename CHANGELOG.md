@@ -3,6 +3,32 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.16.0
+
+- **The page "Network".** Settings > Input now has two pages, Stream and Network; a click on the
+  tile "Connection" in the menu over the game opens Network directly. It shows the stream now, or
+  the last one, second by second: the verdict in one sentence (steady, a little unsteady,
+  unsteady) with what helps, the average bitrate, the highest, the deepest dip and when it came,
+  the share of steady seconds; a chart of the bitrate with drop-outs (no picture) and lost
+  pictures marked, a second chart of how late the pictures came with the mark from which a
+  stream counts as unsteady; pictures per second, lost pictures, drop-outs and the response time
+  at the start. Pointing at a chart shows the values of that second. The charts keep the last
+  30 minutes, the figures the whole stream. Outside a stream the button "Test the connection"
+  measures the way to the PS5.
+
+**Deutsch**
+
+- **Die Seite „Netzwerk“.** Unter Einstellungen > Eingang gibt es jetzt zwei Seiten, Stream und
+  Netzwerk; ein Klick auf die Kachel „Verbindung“ im Menü im Spiel öffnet Netzwerk direkt. Sie
+  zeigt den laufenden oder den letzten Stream Sekunde für Sekunde: das Urteil in einem Satz
+  (ruhig, etwas unruhig, unruhig) mit dem, was hilft, die Datenrate im Mittel, den Höchstwert,
+  den tiefsten Einbruch und wann er kam, den Anteil ruhiger Sekunden; ein Diagramm der Datenrate
+  mit Aussetzern (kein Bild) und verlorenen Bildern, ein zweites, wie spät die Bilder kamen, mit
+  der Marke, ab der ein Stream als unruhig gilt; dazu Bilder pro Sekunde, verlorene Bilder,
+  Aussetzer und die Antwortzeit beim Start. Zeigst du auf ein Diagramm, stehen dort die Werte
+  dieser Sekunde. Die Diagramme behalten die letzten 30 Minuten, die Zahlen den ganzen Stream.
+  Außerhalb eines Streams misst „Verbindung testen“ die Strecke zur PS5.
+
 ## 1.15.1
 
 - **The mouse pointer leaves the picture.** While only the game is on screen, the pointer hides
