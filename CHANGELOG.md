@@ -3,6 +3,20 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.15.1
+
+- **The mouse pointer leaves the picture.** While only the game is on screen, the pointer hides
+  after 1.5 seconds without moving, as in a video player, and comes back with the first move. Over
+  the bar at the top edge it stays. With mouse and keys given to the game it was hidden already.
+  Photos and videos never had the pointer in them.
+
+**Deutsch**
+
+- **Der Mauszeiger verschwindet aus dem Bild.** Solange nur das Spiel zu sehen ist, verschwindet
+  der Zeiger nach 1,5 Sekunden ohne Bewegung, wie in einem Videoplayer, und kommt mit der ersten
+  Bewegung zurück. Über der Leiste am oberen Rand bleibt er. Mit Maus und Tastatur im Spiel war er
+  schon vorher weg. In Fotos und Videos war der Zeiger nie zu sehen.
+
 ## 1.15.0
 
 - **The automatic picks the resolution from what really arrives.** On a link in trouble the PS5

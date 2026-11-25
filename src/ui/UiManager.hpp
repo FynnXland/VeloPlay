@@ -140,6 +140,8 @@ private:
     bool pictureOwnsInput_ = false;
     float windowBarHeight_ = 0.0f;
     bool barPeek_ = false; // the bar is over the picture because the pointer went to the top edge
+    double pointerMovedAt_ = 0.0; // ImGui time of the last move of the pointer, to hide it over the picture
+    ImVec2 pointerAt_{};
     float windowBarButtonsWidth_ = 0.0f;
     float menuShown_ = 1.0f; // 0 to 1 while the menu over the picture fades in
     double upscalingNoteFor_ = 0.0; // seconds the note after F8 or F7 stays; counts down

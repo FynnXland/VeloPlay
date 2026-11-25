@@ -19,6 +19,9 @@ namespace veloplay::ui {
 
 namespace {
 
+// How long the pointer may rest over the game before it is hidden.
+constexpr double kPointerRestSeconds = 1.5;
+
 constexpr float kColumnWidth = 720.0f;
 constexpr float kPageMargin = 32.0f;
 // The bar at the top of a window without a frame from Windows, at 100 % scaling.
@@ -474,6 +477,14 @@ void UiManager::draw(const UiModel& model) {
             barPeek_ = inside && (y <= px(2.0f) || (barPeek_ && y <= px(kWindowBarHeight) + px(12.0f)));
             const float shown = context().animator.to(static_cast<ImGuiID>(0x5A1E7400), barPeek_ ? 1.0f : 0.0f, 0.12f, 0.0f);
             if (shown > 0.01f) drawWindowBar(model, shown);
+            // A pointer resting over the game is in the way. It goes after a moment of stillness, as in a video
+            // player, and comes back with the first move; over the bar it stays.
+            const double now = ImGui::GetTime();
+            if (io.MousePos.x != pointerAt_.x || io.MousePos.y != pointerAt_.y || io.MouseDown[0] || io.MouseDown[1]) {
+                pointerAt_ = io.MousePos;
+                pointerMovedAt_ = now;
+            }
+            if (!barPeek_ && now - pointerMovedAt_ >= kPointerRestSeconds) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
         }
         return;
     }
