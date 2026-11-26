@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <mutex>
 #include <deque>
 #include <memory>
@@ -27,6 +29,7 @@ struct FakeSessionHub {
     std::atomic<int> destroyed{0}; // a session through Sony's servers ends on a thread of its own
     bool ignoreStop = false;       // like a session whose link broke: asked to stop, it never ends
     bool slowToEnd = false;        // like a session through Sony's servers
+    std::atomic<bool> holdEnd{false}; // like a capture card whose read never returns: destroying it waits
     int detachedSinks = 0;
     int stops = 0;
     int sleeps = 0;
@@ -85,6 +88,7 @@ class FakeSession final : public session::ISession {
 public:
     explicit FakeSession(std::shared_ptr<FakeSessionHub> hub) : hub_(std::move(hub)) {}
     ~FakeSession() override {
+        while (hub_->holdEnd.load()) std::this_thread::sleep_for(std::chrono::milliseconds(2));
         ++hub_->destroyed;
         if (hub_->current == this) hub_->current = nullptr;
     }

@@ -123,6 +123,12 @@ float gFilmWidth = 1100.0f;
 float connectX() { return gFilmWidth * 0.5f + 260.0f; }
 constexpr float kConnectY = 128.0f;
 float gFilmScale = 1.0f;
+// Where the button "Install on this PC" lies from the top in the film's window (860 x 560 units); set by --film.
+float gInstallY = 426.0f;
+// How far the page "Network" is scrolled to show its first and its second chart whole, and where each chart's
+// line lies then, in the film's window units.
+float gNetworkScroll[2] = {0.28f, 0.64f};
+float gNetworkChartY[2] = {300.0f, 400.0f};
 
 void pointAt(float x, float y, bool down = false) {
     gPointer = {x, y, down, true};
@@ -1150,13 +1156,45 @@ std::vector<Scene> filmScenes() {
     });
 
     // The page "Network", with the pointer moving along the chart.
-    add("film-network", 280, [living](UiModel& model, UiManager& ui) {
+    // The page scrolls on as the pointer goes, so that both charts are seen whole, and then to its end.
+    add("film-network", 420, [living](UiModel& model, UiManager& ui) {
         withController(model);
         model.consoles = {living(true)};
         fillLink(model);
         ui.openSettings(UiManager::SettingsTab::Network);
-    }, [](UiModel&, UiManager&, int frame) {
-        if (frame >= 40) pointAt(gFilmWidth * 0.5f - 220.0f + 440.0f * glide(frame, 50, 250), 480.0f);
+    }, [](UiModel&, UiManager& ui, int frame) {
+        ui.scrollSettingsTo(gNetworkScroll[0] * glide(frame, 20, 80) + (gNetworkScroll[1] - gNetworkScroll[0]) * glide(frame, 200, 250)
+                            + (1.0f - gNetworkScroll[1]) * glide(frame, 330, 380));
+        // The pointer stays while the page scrolls: along the first chart to the right, down with the page to the
+        // second one, back along that to the left, and it rests there to the end.
+        if (frame >= 70) {
+            pointAt(gFilmWidth * 0.5f - 220.0f + 440.0f * (glide(frame, 80, 190) - glide(frame, 255, 330)),
+                    gNetworkChartY[0] + (gNetworkChartY[1] - gNetworkChartY[0]) * glide(frame, 200, 250));
+        }
+    });
+
+    // Installing: the button under Advanced, files are copied, the program is at home on this PC.
+    add("film-install", 240, [living](UiModel& model, UiManager& ui) {
+        withController(model);
+        model.consoles = {living(true)};
+        model.updaterAvailable = true;
+        model.install.available = true;
+        model.install.target = "C:\\Users\\Du\\AppData\\Local\\Programs\\VeloPlay";
+        model.update.current = {1, 17, 1};
+        ui.openSettings(UiManager::SettingsTab::Advanced);
+        ui.scrollSettingsTo(1.0f);
+    }, [](UiModel& model, UiManager&, int frame) {
+        // The button "Install on this PC" sits at the lower left of the sheet, which is centred.
+        const float x = gFilmWidth * 0.5f - 187.0f, y = gInstallY;
+        if (frame >= 20 && frame < 150) {
+            const float t = glide(frame, 24, 76);
+            pointAt(x + 240.0f * (1.0f - t), y - 190.0f * (1.0f - t), frame >= 84 && frame < 92);
+        }
+        if (frame == 92) model.install.busy = true;
+        if (frame == 150) {
+            model.install.busy = false;
+            model.install.installed = true;
+        }
     });
 
     // The stream with its display, to lay over a picture.

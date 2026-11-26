@@ -825,6 +825,43 @@ TEST(AppControllerSession, ShowsNothingInDiscordWhenSwitchedOff) {
     EXPECT_TRUE(log->activities.empty());
 }
 
+// Seen with Windows' virtual camera (1.17.0): the read from the device never came back when the session was ended,
+// the window waited for the reading thread and Windows closed the program as not responding. A capture session
+// is now always let go of on another thread; the window goes on at once, however long the device takes.
+TEST(AppControllerSession, EndsACaptureCardAtOnceThoughItsReadNeverReturns) {
+    test::MockConsole console({});
+    auto cards = std::make_shared<test::FakeSessionHub>();
+    Harness h(console, "session_capture_stuck.json", true, 200ms, 0us, nullptr, [&](AppController::Options& options) {
+        options.captureDevices = [] { return std::vector<CaptureDevice>{{"usb#camera", "Virtual camera"}}; };
+        options.captureFactory = cards->factory(cards);
+    });
+    h.app->start();
+    ASSERT_TRUE(h.runUntil([&] { return !h.model.captureDevices.empty(); }));
+    cards->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->showCapture("usb#camera");
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+
+    cards->slowToEnd = true; // what a capture session says of itself
+    cards->holdEnd = true;   // and its end does not come
+    const auto asked = std::chrono::steady_clock::now();
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    EXPECT_LT(std::chrono::steady_clock::now() - asked, 2s);
+    EXPECT_EQ(cards->detachedSinks, 1);
+    EXPECT_EQ(cards->destroyed.load(), 0); // still held up, on its own thread
+
+    // The program goes on meanwhile: the same card can be shown again.
+    cards->scripts.push_back({test::FakeSessionHub::connected()});
+    h.app->showCapture("usb#camera");
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+
+    cards->holdEnd = false;
+    ASSERT_TRUE(h.runUntil([&] { return cards->destroyed.load() >= 1; }));
+    h.app->disconnect();
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    ASSERT_TRUE(h.runUntil([&] { return cards->destroyed.load() == 2; }));
+}
+
 TEST(AppControllerSession, ShowsACaptureCardWithoutConsoleParts) {
     test::MockConsole console({});
     auto cards = std::make_shared<test::FakeSessionHub>();

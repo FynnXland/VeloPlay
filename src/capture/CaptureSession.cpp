@@ -149,19 +149,26 @@ std::vector<CaptureDevice> listDevices(std::string* why) {
 
 // ---- CaptureSource ----------------------------------------------------------
 
-CaptureSource::~CaptureSource() {
+CaptureSource::~CaptureSource() { close(); }
+
+void CaptureSource::close() {
     stop();
     if (videoReader_) videoReader_->Release();
     if (soundReader_) soundReader_->Release();
+    videoReader_ = nullptr;
+    soundReader_ = nullptr;
     if (videoSource_) {
         videoSource_->Shutdown();
         videoSource_->Release();
+        videoSource_ = nullptr;
     }
     if (soundSource_) {
         soundSource_->Shutdown();
         soundSource_->Release();
+        soundSource_ = nullptr;
     }
     if (started_) record::MediaFoundation::get()->shutdown();
+    started_ = false;
 }
 
 std::string CaptureSource::failure() {
@@ -321,10 +328,10 @@ Result<void> CaptureSource::setUpAudio(IMFSourceReader* reader) {
 }
 
 void CaptureSource::start(session::IMediaSink* sink) {
-    sink_ = sink;
+    sink_.store(sink);
     stopping_.store(false);
     ended_.store(false);
-    if (sink_ && soundRate_ > 0 && (soundReader_ || fileHasSound_)) sink_->onPcmFormat(soundRate_, soundChannels_);
+    if (sink && soundRate_ > 0 && (soundReader_ || fileHasSound_)) sink->onPcmFormat(soundRate_, soundChannels_);
     if (videoReader_) videoThread_ = std::thread([this] { run(videoReader_, true, fileHasSound_); });
     if (soundReader_) soundThread_ = std::thread([this] { run(soundReader_, false, true); });
 }
@@ -356,6 +363,9 @@ void CaptureSource::run(IMFSourceReader* reader, bool video, bool audio) {
             }
             break;
         }
+        // A read that comes back after the end was asked for hands nothing on any more.
+        if (stopping_.load()) break;
+        session::IMediaSink* const sink = sink_.load();
         ComPtr<IMFMediaType> type;
         GUID major{};
         if (SUCCEEDED(reader->GetCurrentMediaType(stream, type.GetAddressOf()))) type->GetGUID(MF_MT_MAJOR_TYPE, &major);
@@ -378,7 +388,7 @@ void CaptureSource::run(IMFSourceReader* reader, bool video, bool audio) {
                                                                                : width_;
             if (stride_ < width_) stride_ = width_;
         }
-        if (!sample || !sink_) continue;
+        if (!sample || !sink) continue;
         ComPtr<IMFMediaBuffer> buffer;
         if (FAILED(sample->ConvertToContiguousBuffer(buffer.GetAddressOf()))) continue;
         BYTE* data = nullptr;
@@ -402,10 +412,10 @@ void CaptureSource::run(IMFSourceReader* reader, bool video, bool audio) {
                 picture.strides = {static_cast<int>(stride), static_cast<int>(stride), 0};
                 picture.color = color_;
                 picture.owner = pixels;
-                if (sink_->onPicture(std::move(picture))) pictures_.fetch_add(1);
+                if (sink->onPicture(std::move(picture))) pictures_.fetch_add(1);
             }
         } else if (major == MFMediaType_Audio) {
-            sink_->onPcm(std::span<const std::int16_t>(reinterpret_cast<const std::int16_t*>(data), length / 2));
+            sink->onPcm(std::span<const std::int16_t>(reinterpret_cast<const std::int16_t*>(data), length / 2));
         }
         buffer->Unlock();
     }
@@ -415,7 +425,12 @@ void CaptureSource::run(IMFSourceReader* reader, bool video, bool audio) {
 
 // ---- CaptureSession ---------------------------------------------------------
 
-CaptureSession::~CaptureSession() { stop(); }
+CaptureSession::~CaptureSession() {
+    stop();
+    // Waits for the reading to end. The program destroys a capture session on a thread of its own (slowToEnd),
+    // so a device that never returns from its read holds up that thread and nothing else.
+    if (stopper_.joinable()) stopper_.join();
+}
 
 Result<void> CaptureSession::start(const session::SessionConfig& config, session::IMediaSink* sink) {
     if (opener_.joinable()) return Error{ErrorCode::InvalidArgument, "already started"};
@@ -437,9 +452,21 @@ Result<void> CaptureSession::start(const session::SessionConfig& config, session
 }
 
 void CaptureSession::stop() {
-    stopped_ = true;
-    if (opener_.joinable()) opener_.join();
-    source_.stop();
+    // Called from the window's thread, by the click on "End". It must not wait there: with Windows' virtual
+    // camera the read did not come back after its source was shut down, the window waited for the reading
+    // thread and Windows closed the program as not responding (1.17.0). The end is reported at once
+    // (pollEvents), the waiting happens here on a thread of its own.
+    if (stopped_.exchange(true)) return;
+    source_.detachSink();
+    stopper_ = std::thread([this] {
+        // Everything of Media Foundation is given back here, on a thread that has COM, not wherever the
+        // session happens to be destroyed.
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (opener_.joinable()) opener_.join();
+        source_.detachSink(); // the opener may have started the reading in the meantime
+        source_.close();
+        if (SUCCEEDED(com)) CoUninitialize();
+    });
 }
 
 std::vector<session::SessionEvent> CaptureSession::pollEvents() {

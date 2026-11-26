@@ -3,6 +3,26 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.17.2
+
+- **Ending a capture card no longer freezes the window.** With Windows' virtual camera (a phone as
+  camera), "End" left the window waiting for the device, and Windows closed VeloPlay as not
+  responding. The window now goes on at once, whatever the device does. The capture card is still
+  a beta.
+- **Mouse and keys stay with the program while a capture card shows.** With "Play with mouse and
+  keyboard" on, the pointer was hidden and held as in a stream, though nothing goes to a console
+  there.
+
+**Deutsch**
+
+- **Das Beenden einer Capture-Card friert das Fenster nicht mehr ein.** Mit der virtuellen Kamera
+  von Windows (ein Handy als Kamera) wartete das Fenster nach „Beenden“ auf das Gerät, und Windows
+  schloss VeloPlay als „reagiert nicht“. Das Fenster läuft jetzt sofort weiter, was immer das
+  Gerät tut. Die Capture-Card bleibt eine Beta.
+- **Maus und Tastatur bleiben beim Programm, solange eine Capture-Card gezeigt wird.** Mit „Mit
+  Maus und Tastatur spielen“ wurde der Zeiger wie im Stream versteckt und festgehalten, obwohl
+  dort nichts an eine Konsole geht.
+
 ## 1.17.1
 
 - **Connecting shows whole stations.** On the way shown while connecting, the circles of "This PC"

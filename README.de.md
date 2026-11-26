@@ -2,10 +2,16 @@
 
 # VeloPlay
 
-Ein Remote-Play-Client für die PS5 unter Windows. Er entsteht für eine Aufgabe: Konsolenspiele,
-die mit 30 fps laufen, mit 60 fps auf dem Monitor sehen, sauber hochskaliert auf dessen Auflösung.
+Ein Remote-Play-Client für die PS5 unter Windows und Linux. Er entsteht für eine Aufgabe:
+Konsolenspiele, die mit 30 fps laufen, mit 60 fps auf dem Monitor sehen, sauber hochskaliert auf
+dessen Auflösung.
 
 [English version](README.md)
+
+https://github.com/user-attachments/assets/495273dd-ef57-4e50-b623-b6ea96e7744c
+
+*30 gegen 60: eine gezeichnete Szene, links ohne die Bilder, die VeloPlay berechnet, rechts mit
+ihnen. Der mittlere Teil läuft mit einem Viertel der Geschwindigkeit.*
 
 > **Stand: 1.17, für Windows und Linux.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
 > und zeigt Bild und Ton am PC. Dein Controller steuert die Konsole, mit Vibration, adaptiven

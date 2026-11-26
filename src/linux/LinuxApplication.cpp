@@ -836,8 +836,9 @@ void LinuxApplication::frame() {
     ImGui::NewFrame();
     ui_->draw(model_);
     ImGui::Render();
-    setGameInput(streaming && config.controller.keyboardMouse.enabled && ui_->pictureOwnsInput() &&
-                 !controller_->capturingKey() && inFront());
+    // Not with a capture card: nothing goes from here to its console, and the pointer would be held for nothing.
+    setGameInput(streaming && !model_.session.capture && config.controller.keyboardMouse.enabled &&
+                 ui_->pictureOwnsInput() && !controller_->capturingKey() && inFront());
 
     // Swapping below waits for the screen; the picture is chosen as late as this loop allows.
     GlVideoRenderer::Output output;

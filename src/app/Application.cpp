@@ -744,8 +744,9 @@ void Application::frame() {
     // Keys and mouse go to the game while its picture is all there is on
     // screen and this window is the one in front; a menu, the settings or
     // another window take them back.
-    setGameInput(streaming && config.controller.keyboardMouse.enabled && ui_->pictureOwnsInput() &&
-                 !controller_->capturingKey() && GetForegroundWindow() == window_);
+    // Not with a capture card: nothing goes from here to its console, and the pointer would be held for nothing.
+    setGameInput(streaming && !model_.session.capture && config.controller.keyboardMouse.enabled &&
+                 ui_->pictureOwnsInput() && !controller_->capturingKey() && GetForegroundWindow() == window_);
 
     // Waits for the display here, where no lock is held, instead of in present().
     diag::setStep("waiting for the display");

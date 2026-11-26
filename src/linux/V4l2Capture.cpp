@@ -641,7 +641,10 @@ void V4l2Source::handOn(const std::uint8_t* data, std::size_t length) {
 
 // ---- CaptureSession -----------------------------------------------------------
 
-CaptureSession::~CaptureSession() { stop(); }
+CaptureSession::~CaptureSession() {
+    stop();
+    if (stopper_.joinable()) stopper_.join();
+}
 
 Result<void> CaptureSession::start(const session::SessionConfig& config, session::IMediaSink* sink) {
     if (opener_.joinable()) return Error{ErrorCode::InvalidArgument, "already started"};
@@ -659,9 +662,15 @@ Result<void> CaptureSession::start(const session::SessionConfig& config, session
 }
 
 void CaptureSession::stop() {
-    stopped_ = true;
-    if (opener_.joinable()) opener_.join();
-    source_.stop();
+    // Called from the window's thread, which must not wait: opening a device can still be under way. The end
+    // is reported at once (pollEvents), the waiting happens on a thread of its own, as under Windows.
+    if (stopped_.exchange(true)) return;
+    source_.detachSink();
+    stopper_ = std::thread([this] {
+        if (opener_.joinable()) opener_.join();
+        source_.detachSink(); // the opener may have started the reading in the meantime
+        source_.stop();
+    });
 }
 
 std::vector<session::SessionEvent> CaptureSession::pollEvents() {

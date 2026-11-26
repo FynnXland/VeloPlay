@@ -97,6 +97,8 @@ public:
     void start(session::IMediaSink* sink);
     /// Ends the reading, also one that waits for a picture; nothing reaches the sink after it returns.
     void stop();
+    /// From now on nothing is handed on. Returns at once.
+    void detachSink() { sink_.store(nullptr); }
 
     [[nodiscard]] std::uint64_t pictures() const { return pictures_.load(); }
     [[nodiscard]] bool ended() const { return ended_.load(); }
@@ -152,7 +154,11 @@ public:
     ~CaptureSession() override;
 
     Result<void> start(const session::SessionConfig& config, session::IMediaSink* sink) override;
+    /// Returns at once: the reading is ended on a thread of its own.
     void stop() override;
+    /// Always: the program then lets go of the session on another thread instead of waiting for it.
+    [[nodiscard]] bool slowToEnd() const override { return true; }
+    void detachSink() override { source_.detachSink(); }
     std::vector<session::SessionEvent> pollEvents() override;
     void setControllerState(const input::ControllerState&, session::Clock::time_point) override {}
     Result<void> submitLoginPin(std::string_view) override {
@@ -166,6 +172,7 @@ public:
 private:
     V4l2Source source_;
     std::thread opener_; // opening a device takes a moment; the window does not wait for it
+    std::thread stopper_; // nor for its end
     std::mutex mutex_;
     std::string openFailure_;
     bool opened_ = false;
