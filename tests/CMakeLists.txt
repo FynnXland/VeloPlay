@@ -23,6 +23,7 @@ add_executable(veloplay_tests
     test_media.cpp
     test_psn_account.cpp
     test_install.cpp
+    test_setup.cpp
     test_snapshot.cpp
     test_recording.cpp
     test_capture.cpp

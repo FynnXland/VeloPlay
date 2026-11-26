@@ -184,6 +184,32 @@ TEST(Release, ParsesGitHubAnswer) {
     EXPECT_EQ(release->pageUrl, kBase + "tag/v0.9.0");
 }
 
+TEST(Release, TakesItsArchiveAlsoWhenASetupFileComesFirst) {
+    // A release carries the setup file for Windows and the Linux archive besides the archive the updater of
+    // Windows fetches. Neither may be taken for it, wherever they stand in the list.
+    const std::string digest(64, 'a');
+    json release = releaseJson("v1.18.0", digest);
+    release["assets"].insert(release["assets"].begin(),
+                             json{{"name", "VeloPlay-Setup.exe"},
+                                  {"browser_download_url", kBase + "download/v1.18.0/VeloPlay-Setup.exe"},
+                                  {"size", 14000000},
+                                  {"digest", "sha256:" + std::string(64, 'b')}});
+    release["assets"].push_back(json{{"name", "VeloPlay-linux-x64.zip"},
+                                     {"browser_download_url", kBase + "download/v1.18.0/VeloPlay-linux-x64.zip"},
+                                     {"size", 50000000},
+                                     {"digest", "sha256:" + std::string(64, 'c')}});
+
+    const auto windows = parseWindows(release.dump());
+    ASSERT_TRUE(windows) << windows.error().message;
+    EXPECT_EQ(windows->downloadUrl, kAssetUrl);
+    EXPECT_EQ(windows->sha256, digest);
+
+    const auto linux_ = parseLatestRelease(release.dump(), kLinuxPackage);
+    ASSERT_TRUE(linux_) << linux_.error().message;
+    EXPECT_EQ(linux_->downloadUrl, kBase + "download/v1.18.0/VeloPlay-linux-x64.zip");
+    EXPECT_EQ(linux_->sha256, std::string(64, 'c'));
+}
+
 TEST(Release, RefusesDownloadsFromElsewhere) {
     const std::string digest(64, 'a');
     for (const char* url : {"https://evil.example/VeloPlay-windows-x64.zip",

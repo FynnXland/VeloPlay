@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/495273dd-ef57-4e50-b623-b6ea96e7744c
 *30 gegen 60: eine gezeichnete Szene, links ohne die Bilder, die VeloPlay berechnet, rechts mit
 ihnen. Der mittlere Teil läuft mit einem Viertel der Geschwindigkeit.*
 
-> **Stand: 1.17, für Windows und Linux.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
+> **Stand: 1.18, für Windows und Linux.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
 > und zeigt Bild und Ton am PC. Dein Controller steuert die Konsole, mit Vibration, adaptiven
 > Triggern und Haptik, oder du spielst mit Maus und Tastatur. Läuft ein Spiel mit 30 fps, merkt
 > VeloPlay das, berechnet die Bilder dazwischen und zeigt 60.
@@ -113,21 +113,28 @@ Auf der Konsole:
 
 ### 2. VeloPlay holen
 
-1. Öffne die [neueste Version](https://github.com/FynnXland/VeloPlay/releases/latest) und
-   lade **VeloPlay-windows-x64.zip** herunter.
+Am einfachsten: Öffne die [neueste Version](https://github.com/FynnXland/VeloPlay/releases/latest),
+lade **VeloPlay-Setup.exe** herunter und starte sie mit einem Doppelklick. Sie installiert VeloPlay
+nach `%LOCALAPPDATA%\Programs\VeloPlay`, legt einen Eintrag im Startmenü an, trägt es in Windows
+unter den installierten Apps ein und startet es. Administratorrechte braucht das nicht. Entfernen
+kannst du es wie jede andere App unter Einstellungen > Apps > Installierte Apps; deine Einstellungen
+bleiben.
+
+Ohne Installation:
+
+1. Lade von derselben Seite **VeloPlay-windows-x64.zip** herunter.
 2. Entpacke die Datei in einen eigenen Ordner, zum Beispiel `Dokumente\VeloPlay`. Lege ihn nicht
    unter `C:\Programme` ab: VeloPlay aktualisiert sich selbst und muss dafür den eigenen Ordner
    ändern dürfen.
 3. Starte `VeloPlay.exe`.
-4. Wenn du willst: **Einstellungen > Erweitert > Allgemein > Auf diesem PC installieren** kopiert VeloPlay nach
-   `%LOCALAPPDATA%\Programs\VeloPlay`, legt einen Eintrag im Startmenü an und trägt es in Windows
-   unter den installierten Apps ein. Administratorrechte braucht das nicht. Entfernen kannst du es
-   wie jede andere App unter Einstellungen > Apps > Installierte Apps; deine Einstellungen bleiben.
+4. Wenn du willst: **Einstellungen > Erweitert > Allgemein > Auf diesem PC installieren** tut dasselbe
+   wie die Setup-Datei.
 
 Ab dann meldet VeloPlay, wenn eine neue Version da ist. Ein Klick auf **Aktualisieren** lädt und
 installiert sie, ein zweiter startet das Programm neu.
 
-Windows warnt möglicherweise vor einem unbekannten Herausgeber, weil die Datei nicht signiert ist.
+Windows warnt möglicherweise vor einem unbekannten Herausgeber, weil die Dateien nicht signiert sind:
+Wähle *Weitere Informationen* und dann *Trotzdem ausführen*.
 Beim ersten Start fragt die Windows-Firewall eventuell, ob VeloPlay das Netzwerk nutzen darf.
 Erlaube das für private Netzwerke, sonst kommen die Antworten der Konsole nicht im Programm an.
 
@@ -135,14 +142,25 @@ Erlaube das für private Netzwerke, sonst kommen die Antworten der Konsole nicht
 
 #### Unter Linux
 
+Am einfachsten ist eine Zeile im Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FynnXland/VeloPlay/main/install.sh | sh
+```
+
+Sie lädt die neueste Version, legt sie unter `~/.local/share/VeloPlay` ab und trägt sie ins
+Anwendungsmenü ein. Root braucht sie nicht. Entfernen geht über das Kontextmenü des Eintrags
+(*VeloPlay entfernen*) oder mit `~/.local/share/VeloPlay/VeloPlay --uninstall`.
+
+Von Hand:
+
 1. Lade aus der [neuesten Version](https://github.com/FynnXland/VeloPlay/releases/latest)
    **VeloPlay-linux-x64.zip** herunter und entpacke sie, zum Beispiel mit Rechtsklick > *Hier
    entpacken*.
 2. Öffne im entpackten Ordner ein Terminal (Rechtsklick > *Im Terminal öffnen*) und starte
    VeloPlay einmal mit `./VeloPlay`.
 3. **Einstellungen > Erweitert > Allgemein > Installieren** legt VeloPlay unter `~/.local/share/VeloPlay` ab
-   und trägt es ins Anwendungsmenü ein. Ab dann startest du es von dort. Entfernen geht über das
-   Kontextmenü des Eintrags (*VeloPlay entfernen*) oder mit `VeloPlay --uninstall`.
+   und trägt es ins Anwendungsmenü ein. Ab dann startest du es von dort.
 
 Was unter Linux anders ist:
 

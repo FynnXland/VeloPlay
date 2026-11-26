@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.17.2
+    VERSION 1.18.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -69,6 +69,7 @@ add_library(veloplay_core STATIC
     src/update/Version.cpp
     src/update/Release.cpp
     src/update/Zip.cpp
+    src/setup/Payload.cpp
     src/update/Updater.cpp
     src/input/ControllerState.cpp
     src/input/InputMerger.cpp
@@ -207,6 +208,9 @@ if(VELOPLAY_BUILD_APP)
     # vcpkg copies the DLLs of all dependencies next to the executable.
     install(DIRECTORY "$<TARGET_FILE_DIR:veloplay>/" DESTINATION . FILES_MATCHING PATTERN "*.dll")
     install(FILES README.md README.de.md CHANGELOG.md LICENSE THIRD_PARTY.md DESTINATION .)
+
+    # The program part of VeloPlay-Setup.exe. Built with the client, attached to the package by the release.
+    add_subdirectory(tools/setup)
 endif()
 
 if(VELOPLAY_BUILD_CLI)

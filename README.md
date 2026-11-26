@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/495273dd-ef57-4e50-b623-b6ea96e7744c
 them. The middle stretch runs at a quarter of the speed. The labels are German: "ohne
 Zwischenbilder" is "without computed frames", "Zeitlupe" is "slow motion".*
 
-> **Status: 1.17, for Windows and Linux.** VeloPlay finds your PS5, pairs with it, wakes it up, connects and shows
+> **Status: 1.18, for Windows and Linux.** VeloPlay finds your PS5, pairs with it, wakes it up, connects and shows
 > picture and sound on the PC. Your controller drives the console, with vibration, adaptive
 > triggers and haptics, or you play with mouse and keyboard. It notices when a game runs at 30
 > fps, computes the frames in between and shows 60.
@@ -113,20 +113,25 @@ On the console:
 
 ### 2. Get VeloPlay
 
-1. Open the [latest release](https://github.com/FynnXland/VeloPlay/releases/latest) and
-   download **VeloPlay-windows-x64.zip**.
+The easy way: open the [latest release](https://github.com/FynnXland/VeloPlay/releases/latest),
+download **VeloPlay-Setup.exe** and double-click it. It installs VeloPlay to
+`%LOCALAPPDATA%\Programs\VeloPlay`, adds it to the start menu and to Windows' list of installed apps
+and starts it. No administrator rights are needed. You remove it like any other app under
+Settings > Apps > Installed apps; your settings stay.
+
+Without installing:
+
+1. From the same page, download **VeloPlay-windows-x64.zip**.
 2. Unpack it into a folder of your own, for example `Documents\VeloPlay`. Do not put it under
    `C:\Program Files`: VeloPlay updates itself and needs to change its own folder.
 3. Start `VeloPlay.exe`.
-4. Optional: **Settings > Advanced > General > Install on this PC** copies VeloPlay to
-   `%LOCALAPPDATA%\Programs\VeloPlay`, adds it to the start menu and to Windows' list of installed
-   apps. No administrator rights are needed. You remove it like any other app under
-   Settings > Apps > Installed apps; your settings stay.
+4. Optional: **Settings > Advanced > General > Install on this PC** does what the setup file does.
 
 From then on VeloPlay tells you when a new version is out. One click on **Update** downloads and
 installs it, another one restarts the program.
 
-Windows may warn about an unknown publisher, because the file is not signed. On the first start
+Windows may warn about an unknown publisher, because the files are not signed: choose *More info*,
+then *Run anyway*. On the first start
 Windows Firewall may ask whether VeloPlay may use the network. Allow it for private networks,
 otherwise the console's answers do not reach the program.
 
@@ -134,13 +139,24 @@ otherwise the console's answers do not reach the program.
 
 #### On Linux
 
+The easy way is one line in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FynnXland/VeloPlay/main/install.sh | sh
+```
+
+It fetches the newest version, puts it into `~/.local/share/VeloPlay` and adds it to the application
+menu. It needs no root. To remove VeloPlay, use the entry's context menu (*Remove VeloPlay*) or
+`~/.local/share/VeloPlay/VeloPlay --uninstall`.
+
+By hand:
+
 1. From the [latest version](https://github.com/FynnXland/VeloPlay/releases/latest), download
    **VeloPlay-linux-x64.zip** and unpack it, for example with right click > *Extract here*.
 2. Open a terminal in the unpacked folder (right click > *Open in terminal*) and start VeloPlay once
    with `./VeloPlay`.
 3. **Settings > Advanced > General > Install** puts VeloPlay into `~/.local/share/VeloPlay` and adds it to the
-   application menu. From then on, start it from there. To remove it, use the entry's context menu
-   (*Remove VeloPlay*) or `VeloPlay --uninstall`.
+   application menu. From then on, start it from there.
 
 What is different on Linux:
 

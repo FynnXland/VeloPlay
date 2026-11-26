@@ -1,0 +1,28 @@
+// What Explorer and Windows' warnings show about VeloPlay-Setup.exe.
+#include <winver.h>
+
+1 ICON "@PROJECT_SOURCE_DIR@/assets/veloplay.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "VeloPlay Setup"
+            VALUE "ProductName", "VeloPlay"
+            VALUE "FileVersion", "@PROJECT_VERSION@"
+            VALUE "ProductVersion", "@PROJECT_VERSION@"
+            VALUE "OriginalFilename", "VeloPlay-Setup.exe"
+            VALUE "LegalCopyright", "AGPL-3.0, github.com/FynnXland/VeloPlay"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 0x04B0
+    END
+END

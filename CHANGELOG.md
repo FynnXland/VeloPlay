@@ -3,6 +3,33 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.18.0
+
+Nothing changes in the program itself. What is new is how you get it.
+
+- **A setup file for Windows.** Download **VeloPlay-Setup.exe** and double-click it: VeloPlay is
+  installed for your user, gets its entry in the start menu and in Windows' list of apps, and starts.
+  No administrator rights, nothing to unpack. It does what "Install on this PC" in the settings does.
+  The file is not signed, so Windows may warn before the first start: choose *More info*, then *Run
+  anyway*. The ZIP file stays; updates from inside VeloPlay work as before.
+- **One line for Linux.** `curl -fsSL https://raw.githubusercontent.com/FynnXland/VeloPlay/main/install.sh | sh`
+  fetches the newest version, puts it into `~/.local/share/VeloPlay` and adds it to the application
+  menu. It needs no root.
+
+**Deutsch**
+
+Am Programm selbst ändert sich nichts. Neu ist, wie du es bekommst.
+
+- **Eine Setup-Datei für Windows.** Lade **VeloPlay-Setup.exe** herunter und starte sie mit einem
+  Doppelklick: VeloPlay wird für deinen Benutzer installiert, bekommt seinen Eintrag im Startmenü und
+  unter den installierten Apps und startet. Ohne Administratorrechte, ohne Entpacken. Sie tut dasselbe
+  wie „Auf diesem PC installieren“ in den Einstellungen. Die Datei ist nicht signiert, Windows warnt
+  deshalb möglicherweise vor dem ersten Start: Wähle *Weitere Informationen* und dann *Trotzdem
+  ausführen*. Die ZIP-Datei bleibt; Updates aus VeloPlay heraus laufen wie bisher.
+- **Eine Zeile für Linux.** `curl -fsSL https://raw.githubusercontent.com/FynnXland/VeloPlay/main/install.sh | sh`
+  lädt die neueste Version, legt sie unter `~/.local/share/VeloPlay` ab und trägt sie ins
+  Anwendungsmenü ein. Root braucht sie nicht.
+
 ## 1.17.2
 
 - **Ending a capture card no longer freezes the window.** With Windows' virtual camera (a phone as

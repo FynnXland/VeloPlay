@@ -226,6 +226,35 @@ jobs:
           gh release create $tag VeloPlay-windows-x64.zip --verify-tag --title "VeloPlay $version" --notes-file notes.md
           exit $LASTEXITCODE
 
+      # One file to double-click: the small setup program with this release's
+      # package attached (tools/setup). It is tried out here, on a machine that
+      # is thrown away after the run (attach, unpack, install, install again,
+      # remove), and attached to the release only if all of that passed. The
+      # archive above is published either way: the updater needs it, and a
+      # problem here must not hold it up.
+      - name: Setup file
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $found = Select-String -Path CMakeLists.txt -Pattern '^\s*VERSION\s+(\d+\.\d+\.\d+)' | Select-Object -First 1
+          $version = $found.Matches[0].Groups[1].Value
+          $tag = "v$version"
+          $there = gh release view $tag --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw "There is no release $tag to attach the setup file to." }
+          if (@($there) -contains 'VeloPlay-Setup.exe') { Write-Host "$tag has its setup file already."; exit 0 }
+
+          $program = Get-ChildItem build\windows\setup -Recurse -Filter VeloPlay-Setup-Program.exe | Select-Object -First 1
+          if (-not $program) { throw 'The setup program was not built.' }
+          # The archive the step above published, so the setup file carries exactly what the updater fetches.
+          $zip = @{}
+          if (Test-Path VeloPlay-windows-x64.zip) { $zip = @{ Zip = 'VeloPlay-windows-x64.zip' } }
+          & tools\setup\check-setup.ps1 -Program $program.FullName -Package dist\VeloPlay -Out setup-out -Install -Version $version @zip
+          if ($LASTEXITCODE -ne 0) { throw 'The setup file did not pass; the release stays without it.' }
+          gh release upload $tag setup-out\VeloPlay-Setup.exe
+          exit $LASTEXITCODE
+
   # The Linux client, built beside the Windows one. It never holds the Windows
   # release back: it waits for the release that job creates and adds its file.
   # Until it has, installed Linux clients see no update; the Windows ones do.
