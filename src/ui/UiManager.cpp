@@ -933,7 +933,7 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
     // replaced the two entries: the question is wider, and in a narrow window
     // its "Cancel" lay beyond the right edge. Near the lower edge it opens
     // upwards, judged by the height it had in the frame before.
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(12.0f), px(12.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::round(px(12.0f)), std::round(px(12.0f))));
     if (hasMenu) {
         const ImGuiViewport* screen = ImGui::GetMainViewport();
         const bool upwards = menuCorner.y + px(4.0f) + consoleMenuHeight_ > screen->Pos.y + screen->Size.y - px(8.0f);
@@ -1011,7 +1011,10 @@ bool UiManager::beginSheet(const char* id, float width) {
     ImGui::SetNextWindowSize(ImVec2(sheetWidth, 0.0f));
     ImGui::SetNextWindowSizeConstraints(ImVec2(sheetWidth, 0.0f), ImVec2(sheetWidth, viewport->Size.y - px(32.0f)));
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, std::clamp(appear, 0.0f, 1.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(kSheetPadding), px(kSheetPadding)));
+    // In whole pixels: ImGui cuts a window's size down to whole pixels, and with a padding of 47.6 the contents
+    // then stand a fraction taller than the room left for them, which brings a scroll bar nobody can scroll.
+    const float padding = std::round(px(kSheetPadding));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, padding));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, px(18.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, palette().surfaceRaised);
@@ -2368,8 +2371,11 @@ void drawConnectionPath(const Strings& t, bool throughSony, int stage, bool redu
     else if (throughSony && stage == 1) current = 2;
     const bool arrived = stage >= 4; // the console let us in: the way is complete
 
-    const float edge = std::max(radius, std::max(measure(TextStyle::Caption, nodes.front().name).x,
-                                                 measure(TextStyle::Caption, nodes.back().name).x) * 0.5f);
+    // The first and last station need room for their outline and for the ring that pulses around the one the
+    // connection is at; without it the window cuts both at its edge.
+    const float ring = radius + px(5.0f);
+    const float edge = std::max(ring, std::max(measure(TextStyle::Caption, nodes.front().name).x,
+                                               measure(TextStyle::Caption, nodes.back().name).x) * 0.5f);
     const float step = (width - 2.0f * edge) / static_cast<float>(last);
     const float y = start.y + radius;
     std::vector<ImVec2> centres;
@@ -2968,7 +2974,7 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     sectionTitle(t.activeController, true);
     const std::string current = config.controller.preferredName.empty() ? t.automatic : config.controller.preferredName;
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(8.0f), px(8.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::round(px(8.0f)), std::round(px(8.0f))));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(px(8.0f), px(6.0f)));
     if (ImGui::BeginCombo("##controller", current.c_str())) {
         if (ImGui::Selectable(t.automatic, config.controller.preferredName.empty())) config.controller.preferredName.clear();
@@ -3041,7 +3047,7 @@ void UiManager::drawWheel(const UiModel& model, AppConfig& config) {
     }
     const std::string current = wheel.device.empty() ? std::string(t.wheelChoose) : wheel.device;
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(px(8.0f), px(8.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::round(px(8.0f)), std::round(px(8.0f))));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(px(8.0f), px(6.0f)));
     if (ImGui::BeginCombo("##wheel", current.c_str())) {
         for (const input::JoystickInfo& device : view.devices) {

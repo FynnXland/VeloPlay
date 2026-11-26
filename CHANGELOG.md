@@ -3,6 +3,23 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.17.1
+
+- **Connecting shows whole stations.** On the way shown while connecting, the circles of "This PC"
+  and "PS5" at both ends were cut at the edge of the window, and so was the ring that pulses around
+  the station reached. They have their room now.
+- **No scroll bar that scrolls nothing.** At some display scalings a sheet such as "… is paired" got a
+  scroll bar although everything fitted. Its inner margin is a whole number of pixels now.
+
+**Deutsch**
+
+- **Verbinden zeigt ganze Stationen.** Auf dem Weg, den VeloPlay beim Verbinden zeigt, waren die
+  Kreise von „Dieser PC“ und „PS5“ an beiden Enden am Rand des Fensters abgeschnitten, ebenso der
+  Ring, der um die erreichte Station pulsiert. Sie haben jetzt ihren Platz.
+- **Kein Scrollbalken, der nichts scrollt.** Bei manchen Skalierungen der Anzeige bekam ein Blatt wie
+  „… ist gekoppelt“ einen Scrollbalken, obwohl alles hineinpasste. Sein Innenabstand ist jetzt eine
+  ganze Zahl von Bildpunkten.
+
 ## 1.17.0
 
 - **VeloPlay for Linux.** A client of its own for Linux (x86-64; Ubuntu 22.04, Debian 12, Fedora 38

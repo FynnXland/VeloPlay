@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.17.0
+    VERSION 1.17.1
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -16,6 +16,7 @@ option(VELOPLAY_BUILD_TESTS "Build the unit tests" ON)
 option(VELOPLAY_BUILD_UI_PREVIEW "Build ui_preview, which renders the UI offscreen (needs GLFW and OpenGL)" OFF)
 option(VELOPLAY_LINUX_PLATFORM "Build the Linux picture, sound and system parts (OpenGL, SDL3, curl, libsecret)" OFF)
 option(VELOPLAY_BUILD_LINUX_APP "Build the Linux client (needs VELOPLAY_LINUX_PLATFORM)" OFF)
+option(VELOPLAY_BUILD_VIDEO_TOOLS "Build clip_process, which runs a clip through the Linux picture pipeline (needs GLFW)" OFF)
 # The Linux release runs on distributions other than the one it was built on:
 # the C++ runtime goes into the program, glibc stays the system's.
 option(VELOPLAY_STATIC_RUNTIME "Link the C++ runtime statically (Linux release)" OFF)
@@ -224,6 +225,11 @@ endif()
 
 if(VELOPLAY_BUILD_UI_PREVIEW)
     add_subdirectory(tools/ui_preview)
+endif()
+
+# Tools for the project's video. They stay in the development repository (tools/publish/exclude.txt).
+if(VELOPLAY_LINUX_PLATFORM AND VELOPLAY_BUILD_VIDEO_TOOLS AND EXISTS "${PROJECT_SOURCE_DIR}/tools/video/process/CMakeLists.txt")
+    add_subdirectory(tools/video/process)
 endif()
 
 if(VELOPLAY_BUILD_TESTS)

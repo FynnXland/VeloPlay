@@ -1,6 +1,7 @@
 // Renders the client's screens offscreen and writes them as BMP files.
 //
 //   ui_preview <output directory> [--scale 1.5] [--lang de|en]
+//   ui_preview <output directory> --film all     every frame of the scenes for the video
 //
 // On a machine without a display, run it under a virtual one:
 //   xvfb-run -a ./ui_preview out
@@ -99,7 +100,44 @@ struct Scene {
     std::function<void(UiModel&, ui::UiManager&)> setup;
     /// Optional: what the controller does in each frame, for pictures of steering with it.
     std::function<void(UiModel&, int frame)> step = {};
+    /// For --film: how many frames the scene runs, and what happens in each of them.
+    int frames = 0;
+    std::function<void(UiModel&, ui::UiManager&, int frame)> act = {};
+    /// For --film: leave the picture see-through where the game's picture would be, so the film can put one there.
+    bool overGame = false;
 };
+
+// Where a film scene has the mouse pointer, in the window's own units (1100 x 720), and whether it presses.
+// The pictures carry no pointer; its place goes into a file next to them, for whoever draws one.
+struct FilmPointer {
+    float x = -1.0f;
+    float y = -1.0f;
+    bool down = false;
+    bool shown = false;
+    bool asksForNone = false; // read before the frame is drawn: what the frame before left
+};
+FilmPointer gPointer;
+float gFilmWidth = 1100.0f;
+// The middle of "Verbinden" in the first console's row, in the window's own units: the column of the
+// start page is 720 wide and centred, the button sits at its right end.
+float connectX() { return gFilmWidth * 0.5f + 260.0f; }
+constexpr float kConnectY = 128.0f;
+float gFilmScale = 1.0f;
+
+void pointAt(float x, float y, bool down = false) {
+    gPointer = {x, y, down, true};
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMousePosEvent(x * gFilmScale, y * gFilmScale);
+    io.AddMouseButtonEvent(0, down);
+}
+
+/// From 0 to 1 between two frames, gently at both ends.
+float glide(int frame, int from, int to) {
+    if (frame <= from) return 0.0f;
+    if (frame >= to) return 1.0f;
+    const float t = static_cast<float>(frame - from) / static_cast<float>(to - from);
+    return t * t * (3.0f - 2.0f * t);
+}
 
 ConsoleEntry console(std::string name, std::string hostId, std::string address, ConsoleStatus status, bool registered) {
     ConsoleEntry entry;
@@ -970,6 +1008,177 @@ std::vector<Scene> scenes() {
     };
 }
 
+/// Scenes that run for a while and change, for the project's video (--film). Each shows what the client
+/// shows when it happens for real; the data is made up as in the scenes above.
+std::vector<Scene> filmScenes() {
+    using ui::UiManager;
+    const auto living = [](bool registered) {
+        return console("Wohnzimmer", "001122AABBCC", "192.168.1.20", ConsoleStatus::Ready, registered);
+    };
+    const auto streaming = [](UiModel& model) {
+        model.state = AppState::Streaming;
+        model.session.consoleName = "Wohnzimmer";
+        model.session.hostId = "001122AABBCC";
+        model.session.connectedSeconds = 240;
+        StreamStats stats = playingStats();
+        stats.outputWidth = 1920;
+        stats.outputHeight = 1080;
+        stats.scaler = "";
+        model.stream = stats;
+    };
+    std::vector<Scene> films;
+    const auto add = [&](std::string name, int frames, std::function<void(UiModel&, UiManager&)> setup,
+                         std::function<void(UiModel&, UiManager&, int)> act = {}) {
+        Scene scene;
+        scene.name = std::move(name);
+        scene.setup = std::move(setup);
+        scene.frames = frames;
+        scene.act = std::move(act);
+        films.push_back(std::move(scene));
+    };
+
+    // The search runs, and a console answers.
+    add("film-find", 260, [](UiModel& model, UiManager&) {
+        withController(model);
+        model.discoveryRunning = true;
+    }, [living](UiModel& model, UiManager&, int frame) {
+        if (frame == 80) model.consoles = {living(false)};
+    });
+
+    // Pairing: the account, the number from the television, done.
+    add("film-pair", 440, [living](UiModel& model, UiManager& ui) {
+        withController(model);
+        model.accountLoginAvailable = true;
+        model.consoles = {living(false)};
+        ui.openPairing("192.168.1.20");
+        ui.setPairingInputs("192.168.1.20", "", "");
+    }, [](UiModel& model, UiManager& ui, int frame) {
+        static const std::string pin = "1234 5678";
+        if (frame == 100) ui.setPairingInputs("192.168.1.20", "ASNFZ4mrze8=", "");
+        if (frame == 170) ui.setPairingStep(UiManager::PairingStep::Pin);
+        if (frame >= 200 && frame < 200 + 9 * 8 && (frame - 200) % 8 == 0) {
+            ui.setPairingInputs("192.168.1.20", "ASNFZ4mrze8=", pin.substr(0, static_cast<std::size_t>((frame - 200) / 8 + 1)));
+        }
+        if (frame == 300) model.pairing.phase = PairingStatus::Phase::Running;
+        if (frame == 360) {
+            model.pairing.phase = PairingStatus::Phase::Succeeded;
+            model.pairing.consoleName = "Wohnzimmer";
+            model.pairing.hostId = "001122AABBCC";
+            model.consoles.front().registered = true;
+            model.consoles.front().credentialsValid = true;
+        }
+    });
+
+    // Connecting at home: the way lights up station by station, then the stream runs.
+    add("film-connect", 400, [living](UiModel& model, UiManager&) {
+        withController(model);
+        model.consoles = {living(true)};
+    }, [streaming](UiModel& model, UiManager&, int frame) {
+        if (frame < 78) {
+            const float t = glide(frame, 15, 58);
+            pointAt(connectX() - 170.0f * (1.0f - t), kConnectY + 330.0f * (1.0f - t), frame >= 66 && frame < 74);
+        }
+        if (frame == 78) {
+            model.state = AppState::Connecting;
+            model.session.consoleName = "Wohnzimmer";
+        }
+        if (frame == 140) model.session.connectStage = 3;
+        if (frame == 210) model.session.connectStage = 4;
+        if (frame == 270) model.session.connectStage = 5;
+        if (frame == 330) {
+            streaming(model);
+            model.session.connectedSeconds = 1;
+        }
+    });
+
+    // The same from away, through Sony's servers.
+    add("film-sony", 380, [living](UiModel& model, UiManager&) {
+        withController(model);
+        model.consoles = {living(true)};
+        model.state = AppState::Connecting;
+        model.session.consoleName = "Wohnzimmer";
+        model.session.throughSony = true;
+        model.session.away = true;
+    }, [](UiModel& model, UiManager&, int frame) {
+        for (int stage = 1; stage <= 5; ++stage) {
+            if (frame == 20 + stage * 62) model.session.connectStage = stage;
+        }
+    });
+
+    // The controller test: sticks, triggers and buttons as a hand moves them.
+    add("film-controller", 320, [living](UiModel& model, UiManager& ui) {
+        withController(model);
+        model.consoles = {living(true)};
+        model.controller.reportsPerSecond = 250.0f;
+        model.controller.batteryPercent = 80;
+        model.controller.charging = true;
+        ui.openSettings(UiManager::SettingsTab::Controller);
+        ui.scrollSettingsTo(0.2f);
+    }, [](UiModel& model, UiManager&, int frame) {
+        // Nothing here that also steers the interface: Circle would close the page, L1 and R1 turn its
+        // tabs, the left stick and the directional pad move the marker.
+        const float t = static_cast<float>(frame) / 60.0f;
+        input::ControllerState& state = model.controllerState;
+        state.rightX = static_cast<std::int16_t>(26000.0f * std::cos(t * 3.2f));
+        state.rightY = static_cast<std::int16_t>(26000.0f * std::sin(t * 3.2f));
+        state.r2 = static_cast<std::uint8_t>(255.0f * (0.5f - 0.5f * std::cos(t * 2.4f)));
+        state.l2 = static_cast<std::uint8_t>(255.0f * std::max(0.0f, std::sin(t * 1.7f - 1.0f)));
+        static const input::Button order[] = {input::Button::Triangle, input::Button::Square};
+        state.buttons = frame % 26 < 13 ? static_cast<std::uint32_t>(order[(frame / 26) % 2]) : 0u;
+    });
+
+    // The menu in the game.
+    // First the game alone, then Esc: the menu comes over it. The pictures stay see-through where the game shows.
+    add("film-menu", 260,
+        [streaming](UiModel& model, UiManager&) {
+            withController(model);
+            streaming(model);
+            model.controller.batteryPercent = 80;
+            model.microphoneAvailable = true;
+        },
+        [](UiModel&, UiManager& ui, int frame) {
+            if (frame == 50) ui.showPauseMenu();
+        });
+    films.back().overGame = true;
+
+    // Mouse and keyboard.
+    add("film-keys", 220, [living](UiModel& model, UiManager& ui) {
+        withController(model);
+        model.consoles = {living(true)};
+        model.config->controller.keyboardMouse.enabled = true;
+        ui.openSettings(UiManager::SettingsTab::Keyboard);
+    });
+
+    // The page "Network", with the pointer moving along the chart.
+    add("film-network", 280, [living](UiModel& model, UiManager& ui) {
+        withController(model);
+        model.consoles = {living(true)};
+        fillLink(model);
+        ui.openSettings(UiManager::SettingsTab::Network);
+    }, [](UiModel&, UiManager&, int frame) {
+        if (frame >= 40) pointAt(gFilmWidth * 0.5f - 220.0f + 440.0f * glide(frame, 50, 250), 480.0f);
+    });
+
+    // The stream with its display, to lay over a picture.
+    add("film-play", 200, [streaming](UiModel& model, UiManager&) {
+        withController(model);
+        streaming(model);
+    });
+
+    // Not for the film: the pointer over the picture rests, goes, and is moved again. The pointer file
+    // says in its third column whether the interface asks for no pointer (2) in that frame.
+    add("check-pointer", 360, [streaming](UiModel& model, UiManager&) {
+        withController(model);
+        streaming(model);
+    }, [](UiModel&, UiManager&, int frame) {
+        // Still until frame 150, moving until 210, still again, a short move at 330.
+        const float x = 300.0f + (frame < 150 ? 0.0f : frame < 210 ? static_cast<float>(frame - 150) * 2.0f : frame < 330 ? 120.0f : 124.0f);
+        pointAt(x, 300.0f);
+        gPointer.asksForNone = ImGui::GetMouseCursor() == ImGuiMouseCursor_None;
+    });
+    return films;
+}
+
 bool writeBmp(const std::filesystem::path& path, int width, int height) {
     // glReadPixels and BMP agree on bottom-up rows padded to four bytes.
     const int rowSize = (width * 3 + 3) & ~3;
@@ -1013,12 +1222,17 @@ int main(int argc, char** argv) {
     std::string language = "de";
     int baseWidth = 1100;
     int baseHeight = 720;
+    std::string film;
     for (int i = 2; i + 1 < argc; i += 2) {
         if (std::strcmp(argv[i], "--scale") == 0) scale = std::stof(argv[i + 1]);
         if (std::strcmp(argv[i], "--lang") == 0) language = argv[i + 1];
         // The smallest window the client allows is 820 by 560: what fits there fits anywhere.
         if (std::strcmp(argv[i], "--size") == 0) std::sscanf(argv[i + 1], "%dx%d", &baseWidth, &baseHeight);
+        // Every frame of the scenes for the video ("all" or the start of a name), as raw pictures.
+        if (std::strcmp(argv[i], "--film") == 0) film = argv[i + 1];
     }
+    gFilmScale = scale;
+    gFilmWidth = static_cast<float>(baseWidth);
     std::filesystem::create_directories(output);
 
     if (!glfwInit()) {
@@ -1047,7 +1261,10 @@ int main(int argc, char** argv) {
 
     int failures = 0;
     int cutOff = 0;
-    for (const Scene& scene : scenes()) {
+    const bool filming = !film.empty();
+    for (const Scene& scene : filming ? filmScenes() : scenes()) {
+        if (filming && film != "all" && scene.name.rfind(film, 0) != 0) continue;
+        if (filming && film == "all" && scene.name.rfind("check-", 0) == 0) continue; // a check, asked for by name
         // A fresh ImGui context per scene: no popup or animation state leaks over.
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -1076,8 +1293,21 @@ int main(int argc, char** argv) {
         // Every surface and every text that a window cuts off in part gets noted (see ui::ClipAudit).
         ui::context().audit.enabled = true;
 
+        // A film scene keeps every frame: raw RGBA, bottom row first, and the pointer's place per frame.
+        std::ofstream filmPictures;
+        std::ofstream filmPointer;
+        std::vector<unsigned char> filmPixels;
+        if (filming) {
+            model.ownWindowBar = false;
+            filmPictures.open(output / (scene.name + ".rgba"), std::ios::binary);
+            filmPointer.open(output / (scene.name + ".pointer.txt"));
+            filmPixels.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
+            gPointer = {};
+        }
+
         // Enough frames for every spring to settle.
-        for (int frame = 0; frame < 90; ++frame) {
+        const int frames = filming ? scene.frames : 90;
+        for (int frame = 0; frame < frames; ++frame) {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
@@ -1086,6 +1316,7 @@ int main(int argc, char** argv) {
             // No pointer unless a scene puts one somewhere: the hidden window's own would wander in.
             io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
             if (scene.step) scene.step(model, frame);
+            if (scene.act) scene.act(model, manager, frame);
             manager.feedNavigation(model);
             // What counts is the picture that gets written: in the first frames sizes are not settled yet.
             ui::context().audit.findings.clear();
@@ -1093,11 +1324,26 @@ int main(int argc, char** argv) {
             manager.draw(model);
             ImGui::Render();
             glViewport(0, 0, width, height);
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClearColor(0.0f, 0.0f, 0.0f, filming && scene.overGame ? 0.0f : 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            if (filming) {
+                glPixelStorei(GL_PACK_ALIGNMENT, 1);
+                glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, filmPixels.data());
+                filmPictures.write(reinterpret_cast<const char*>(filmPixels.data()), static_cast<std::streamsize>(filmPixels.size()));
+                filmPointer << (gPointer.shown ? gPointer.x * scale : -1.0f) << ' ' << (gPointer.shown ? gPointer.y * scale : -1.0f)
+                            << ' ' << (gPointer.asksForNone ? 2 : gPointer.down ? 1 : 0) << '\n';
+                gPointer.shown = false;
+            }
         }
         glFinish();
+        if (filming) {
+            std::printf("filmed %s: %d frames of %d x %d\n", scene.name.c_str(), frames, width, height);
+            ImGui_ImplOpenGL3_Shutdown();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+            continue;
+        }
 
         const std::filesystem::path file = output / (scene.name + ".bmp");
         if (writeBmp(file, width, height)) {
