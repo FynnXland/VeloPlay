@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <fstream>
+
 #include <thread>
 
 #include <nlohmann/json.hpp>
@@ -196,6 +198,169 @@ TEST(AppController, InstallsAndGoesOnInTheInstalledProgram) {
     h.app->fillModel(h.model);
     EXPECT_TRUE(h.model.install.installed);
     EXPECT_EQ(installer.calls.load(), 2);
+}
+
+namespace {
+
+HardwareInfo weakLaptop() {
+    HardwareInfo info = describeAdapter(HardwareInfo::Os::Windows, 0x8086, "Intel(R) UHD Graphics 620", 128ull << 20, false);
+    info.cpuThreads = 8;
+    info.systemMemoryMb = 8192;
+    return info;
+}
+
+HardwareInfo strongPc() {
+    HardwareInfo info = describeAdapter(HardwareInfo::Os::Windows, 0x10DE, "NVIDIA GeForce RTX 4070", 12ull << 30, false);
+    info.cpuThreads = 24;
+    info.screenHeight = 1080;
+    return info;
+}
+
+} // namespace
+
+TEST(AppController, ChoosesThePictureSettingsForTheHardwareOnTheFirstStartOnly) {
+    using Note = UiModel::HardwareView::Note;
+    test::MockConsole console(test::MockConsole::Config{});
+    const HardwareAdvice weak = recommendedSettings(weakLaptop());
+    ASSERT_NE(weak.graphics, GraphicsSettings{});
+    {
+        Harness h(console, "controller_hardware_first.json");
+        h.app->setHardware(weakLaptop()); // before the settings are loaded: they are looked at once they are
+        h.app->start();
+        h.app->fillModel(h.model);
+        EXPECT_TRUE(h.model.hardware.known);
+        EXPECT_EQ(h.model.hardware.note, Note::FirstStart);
+        EXPECT_EQ(h.model.hardware.advice, weak);
+        EXPECT_EQ(h.app->config().graphics, weak.graphics);
+        EXPECT_TRUE(h.model.hardware.autoChosen);
+        EXPECT_FALSE(h.app->config().hardware.pending);
+        // Another setting changes nothing about the choice.
+        h.app->config().language = "en";
+        h.app->configChanged();
+        EXPECT_TRUE(h.app->config().hardware.autoChosen);
+        h.app->dismissHardwareNote();
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+        EXPECT_EQ(h.app->config().graphics, weak.graphics);
+    }
+    {
+        // The next start, the hardware described after the settings are loaded: nothing to say or choose.
+        Harness h(console, "controller_hardware_first.json", false);
+        h.app->start();
+        h.app->setHardware(weakLaptop());
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+        EXPECT_TRUE(h.app->config().hardware.autoChosen);
+        h.app->config().graphics.sharpness = 0.5f; // the user's from now on
+        h.app->configChanged();
+        EXPECT_FALSE(h.app->config().hardware.autoChosen);
+        h.app->setHardware(weakLaptop()); // told again: still nothing to choose
+        EXPECT_FLOAT_EQ(h.app->config().graphics.sharpness, 0.5f);
+        // Put back on request.
+        h.app->applyHardwareSettings();
+        EXPECT_EQ(h.app->config().graphics, weak.graphics);
+        EXPECT_TRUE(h.app->config().hardware.autoChosen);
+    }
+}
+
+TEST(AppController, LeavesTheSettingsOfAnEarlierVersionAlone) {
+    using Note = UiModel::HardwareView::Note;
+    test::MockConsole console(test::MockConsole::Config{});
+    const auto dir = std::filesystem::temp_directory_path() / "veloplay_tests";
+    std::filesystem::create_directories(dir);
+    std::ofstream(dir / "controller_hardware_old.json", std::ios::trunc)
+        << R"({"settings_version":6,"graphics":{"frame_generation_factor":3,"super_resolution_level":0,"deband":false}})";
+    {
+        Harness h(console, "controller_hardware_old.json", false);
+        h.app->start();
+        h.app->setHardware(weakLaptop());
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+        EXPECT_EQ(h.app->config().graphics.frameGenerationFactor, 3);
+        EXPECT_FALSE(h.app->config().hardware.autoChosen);
+        // Remembered, so that other hardware later is noticed.
+        EXPECT_EQ(h.app->config().hardware.chosenFor, hardwareFingerprint(weakLaptop()));
+    }
+    {
+        // Another PC with the same file: asked, not changed.
+        Harness h(console, "controller_hardware_old.json", false);
+        h.app->setHardware(strongPc());
+        h.app->start();
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::Changed);
+        EXPECT_EQ(h.model.hardware.previousGpu, "Intel UHD Graphics 620");
+        EXPECT_EQ(h.app->config().graphics.frameGenerationFactor, 3);
+        // "Leave it": they belong to this PC now, and nobody asks again.
+        h.app->dismissHardwareNote();
+        EXPECT_EQ(h.app->config().graphics.frameGenerationFactor, 3);
+        EXPECT_EQ(h.app->config().hardware.chosenFor, hardwareFingerprint(strongPc()));
+    }
+    {
+        Harness h(console, "controller_hardware_old.json", false);
+        h.app->start();
+        h.app->setHardware(strongPc());
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+    }
+}
+
+TEST(AppController, DoesNotSaveOverASettingsFileItCouldNotRead) {
+    test::MockConsole console(test::MockConsole::Config{});
+    const auto dir = std::filesystem::temp_directory_path() / "veloplay_tests" / "unreadable";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const auto path = dir / "config.json";
+    std::ofstream(path, std::ios::trunc) << "{ this is not json";
+    {
+        Harness h(console, "unreadable/config.json", false);
+        h.app->setHardware(weakLaptop());
+        h.app->start();
+        // The choice applies for this run, but nothing writes the defaults where the user's file was.
+        EXPECT_EQ(h.app->config().graphics, recommendedSettings(weakLaptop()).graphics);
+        for (int i = 0; i < 3; ++i) h.app->update();
+    }
+    EXPECT_FALSE(std::filesystem::exists(path));
+    std::filesystem::remove_all(dir);
+}
+
+TEST(AppController, OffersToChooseAgainOnOtherHardwareButNotForTheSoftwareRenderer) {
+    using Note = UiModel::HardwareView::Note;
+    test::MockConsole console(test::MockConsole::Config{});
+    {
+        Harness h(console, "controller_hardware_moved.json");
+        h.app->start();
+        h.app->setHardware(weakLaptop());
+        EXPECT_EQ(h.app->config().graphics, recommendedSettings(weakLaptop()).graphics);
+    }
+    {
+        // A driver update for a moment: the software renderer. The settings stay those of the card.
+        Harness h(console, "controller_hardware_moved.json", false);
+        h.app->start();
+        h.app->setHardware(describeAdapter(HardwareInfo::Os::Windows, 0, "Microsoft Basic Render Driver", 0, true));
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+        EXPECT_EQ(h.app->config().hardware.chosenFor, hardwareFingerprint(weakLaptop()));
+        EXPECT_EQ(h.app->config().graphics, recommendedSettings(weakLaptop()).graphics);
+    }
+    {
+        // A new graphics card: asked, and on yes chosen for it.
+        Harness h(console, "controller_hardware_moved.json", false);
+        h.app->start();
+        h.app->setHardware(strongPc());
+        h.app->fillModel(h.model);
+        ASSERT_EQ(h.model.hardware.note, Note::Changed);
+        EXPECT_TRUE(h.model.hardware.autoChosen);
+        EXPECT_EQ(h.app->config().graphics, recommendedSettings(weakLaptop()).graphics);
+        // While the question is open, another setting does not count as a change by hand.
+        h.app->config().language = "en";
+        h.app->configChanged();
+        EXPECT_TRUE(h.app->config().hardware.autoChosen);
+        h.app->applyHardwareSettings();
+        h.app->fillModel(h.model);
+        EXPECT_EQ(h.model.hardware.note, Note::None);
+        EXPECT_EQ(h.app->config().graphics, GraphicsSettings{});
+        EXPECT_EQ(h.app->config().hardware.chosenFor, hardwareFingerprint(strongPc()));
+    }
 }
 
 TEST(AppController, PairsWakesAndRemembersAConsole) {
@@ -448,6 +613,28 @@ TEST(AppControllerSession, ConnectsStreamsAndDisconnects) {
     EXPECT_FALSE(h.model.stream.has_value());
     EXPECT_TRUE(h.model.notices.empty());
     EXPECT_EQ(h.sessions->destroyed, 1);
+}
+
+// Seen on the first laptop: through Sony's servers the link broke, and the library never ended the session it was
+// asked to stop. The window waited for it for minutes. Now it lets go after a while, on another thread.
+TEST(AppControllerSession, LetsGoOfASessionThatDoesNotEndWithoutHoldingUpTheWindow) {
+    test::MockConsole console({});
+    Harness h(console, "session_never_ends.json", true, 60s, 0us, nullptr,
+              [](AppController::Options& options) { options.stopTimeout = 100ms; });
+    ASSERT_TRUE(h.pair());
+    h.app->connect(Harness::kHostId);
+    h.sessions->emit(test::FakeSessionHub::connected());
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Streaming; }));
+
+    h.sessions->ignoreStop = true;
+    h.sessions->slowToEnd = true;
+    h.app->disconnect();
+    h.app->fillModel(h.model);
+    EXPECT_EQ(h.model.state, AppState::Disconnecting);
+    // Every update returns at once while the session does not end, and after the timeout it is let go of.
+    ASSERT_TRUE(h.runUntil([&] { return h.model.state == AppState::Idle; }));
+    EXPECT_EQ(h.sessions->detachedSinks, 1);
+    ASSERT_TRUE(h.runUntil([&] { return h.sessions->destroyed.load() == 1; }));
 }
 
 TEST(AppControllerSession, WakesAConsoleInRestModeFirst) {
@@ -1697,6 +1884,188 @@ TEST(AppControllerSession, TriesTheWayThroughSonyAtHomeWhenAsked) {
     EXPECT_FALSE(a.h.sessions->configs[1].psn.has_value());
     // Never stored: a new start reaches the console at home directly.
     EXPECT_EQ(a.h.app->config().psn.signedIn(), true);
+}
+
+namespace {
+
+/// What the console hands over when it pairs through Sony's servers: the same as a pairing with PIN gives.
+session::SessionEvent pairedThroughSony() {
+    session::SessionEvent event;
+    event.type = session::SessionEvent::Type::Registered;
+    event.registered.nickname = "PS5-042";
+    event.registered.mac = {0x00, 0x11, 0x22, 0xaa, 0xbb, 0xcc}; // what the console answers the search with
+    event.registered.registKey = "7c9e2d41";
+    event.registered.rpKey.fill(0x42);
+    event.registered.rpKeyType = 2;
+    return event;
+}
+
+std::string fileText(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+} // namespace
+
+TEST(AppControllerSession, PairsThroughSonyWithoutAPinAndConnects) {
+    // A laptop set up away from home: nothing paired, the console not in this network, only the sign-in at Sony.
+    AwayHarness a("session_psn_pair.json");
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = "PS5-042";
+    }
+    a.h.app->start();
+    ASSERT_TRUE(a.signIn());
+
+    // Sony's list is asked although no console is paired, and its console is offered for pairing.
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.consoles.size() == 1 && !a.h.model.consoles[0].sonyId.empty(); }));
+    const ConsoleEntry offered = a.h.model.consoles[0];
+    EXPECT_FALSE(offered.registered);
+    EXPECT_TRUE(offered.address.empty());
+    EXPECT_EQ(offered.name, "PS5-042");
+    EXPECT_EQ(offered.sonyId, toHex(std::vector<std::uint8_t>(32, 0x5A)));
+    EXPECT_NE(offered.hostId, offered.sonyId); // a row id of its own, not the console's id at home
+
+    // The pairing session pairs and ends as the library ends it; connecting is a second session.
+    a.h.sessions->scripts.push_back({pairedThroughSony(), test::FakeSessionHub::quit(session::QuitReason::Stopped)});
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->pairThroughSony(offered.sonyId);
+    a.h.app->fillModel(a.h.model);
+    EXPECT_EQ(a.h.model.state, AppState::Connecting);
+    EXPECT_TRUE(a.h.model.session.pairingThroughSony);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+
+    ASSERT_EQ(a.h.sessions->configs.size(), 2u);
+    const session::SessionConfig& pairing = a.h.sessions->configs[0];
+    ASSERT_TRUE(pairing.psn.has_value());
+    EXPECT_TRUE(pairing.psn->pair);
+    EXPECT_EQ(pairing.psn->accessToken, "access-1");
+    EXPECT_EQ(pairing.psn->consoleId[0], 0x5A);
+    // The account of the sign-in at Sony, no PIN.
+    EXPECT_EQ(pairing.psn->accountId, protocol::PsnAccountId::parse("8104513492015792419")->bytes);
+    const session::SessionConfig& stream = a.h.sessions->configs[1];
+    ASSERT_TRUE(stream.psn.has_value()); // still not at home: through Sony's servers
+    EXPECT_FALSE(stream.psn->pair);
+    EXPECT_EQ(stream.registKey, "7c9e2d41");
+
+    // Stored like a pairing with PIN, under the id the console answers the search with.
+    ASSERT_EQ(a.h.app->config().consoles.size(), 1u);
+    const RegisteredConsole& stored = a.h.app->config().consoles[0];
+    EXPECT_EQ(stored.hostId, Harness::kHostId);
+    EXPECT_EQ(stored.name, "PS5-042");
+    EXPECT_EQ(stored.registKey, "7c9e2d41");
+    EXPECT_EQ(stored.rpKey[0], 0x42);
+    EXPECT_EQ(stored.rpKeyType, 2u);
+    EXPECT_EQ(stored.psnId, offered.sonyId);
+    ASSERT_EQ(a.h.model.consoles.size(), 1u);
+    EXPECT_TRUE(a.h.model.consoles[0].registered);
+    EXPECT_TRUE(a.h.model.consoles[0].credentialsValid);
+    EXPECT_TRUE(a.h.model.consoles[0].sonyId.empty());
+
+    // The keys are sealed in the file, never in plain text.
+    const std::string file = fileText(a.h.configPath);
+    EXPECT_NE(file.find("\"psn_id\""), std::string::npos);
+    EXPECT_EQ(file.find("7c9e2d41"), std::string::npos);
+    EXPECT_EQ(file.find(toHex(stored.rpKey)), std::string::npos);
+
+    // Back at home the search finds it under the same id: one row, paired, reached directly.
+    a.h.app->disconnect();
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Idle; }));
+    a.h.app->config().manualHosts = {"127.0.0.1"};
+    a.h.app->configChanged();
+    ASSERT_TRUE(a.h.runUntil([&] {
+        return a.h.model.consoles.size() == 1 && a.h.model.consoles[0].status == ConsoleStatus::Ready;
+    }));
+    EXPECT_TRUE(a.h.model.consoles[0].registered);
+    EXPECT_EQ(a.h.model.consoles[0].hostId, Harness::kHostId);
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->connect(Harness::kHostId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    EXPECT_FALSE(a.h.sessions->configs.back().psn.has_value());
+    EXPECT_EQ(a.h.sessions->configs.back().host, "127.0.0.1");
+}
+
+TEST(AppControllerSession, OffersSonysWayBesideThePinForAConsoleFoundHere) {
+    AwayHarness a("session_psn_pair_home.json");
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = "PS5-042";
+    }
+    a.h.app->start();
+    a.h.app->config().manualHosts = {"127.0.0.1"};
+    a.h.app->configChanged();
+    ASSERT_TRUE(a.signIn());
+    // Found here and listed by Sony under the same name: one row, with both ways.
+    ASSERT_TRUE(a.h.runUntil([&] {
+        return a.h.model.consoles.size() == 1 && !a.h.model.consoles[0].sonyId.empty() &&
+               !a.h.model.consoles[0].address.empty();
+    }));
+    EXPECT_FALSE(a.h.model.consoles[0].registered);
+
+    // Paired that way at home, the stream goes straight to the console.
+    a.h.sessions->scripts.push_back({pairedThroughSony(), test::FakeSessionHub::quit(session::QuitReason::Stopped)});
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::connected()});
+    a.h.app->pairThroughSony(a.h.model.consoles[0].sonyId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Streaming; }));
+    ASSERT_EQ(a.h.sessions->configs.size(), 2u);
+    EXPECT_FALSE(a.h.sessions->configs[1].psn.has_value());
+    EXPECT_EQ(a.h.sessions->configs[1].host, "127.0.0.1");
+    ASSERT_EQ(a.h.app->config().consoles.size(), 1u);
+    EXPECT_EQ(a.h.app->config().consoles[0].lastAddress, "127.0.0.1");
+}
+
+TEST(AppControllerSession, SaysWhenTheConsoleDoesNotPairThroughSony) {
+    AwayHarness a("session_psn_pair_refused.json");
+    {
+        std::lock_guard lock(a.listMutex);
+        a.consoleName = "Wohnzimmer";
+    }
+    a.h.app->start();
+    ASSERT_TRUE(a.signIn());
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.consoles.size() == 1 && !a.h.model.consoles[0].sonyId.empty(); }));
+    const std::string sonyId = a.h.model.consoles[0].sonyId;
+
+    // The library ends a pairing the console refused, or one that timed out, as "stopped", without keys.
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::Stopped)});
+    a.h.app->pairThroughSony(sonyId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Error; }));
+    EXPECT_TRUE(a.h.hasNotice(Notice::Topic::PsnPairFailed));
+    EXPECT_TRUE(a.h.app->config().consoles.empty());
+    ASSERT_EQ(a.h.model.consoles.size(), 1u); // still offered
+    EXPECT_FALSE(a.h.model.consoles[0].registered);
+    EXPECT_EQ(a.h.sessions->configs.size(), 1u); // and nothing connected to
+
+    // What the session reports for a refused or timed-out pairing (the wrapper names it): said the same way.
+    while (!a.h.model.notices.empty()) {
+        a.h.app->dismissNotice(0);
+        a.h.app->fillModel(a.h.model);
+    }
+    a.h.sessions->scripts.push_back({test::FakeSessionHub::quit(session::QuitReason::PsnRegistFailed)});
+    a.h.app->pairThroughSony(sonyId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Error && a.h.sessions->configs.size() == 2; }));
+    EXPECT_TRUE(a.h.hasNotice(Notice::Topic::PsnPairFailed));
+    EXPECT_TRUE(a.h.app->config().consoles.empty());
+
+    // An answer without the console's id is no pairing either.
+    while (!a.h.model.notices.empty()) {
+        a.h.app->dismissNotice(0);
+        a.h.app->fillModel(a.h.model);
+    }
+    session::SessionEvent noId = pairedThroughSony();
+    noId.registered.mac = {};
+    a.h.sessions->scripts.push_back({noId, test::FakeSessionHub::quit(session::QuitReason::Stopped)});
+    a.h.app->pairThroughSony(sonyId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Error && a.h.sessions->configs.size() == 3; }));
+    EXPECT_TRUE(a.h.hasNotice(Notice::Topic::PsnPairFailed));
+    EXPECT_TRUE(a.h.app->config().consoles.empty());
+
+    // Cancelled while it pairs: back to the list, nothing kept.
+    a.h.sessions->scripts.push_back({});
+    a.h.app->pairThroughSony(sonyId);
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Connecting; }));
+    a.h.app->disconnect();
+    ASSERT_TRUE(a.h.runUntil([&] { return a.h.model.state == AppState::Idle; }));
+    EXPECT_TRUE(a.h.app->config().consoles.empty());
 }
 
 TEST(AppControllerSession, KeepsTheLinkSecondBySecondForThePageNetwork) {

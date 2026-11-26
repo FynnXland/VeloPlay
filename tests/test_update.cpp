@@ -40,6 +40,9 @@ Bytes makeZip(const std::vector<std::pair<std::string, std::string>>& files) {
 
 std::string sha256Hex(const Bytes& data) { return toHex(*crypto::sha256(data)); }
 
+// These tests describe the Windows package on every platform; the Linux one has tests of its own below.
+Result<ReleaseInfo> parseWindows(std::string_view text) { return parseLatestRelease(text, kWindowsPackage); }
+
 fs::path freshDir(const char* name) {
     const fs::path dir = fs::temp_directory_path() / "veloplay_tests" / name;
     fs::remove_all(dir);
@@ -102,10 +105,10 @@ struct UpdateFixture {
     fs::path work;
     std::unique_ptr<Updater> updater;
 
-    explicit UpdateFixture(const char* name, Version current = {0, 2, 0}) {
+    explicit UpdateFixture(const char* name, Version current = {0, 2, 0}, const PackageLayout& package = kWindowsPackage) {
         install = freshDir((std::string(name) + "_install").c_str());
         work = freshDir((std::string(name) + "_work").c_str());
-        writeFile(install / "VeloPlay.exe", "old program");
+        writeFile(install / package.programFile, "old program");
         writeFile(install / "SDL3.dll", "old library");
         writeFile(install / "notes-from-user.txt", "keep me");
 
@@ -115,6 +118,7 @@ struct UpdateFixture {
         options.workDir = work;
         options.http = &http;
         options.apiUrl = kApi;
+        options.package = package;
         updater = std::make_unique<Updater>(std::move(options));
     }
 
@@ -171,7 +175,7 @@ TEST(Version, ComparesNumericallyNotAsText) {
 
 TEST(Release, ParsesGitHubAnswer) {
     const std::string digest(64, 'a');
-    const auto release = parseLatestRelease(releaseJson("v0.9.0", digest).dump());
+    const auto release = parseWindows(releaseJson("v0.9.0", digest).dump());
     ASSERT_TRUE(release) << release.error().message;
     EXPECT_EQ(release->version, (Version{0, 9, 0}));
     EXPECT_EQ(release->downloadUrl, kAssetUrl);
@@ -186,25 +190,25 @@ TEST(Release, RefusesDownloadsFromElsewhere) {
                             "http://github.com/FynnXland/VeloPlay/releases/download/v0.9.0/VeloPlay-windows-x64.zip",
                             "https://github.com/Someone/Else/releases/download/v0.9.0/VeloPlay-windows-x64.zip",
                             "https://github.com.evil.example/FynnXland/VeloPlay/releases/download/x.zip"}) {
-        EXPECT_FALSE(parseLatestRelease(releaseJson("v0.9.0", digest, url).dump())) << url;
+        EXPECT_FALSE(parseWindows(releaseJson("v0.9.0", digest, url).dump())) << url;
     }
 }
 
 TEST(Release, NeedsVersionArchiveAndChecksum) {
     const std::string digest(64, 'a');
-    EXPECT_FALSE(parseLatestRelease("not json"));
-    EXPECT_FALSE(parseLatestRelease("[]"));
-    EXPECT_FALSE(parseLatestRelease(releaseJson("nightly", digest).dump()));
-    EXPECT_FALSE(parseLatestRelease(releaseJson("v0.9.0", "abc").dump()));                   // digest too short
-    EXPECT_FALSE(parseLatestRelease(releaseJson("v0.9.0", std::string(64, 'Z')).dump()));    // not hex
+    EXPECT_FALSE(parseWindows("not json"));
+    EXPECT_FALSE(parseWindows("[]"));
+    EXPECT_FALSE(parseWindows(releaseJson("nightly", digest).dump()));
+    EXPECT_FALSE(parseWindows(releaseJson("v0.9.0", "abc").dump()));                   // digest too short
+    EXPECT_FALSE(parseWindows(releaseJson("v0.9.0", std::string(64, 'Z')).dump()));    // not hex
 
     json noArchive = releaseJson("v0.9.0", digest);
     noArchive["assets"].erase(1);
-    EXPECT_FALSE(parseLatestRelease(noArchive.dump()));
+    EXPECT_FALSE(parseWindows(noArchive.dump()));
 
     json noDigest = releaseJson("v0.9.0", digest);
     noDigest["assets"][1].erase("digest");
-    EXPECT_FALSE(parseLatestRelease(noDigest.dump()));
+    EXPECT_FALSE(parseWindows(noDigest.dump()));
 }
 
 // ---- zip ---------------------------------------------------------------------
@@ -381,4 +385,112 @@ TEST(Updater, InstallWithoutAFoundReleaseDoesNothing) {
     f.updater->install();
     EXPECT_EQ(f.updater->status().phase, UpdateStatus::Phase::Idle);
     EXPECT_TRUE(f.http.requested.empty());
+}
+
+// ---- the Linux package ------------------------------------------------------
+
+namespace {
+
+const std::string kLinuxAssetUrl = kBase + "download/v0.9.0/VeloPlay-linux-x64.zip";
+
+/// A release with the Windows archive and, if asked for, the Linux one too.
+json releaseFor(const std::string& tag, const Bytes& windows, const Bytes* linuxZip) {
+    json release = releaseJson(tag, sha256Hex(windows));
+    if (linuxZip) {
+        release["assets"].push_back(json{{"name", "VeloPlay-linux-x64.zip"},
+                                         {"browser_download_url", kLinuxAssetUrl},
+                                         {"size", linuxZip->size()},
+                                         {"digest", "sha256:" + sha256Hex(*linuxZip)}});
+    }
+    return release;
+}
+
+const Bytes kLinuxArchive =
+    makeZip({{"VeloPlay", "new program"}, {"veloplay-cli", "new tool"}, {"libSDL3.so.0", "new library"}});
+
+} // namespace
+
+TEST(Release, EachPlatformPicksItsOwnArchive) {
+    const json both = releaseFor("v0.9.0", kNewArchive, &kLinuxArchive);
+    const auto windows = parseLatestRelease(both.dump(), kWindowsPackage);
+    ASSERT_TRUE(windows) << windows.error().message;
+    EXPECT_EQ(windows->downloadUrl, kAssetUrl);
+    EXPECT_EQ(windows->sha256, sha256Hex(kNewArchive));
+    const auto onLinux = parseLatestRelease(both.dump(), kLinuxPackage);
+    ASSERT_TRUE(onLinux) << onLinux.error().message;
+    EXPECT_EQ(onLinux->downloadUrl, kLinuxAssetUrl);
+    EXPECT_EQ(onLinux->sha256, sha256Hex(kLinuxArchive));
+    // The Windows name stays exactly what the release workflow uploads and older programs look for.
+    EXPECT_STREQ(kWindowsPackage.releaseAsset, "VeloPlay-windows-x64.zip");
+    EXPECT_STREQ(kWindowsPackage.programFile, "VeloPlay.exe");
+}
+
+TEST(Release, TellsAMissingArchiveFromABrokenRelease) {
+    const json windowsOnly = releaseFor("v0.9.0", kNewArchive, nullptr);
+    const auto found = findRelease(windowsOnly.dump(), kLinuxPackage);
+    ASSERT_TRUE(found) << found.error().message;
+    EXPECT_FALSE(found.value().has_value());
+    EXPECT_FALSE(parseLatestRelease(windowsOnly.dump(), kLinuxPackage));
+    // Broken stays broken, whichever platform asks.
+    EXPECT_FALSE(findRelease("not json", kLinuxPackage));
+    EXPECT_FALSE(findRelease(releaseJson("nightly", std::string(64, 'a')).dump(), kLinuxPackage));
+}
+
+// The Windows file of a release comes first, the Linux file minutes later.
+// Until it is there, the release is no update for Linux, and no error either.
+TEST(Updater, OnLinuxAReleaseWithoutTheLinuxFileIsNoUpdateYet) {
+    UpdateFixture f("linux_later", {0, 2, 0}, kLinuxPackage);
+    f.http.add(kApi, releaseFor("v0.9.0", kNewArchive, nullptr).dump());
+    EXPECT_EQ(f.checkNow(), UpdateStatus::Phase::UpToDate);
+    EXPECT_EQ(f.updater->status().error, UpdateError::None);
+    f.updater->install();
+    EXPECT_EQ(f.updater->status().phase, UpdateStatus::Phase::UpToDate);
+    EXPECT_EQ(f.http.requested.size(), 1u); // nothing downloaded
+
+    f.http.add(kApi, releaseFor("v0.9.0", kNewArchive, &kLinuxArchive).dump());
+    f.http.pages[kLinuxAssetUrl] = kLinuxArchive;
+    ASSERT_EQ(f.checkNow(), UpdateStatus::Phase::Available);
+    EXPECT_EQ(f.updater->status().latest, (Version{0, 9, 0}));
+}
+
+TEST(Updater, OnWindowsAReleaseWithOnlyTheLinuxFileIsBroken) {
+    UpdateFixture f("windows_missing");
+    json linuxOnly = releaseFor("v0.9.0", kNewArchive, &kLinuxArchive);
+    linuxOnly["assets"].erase(1); // the Windows archive
+    f.http.add(kApi, linuxOnly.dump());
+    EXPECT_EQ(f.checkNow(), UpdateStatus::Phase::Failed);
+    EXPECT_EQ(f.updater->status().error, UpdateError::BadRelease);
+}
+
+TEST(Updater, InstallsTheLinuxPackageAndMakesItsProgramsExecutable) {
+    UpdateFixture f("linux_install", {0, 2, 0}, kLinuxPackage);
+    f.http.add(kApi, releaseFor("v0.9.0", kNewArchive, &kLinuxArchive).dump());
+    f.http.pages[kAssetUrl] = kNewArchive;
+    f.http.pages[kLinuxAssetUrl] = kLinuxArchive;
+    ASSERT_EQ(f.checkNow(), UpdateStatus::Phase::Available);
+    ASSERT_EQ(f.installNow(), UpdateStatus::Phase::RestartNeeded) << f.updater->status().detail;
+    EXPECT_EQ(f.http.requested.back(), kLinuxAssetUrl);
+    EXPECT_EQ(readFile(f.install / "VeloPlay"), "new program");
+    EXPECT_EQ(readFile(f.install / "VeloPlay.old"), "old program");
+    EXPECT_FALSE(fs::exists(f.install / "VeloPlay.exe"));
+#ifndef _WIN32
+    for (const char* program : {"VeloPlay", "veloplay-cli"}) {
+        const auto mode = fs::status(f.install / program).permissions();
+        EXPECT_NE(mode & fs::perms::owner_exec, fs::perms::none) << program;
+        EXPECT_NE(mode & fs::perms::others_exec, fs::perms::none) << program;
+    }
+    // Libraries keep what unpacking gave them.
+    EXPECT_EQ(fs::status(f.install / "libSDL3.so.0").permissions() & fs::perms::owner_exec, fs::perms::none);
+#endif
+}
+
+TEST(Updater, RejectsALinuxArchiveWithoutTheLinuxProgram) {
+    UpdateFixture f("linux_no_program", {0, 2, 0}, kLinuxPackage);
+    const Bytes windowsInside = makeZip({{"VeloPlay.exe", "the wrong program"}});
+    f.http.add(kApi, releaseFor("v0.9.0", kNewArchive, &windowsInside).dump());
+    f.http.pages[kLinuxAssetUrl] = windowsInside;
+    ASSERT_EQ(f.checkNow(), UpdateStatus::Phase::Available);
+    ASSERT_EQ(f.installNow(), UpdateStatus::Phase::Failed);
+    EXPECT_EQ(f.updater->status().error, UpdateError::BadArchive);
+    EXPECT_EQ(readFile(f.install / "VeloPlay"), "old program");
 }

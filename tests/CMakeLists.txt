@@ -34,6 +34,12 @@ if(WIN32)
     target_sources(veloplay_tests PRIVATE test_platform_win.cpp test_record_win.cpp)
     target_link_libraries(veloplay_tests PRIVATE veloplay_platform)
 endif()
+if(VELOPLAY_LINUX_PLATFORM)
+    # Tests of the Linux parts: one file per part, under tests/linux/.
+    file(GLOB VELOPLAY_LINUX_TESTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/linux/*.cpp")
+    target_sources(veloplay_tests PRIVATE ${VELOPLAY_LINUX_TESTS})
+    target_link_libraries(veloplay_tests PRIVATE veloplay_linux)
+endif()
 target_compile_definitions(veloplay_tests PRIVATE VELOPLAY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 target_compile_definitions(veloplay_tests PRIVATE VELOPLAY_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 

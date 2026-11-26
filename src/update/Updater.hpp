@@ -23,6 +23,8 @@
 // renaming it. So each old file is renamed to "<name>.old", the new file takes
 // its place, and the next start deletes the ".old" files. No helper program and
 // no administrator rights are needed as long as the folder is writable.
+// Linux allows replacing a running program as well; the same way works there,
+// and the programs get their executable bit back, which unpacking loses.
 
 namespace veloplay::update {
 
@@ -64,6 +66,10 @@ struct UpdateStatus {
 Result<void> swapInFiles(const std::filesystem::path& stagingDir, const std::filesystem::path& installDir,
                          const std::vector<std::filesystem::path>& files);
 
+/// Gives the programs of the Linux package among `files` (paths relative to
+/// `folder`) the mode 0755. Unpacking a zip leaves every file without it.
+Result<void> restoreExecutableBits(const std::filesystem::path& folder, const std::vector<std::filesystem::path>& files);
+
 /// Deletes the "*.old" files a previous update left behind.
 void removeLeftovers(const std::filesystem::path& installDir);
 
@@ -71,10 +77,11 @@ class Updater {
 public:
     struct Options {
         Version current;
-        std::filesystem::path installDir; // folder that holds VeloPlay.exe
+        std::filesystem::path installDir; // folder that holds the program (VeloPlay.exe, VeloPlay)
         std::filesystem::path workDir;    // scratch space for the unpacked download
         IHttpClient* http = nullptr;      // must outlive the updater
         std::string apiUrl = latestReleaseApiUrl();
+        PackageLayout package = kThisPackage; // which file of a release is ours
     };
 
     explicit Updater(Options options);

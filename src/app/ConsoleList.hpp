@@ -28,6 +28,10 @@ struct ConsoleEntry {
     std::string runningAppId; // the game's title id, like "PPSA01325"; tells games apart
     /// Not in this network, but Sony's servers know it with Remote Play on: "Connect" goes that way.
     bool viaInternet = false;
+    /// Not paired here, but Sony's servers list it for the signed-in account with Remote Play on: it can be
+    /// paired through them without a PIN. Sony's id of the console in hex; empty otherwise. A row for a console
+    /// only Sony knows has the hostId "sony:" followed by the same.
+    std::string sonyId;
 
     friend bool operator==(const ConsoleEntry&, const ConsoleEntry&) = default;
 };

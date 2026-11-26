@@ -169,6 +169,69 @@ if(VELOPLAY_PSN)
     string(REPLACE "${json_as_format}"
         "CHIAKI_LOGE(log, \"%s\", json_object_to_json_string_ext(payload_json, JSON_C_TO_STRING_PRETTY));"
         holepunch_c "${holepunch_c}")
+
+    set(aia_openssl_source "${chiaki_dir}/lib/src/aia_openssl.c")
+    if(NOT WIN32)
+        # The Linux release links a curl and OpenSSL built on another machine;
+        # the certificate bundle compiled into them may not exist on this one
+        # (Debian's path on Fedora or Arch). The program names the system's
+        # bundle in VP_CA_BUNDLE before any thread starts (linuxos::caBundle()),
+        # and every curl handle of holepunch.c takes it, as does the trust store
+        # that checks recovered certificate chains. Windows never sets it and is
+        # left as it is. Each anchor must occur exactly once, or the build stops.
+        function(veloplay_replace_once text_var label old new)
+            string(LENGTH "${${text_var}}" before_length)
+            string(REPLACE "${old}" "" without "${${text_var}}")
+            string(LENGTH "${without}" without_length)
+            string(LENGTH "${old}" old_length)
+            math(EXPR count "(${before_length} - ${without_length}) / ${old_length}")
+            if(NOT count EQUAL 1)
+                message(FATAL_ERROR "${label} of chiaki-ng no longer has the place for the certificate bundle "
+                    "(found ${count} times). Review third_party/chiaki/CMakeLists.txt against commit "
+                    "${VELOPLAY_CHIAKI_COMMIT}.")
+            endif()
+            string(REPLACE "${old}" "${new}" replaced "${${text_var}}")
+            set(${text_var} "${replaced}" PARENT_SCOPE)
+        endfunction()
+
+        set(curl_include "#include <curl/curl.h>\n")
+        veloplay_replace_once(holepunch_c "lib/src/remote/holepunch.c" "${curl_include}" "${curl_include}
+/* VeloPlay: the certificate bundle of this system, named by the program (see third_party/chiaki/CMakeLists.txt). */
+static const char *vp_ca_bundle(void)
+{
+\tconst char *bundle = getenv(\"VP_CA_BUNDLE\");
+\treturn bundle && *bundle ? bundle : NULL;
+}
+
+static CURL *vp_curl_easy_init(void)
+{
+\tCURL *curl = curl_easy_init();
+\tif(curl && vp_ca_bundle())
+\t\tcurl_easy_setopt(curl, CURLOPT_CAINFO, vp_ca_bundle());
+\treturn curl;
+}
+#define curl_easy_init vp_curl_easy_init
+")
+        # The chain repair of the WebSocket reads the bundle back to combine it with recovered certificates;
+        # CURLINFO_CAINFO names the compiled-in one, not the one set above.
+        set(ca_lookup "CURLcode ca_info_res = curl_easy_getinfo(curl, CURLINFO_CAINFO, &ca_path);")
+        veloplay_replace_once(holepunch_c "lib/src/remote/holepunch.c" "${ca_lookup}"
+            "${ca_lookup}\n                if(ca_info_res == CURLE_OK && vp_ca_bundle())\n                    ca_path = vp_ca_bundle();")
+
+        file(READ "${aia_openssl_source}" aia_openssl_c)
+        set(trust_lookup "curl_easy_getinfo(connection, CURLINFO_CAPATH, &path) != CURLE_OK)\n\t\tgoto error;\n")
+        veloplay_replace_once(aia_openssl_c "lib/src/aia_openssl.c" "${trust_lookup}"
+            "${trust_lookup}\tif(getenv(\"VP_CA_BUNDLE\") && *getenv(\"VP_CA_BUNDLE\"))\n\t\tfile = getenv(\"VP_CA_BUNDLE\");\n")
+        # Compiled from a copy; its "aia.h" comes from lib/src, which is on the include path.
+        set(aia_openssl_source "${chiaki_generated}/aia_openssl_local.c")
+        if(EXISTS "${aia_openssl_source}")
+            file(READ "${aia_openssl_source}" aia_openssl_before)
+        endif()
+        if(NOT aia_openssl_c STREQUAL "${aia_openssl_before}")
+            file(WRITE "${aia_openssl_source}" "${aia_openssl_c}")
+        endif()
+    endif()
+
     set(holepunch_patched "${chiaki_generated}/holepunch_local.c")
     if(EXISTS "${holepunch_patched}")
         file(READ "${holepunch_patched}" holepunch_before)
@@ -178,7 +241,7 @@ if(VELOPLAY_PSN)
     endif()
     list(APPEND chiaki_psn_sources
         "${chiaki_dir}/lib/src/aia.c"
-        "${chiaki_dir}/lib/src/aia_openssl.c"
+        "${aia_openssl_source}"
         "${holepunch_patched}")
 else()
     list(APPEND chiaki_psn_sources holepunch_stub.c)

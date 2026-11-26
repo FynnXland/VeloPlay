@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <mutex>
+#include <atomic>
 #include <thread>
 #include <utility>
 
@@ -67,6 +68,33 @@ int codecFor(const StreamSettings& stream) {
     return stream.hdr ? VP_CODEC_HEVC_HDR : VP_CODEC_HEVC;
 }
 
+} // namespace
+
+std::optional<ConnectStage> connectStageOf(std::string_view line) {
+    // Lines of chiaki-ng (lib/src/session.c, remote/holepunch.c, senkusha.c) that mark a step. A changed
+    // wording upstream only costs the screen its detail; the connection does not depend on it.
+    struct Mark {
+        std::string_view text;
+        ConnectStage stage;
+    };
+    static constexpr Mark kMarks[] = {
+        {"websocket_thread_func: connecting", ConnectStage::AtSony},
+        {"Calculating packet allocation", ConnectStage::ThroughRouters},
+        {"Punching hole", ConnectStage::ThroughRouters},
+        {"REGIST - Starting RUDP session", ConnectStage::AtConsole},
+        {"Sending session request", ConnectStage::AtConsole},
+        {"Ctrl connected", ConnectStage::LoggedIn},
+        {"Starting Senkusha", ConnectStage::Measuring},
+        {"Takion connecting", ConnectStage::Measuring},
+    };
+    for (const Mark& mark : kMarks) {
+        if (line.find(mark.text) != std::string_view::npos) return mark.stage;
+    }
+    return std::nullopt;
+}
+
+namespace {
+
 class ChiakiSession final : public ISession {
 public:
     ChiakiSession() = default;
@@ -74,6 +102,7 @@ public:
     ChiakiSession& operator=(const ChiakiSession&) = delete;
 
     ~ChiakiSession() override {
+        if (stopper_.joinable()) stopper_.join();
         if (!handle_) return;
         // Joins the session's threads, so no callback runs after this line.
         if (vp_session_release(handle_) == 0) {
@@ -102,7 +131,8 @@ public:
         std::call_once(initOnce, [] { initOk = vp_library_init() == 0; });
         if (!initOk) return Error{ErrorCode::Io, "libchiaki could not be initialised"};
 
-        sink_ = sink;
+        sink_.store(sink);
+        psn_ = config.psn.has_value();
 
         VpConnectInfo info{};
         info.host = config.host.c_str();
@@ -110,6 +140,7 @@ public:
             info.psn_token = config.psn->accessToken.c_str();
             std::memcpy(info.psn_duid, config.psn->consoleId.data(), sizeof(info.psn_duid));
             std::memcpy(info.psn_account_id, config.psn->accountId.data(), sizeof(info.psn_account_id));
+            info.psn_pair = config.psn->pair ? 1 : 0;
         }
         std::memcpy(info.regist_key, config.registKey.data(), std::min(config.registKey.size(), sizeof(info.regist_key)));
         std::memcpy(info.rp_key, config.rpKey.data(), sizeof(info.rp_key));
@@ -134,6 +165,7 @@ public:
         callbacks.audio_format = &ChiakiSession::onAudioFormat;
         callbacks.audio = &ChiakiSession::onAudio;
         callbacks.haptics = &ChiakiSession::onHaptics;
+        callbacks.registered = &ChiakiSession::onRegistered;
 
         handle_ = vp_session_create(&info, &callbacks);
         if (!handle_) return Error{ErrorCode::Io, "session could not be set up"};
@@ -146,8 +178,19 @@ public:
     }
 
     void stop() override {
-        if (handle_) vp_session_stop(handle_);
+        if (!handle_) return;
+        if (!psn_) {
+            vp_session_stop(handle_);
+            return;
+        }
+        // Through Sony's servers stopping takes the library's locks, which a broken link can hold for a long
+        // time (seen on the first laptop: the window stood still for minutes). It is asked for on a thread of
+        // its own; the destructor waits for that thread, and AppController lets go of such a session elsewhere.
+        if (!stopper_.joinable()) stopper_ = std::thread([handle = handle_] { vp_session_stop(handle); });
     }
+
+    bool slowToEnd() const override { return psn_; }
+    void detachSink() override { sink_.store(nullptr); }
 
     std::vector<SessionEvent> pollEvents() override {
         std::vector<SessionEvent> out;
@@ -242,6 +285,18 @@ private:
         // thousands of lines a second would hold up the very threads that
         // receive the stream, so each second gets a budget.
         ChiakiSession& session = self(user);
+        // How far the connection has come, before the budget below may leave the line out.
+        if (const auto stage = connectStageOf(message)) {
+            const int reached = static_cast<int>(*stage);
+            int before = session.stage_.load();
+            while (reached > before && !session.stage_.compare_exchange_weak(before, reached)) {}
+            if (reached > before) {
+                SessionEvent event;
+                event.type = SessionEvent::Type::Stage;
+                event.stage = *stage;
+                session.push(std::move(event));
+            }
+        }
         {
             std::lock_guard lock(session.logMutex_);
             const auto now = Clock::now();
@@ -284,6 +339,22 @@ private:
         self(user).push(std::move(event));
     }
 
+    // The same fields a pairing with PIN reads from the console's answer (protocol::parseRegistResponse): the
+    // key as the ASCII the console sent in hex, up to the first zero.
+    static void onRegistered(void* user, const VpRegisteredHost* host) {
+        SessionEvent event;
+        event.type = SessionEvent::Type::Registered;
+        protocol::RegisteredHost& out = event.registered;
+        const auto upToZero = [](const char* text, std::size_t size) { return std::string(text, std::find(text, text + size, '\0')); };
+        out.nickname = upToZero(host->nickname, sizeof(host->nickname));
+        std::copy(std::begin(host->mac), std::end(host->mac), out.mac.begin());
+        out.registKey = upToZero(host->regist_key, sizeof(host->regist_key));
+        std::copy(std::begin(host->rp_key), std::end(host->rp_key), out.rpKey.begin());
+        out.rpKeyType = host->rp_key_type;
+        spdlog::info("The console {} paired with this client through Sony's servers", out.nickname);
+        self(user).push(std::move(event));
+    }
+
     static void onRumble(void* user, std::uint8_t low, std::uint8_t high) {
         SessionEvent event;
         event.type = SessionEvent::Type::Rumble;
@@ -320,14 +391,15 @@ private:
                        int recovered) {
         ChiakiSession& session = self(user);
         session.meter_.addVideo(size, framesLost);
-        if (!session.sink_) return 1;
-        return session.sink_->onVideo({data, size}, framesLost, recovered != 0) ? 1 : 0;
+        IMediaSink* sink = session.sink_.load();
+        if (!sink) return 1;
+        return sink->onVideo({data, size}, framesLost, recovered != 0) ? 1 : 0;
     }
 
     static void onHaptics(void* user, const std::int16_t* stereo, std::size_t frames) {
         ChiakiSession& session = self(user);
         const std::span<const std::int16_t> samples(stereo, frames * 2);
-        if (session.sink_ && session.sink_->onHaptics(samples)) return;
+        if (IMediaSink* sink = session.sink_.load(); sink && sink->onHaptics(samples)) return;
 
         // Nobody plays the haptics audio, so approximate it with the rumble
         // motors. A packet covers ten milliseconds; three are combined so the
@@ -346,13 +418,13 @@ private:
     static void onAudioFormat(void* user, std::uint32_t channels, std::uint32_t bits, std::uint32_t rate,
                               std::uint32_t frameSize) {
         ChiakiSession& session = self(user);
-        if (session.sink_) session.sink_->onAudioFormat(AudioFormat{channels, bits, rate, frameSize});
+        if (IMediaSink* sink = session.sink_.load()) sink->onAudioFormat(AudioFormat{channels, bits, rate, frameSize});
     }
 
     static void onAudio(void* user, const std::uint8_t* data, std::size_t size) {
         ChiakiSession& session = self(user);
         session.meter_.addAudio();
-        if (session.sink_) session.sink_->onAudio({data, size});
+        if (IMediaSink* sink = session.sink_.load()) sink->onAudio({data, size});
     }
 
     static constexpr int kHapticPacketsPerRumble = 3; // as in chiaki-ng
@@ -364,7 +436,10 @@ private:
     int logSuppressed_ = 0;
 
     VpSession* handle_ = nullptr;
-    IMediaSink* sink_ = nullptr;
+    std::atomic<IMediaSink*> sink_{nullptr};
+    std::atomic<int> stage_{0}; // the furthest ConnectStage reached
+    bool psn_ = false;     // through Sony's servers
+    std::thread stopper_;  // asks a session through Sony's servers to stop, away from the caller
     // Touched by the haptics callback only.
     media::RumbleLevel hapticPeak_{};
     media::RumbleLevel hapticSent_{};

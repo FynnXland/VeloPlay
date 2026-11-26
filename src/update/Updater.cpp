@@ -23,6 +23,22 @@ std::filesystem::path withOldSuffix(std::filesystem::path path) {
 
 } // namespace
 
+Result<void> restoreExecutableBits(const std::filesystem::path& folder, const std::vector<std::filesystem::path>& files) {
+    namespace fs = std::filesystem;
+    std::vector<fs::path> programs{fs::path(kLinuxPackage.programFile)};
+    for (const char* helper : kLinuxHelperPrograms) programs.emplace_back(helper);
+    for (const fs::path& program : programs) {
+        if (std::find(files.begin(), files.end(), program) == files.end()) continue;
+        std::error_code ec;
+        fs::permissions(folder / program,
+                        fs::perms::owner_all | fs::perms::group_read | fs::perms::group_exec | fs::perms::others_read |
+                            fs::perms::others_exec,
+                        fs::perm_options::replace, ec);
+        if (ec) return Error{ErrorCode::Io, "cannot make " + program.string() + " executable: " + ec.message()};
+    }
+    return {};
+}
+
 Result<void> swapInFiles(const std::filesystem::path& stagingDir, const std::filesystem::path& installDir,
                          const std::vector<std::filesystem::path>& files) {
     namespace fs = std::filesystem;
@@ -152,18 +168,31 @@ void Updater::runCheck(std::stop_token stop) {
         return fail(nothingPublished ? UpdateError::NoRelease : UpdateError::Network, response.error().message);
     }
 
-    auto release = parseLatestRelease(asText(*response));
-    if (!release) return fail(UpdateError::BadRelease, release.error().message);
+    auto found = findRelease(asText(*response), options_.package);
+    if (!found) return fail(UpdateError::BadRelease, found.error().message);
+    if (!found.value()) {
+        const std::string missing = std::string("the latest release has no ") + options_.package.platformName + " download";
+        if (!options_.package.mayArriveLater) return fail(UpdateError::BadRelease, missing);
+        // Built after the release itself: there is nothing to install yet. Asked again later, it is there.
+        spdlog::info("Update: {} yet; {} stays", missing, options_.current.toString());
+        std::lock_guard lock(mutex_);
+        release_.reset();
+        status_.error = UpdateError::None;
+        status_.detail.clear();
+        status_.phase = UpdateStatus::Phase::UpToDate;
+        return;
+    }
+    auto release = std::move(*found.value());
 
     std::lock_guard lock(mutex_);
-    status_.latest = release->version;
-    status_.notesUrl = release->pageUrl;
+    status_.latest = release.version;
+    status_.notesUrl = release.pageUrl;
     status_.error = UpdateError::None;
     status_.detail.clear();
-    if (release->version > options_.current) {
-        spdlog::info("Update: version {} is available (running {})", release->version.toString(),
+    if (release.version > options_.current) {
+        spdlog::info("Update: version {} is available (running {})", release.version.toString(),
                      options_.current.toString());
-        release_ = std::move(*release);
+        release_ = std::move(release);
         status_.phase = UpdateStatus::Phase::Available;
     } else {
         spdlog::info("Update: {} is the latest version", options_.current.toString());
@@ -206,9 +235,19 @@ void Updater::runInstall(std::stop_token stop) {
 
     const auto files = extractZip(*archive, staging);
     if (!files) return fail(UpdateError::BadArchive, files.error().message, true);
-    if (std::find(files->begin(), files->end(), fs::path("VeloPlay.exe")) == files->end()) {
+    const fs::path program = options_.package.programFile;
+    if (std::find(files->begin(), files->end(), program) == files->end()) {
         fs::remove_all(staging, ec);
-        return fail(UpdateError::BadArchive, "the archive does not contain VeloPlay.exe", true);
+        return fail(UpdateError::BadArchive, std::string("the archive does not contain ") + options_.package.programFile,
+                    true);
+    }
+    if (options_.package.restoresExecutableBit) {
+        // Done in staging, so the copy into place carries it and a rollback has nothing extra to undo.
+        const auto restored = restoreExecutableBits(staging, *files);
+        if (!restored) {
+            fs::remove_all(staging, ec);
+            return fail(UpdateError::NotWritable, restored.error().message, true);
+        }
     }
 
     const auto swapped = swapInFiles(staging, options_.installDir, *files);

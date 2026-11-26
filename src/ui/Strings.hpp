@@ -525,6 +525,94 @@ struct Strings {
     const char* netTestHint;
     const char* netTestInGame;
     const char* netKept;
+    // Pairing through Sony's servers, without a PIN.
+    const char* statusFromSony;       // a console of the account that is not paired here
+    const char* pairThroughSony;
+    const char* pairingThroughSonyHint;
+    const char* noticePsnPairFailed;  // {0} = console
+    const char* awayPasteLabel;       // the sign-in opened in the user's own browser
+    const char* awayPasteHint;
+    // The way to the console while connecting
+    const char* pathThisPc;
+    const char* pathRouter;
+    const char* pathSony;
+    const char* pathHome;
+    const char* connectingSonyHint;
+    const char* stageStarting;
+    const char* stageAtSony;
+    const char* stageRouters;
+    const char* stageAtConsole;
+    const char* stageLoggedIn;
+    const char* stageMeasuring;
+    const char* touchpadTitle;
+    const char* touchpadHint;
+    const char* touchpadKeep;
+    const char* touchpadKept;
+    const char* touchpadWorking;
+    const char* touchpadFailed;
+
+    // Advanced, in four pages
+    const char* tabAdvancedGeneral;
+    const char* tabAdvancedSound;
+    const char* tabAdvancedConnection;
+    const char* tabAdvancedExtras;
+    const char* statsTitle;
+
+    // The hardware, on the first start and under Advanced
+    const char* hwFirstTitle;
+    const char* hwChangedTitle;
+    const char* hwGraphics;
+    const char* hwProcessor;
+    const char* hwMemory;
+    const char* hwScreen;
+    const char* hwSystem;
+    const char* hwIntegrated;   // {0} = graphics
+    const char* hwSoftware;
+    const char* hwThreads;      // {0} = processor, {1} = threads
+    const char* hwThreadsOnly;  // {0} = threads
+    const char* hwGigabytes;    // {0} = GB
+    const char* hwScreenValue;  // {0} width, {1} height, {2} Hz
+    const char* hwUnknown;
+    const char* hwReasonDedicated;
+    const char* hwReasonCapable;
+    const char* hwReasonWeak;
+    const char* hwReasonSoftware;
+    const char* hwReasonDecoding;
+    const char* hwChosen;
+    const char* hwLaterHint;
+    const char* hwOk;
+    const char* hwShowSettings;
+    const char* hwChangedChosen; // {0} = graphics before, {1} = graphics now
+    const char* hwChangedOwn;
+    const char* hwChangedOther;
+    const char* hwSuits;
+    const char* hwAdapt;
+    const char* hwKeep;
+    const char* hwOn;
+    const char* hwSection;
+    const char* hwMatches;
+    const char* hwDiffers;
+    const char* hwReset;
+    const char* hwResetQuestion;
+    const char* hwResetKeeps;
+    const char* hwResetConfirm;
+    const char* inputUpTo720p;
+    const char* inputUpTo720pHint;
+
+    // Where Linux differs from Windows
+    const char* platformMissing;
+    const char* platformMissingLinux;
+    const char* upscalingRtxOnlyWindows;
+    const char* keysUnreadableLinux;
+    const char* searchCheckFirewallLinux;
+    const char* languageAutoLinux;
+    const char* captureCardsHintLinux;
+    const char* captureVideosMissingLinux;
+    const char* installHintLinux;   // {0} = folder
+    const char* installedHintLinux;
+    const char* awayKeptLinux;
+    const char* accountSignInBrowserOnly;
+    const char* accountSignInBrowserHint;
 };
 
 const Strings& strings(Language language);

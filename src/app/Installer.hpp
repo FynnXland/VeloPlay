@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "update/Package.hpp"
 #include "util/Result.hpp"
 
 namespace veloplay {
@@ -26,19 +27,29 @@ public:
 
 namespace install {
 
+using update::PackageLayout;
+
 /// The name of the program file, in the folder it runs from and in the one it is installed into.
-inline constexpr const char* kProgramFile = "VeloPlay.exe";
+inline constexpr const char* kProgramFile = update::kThisPackage.programFile;
+
+/// The program's picture in the Linux package, next to the program; the
+/// installer hands it to the desktop.
+inline constexpr const char* kLinuxIconFile = "veloplay.png";
 
 /// Whether a file of that name belongs to the package VeloPlay comes in:
 /// programs, libraries and the five documents. Nothing else is copied.
 /// The archive has everything at its top level, so "extract here" can put
 /// VeloPlay into Downloads or onto the desktop, next to anything else there.
-[[nodiscard]] bool belongsToPackage(const std::filesystem::path& file);
+/// On Windows: *.exe, *.dll. On Linux: VeloPlay, veloplay-cli, veloplay.png
+/// and shared libraries (*.so, *.so.1.2).
+[[nodiscard]] bool belongsToPackage(const std::filesystem::path& file,
+                                    const PackageLayout& package = update::kThisPackage);
 
 /// Copies the files of the package that lie directly in `from` into `to`,
 /// over what is there. No folders, nothing else. Gives back the number of
-/// files copied.
-Result<int> copyProgram(const std::filesystem::path& from, const std::filesystem::path& to);
+/// files copied. File modes travel with the copy (the executable bit on Linux).
+Result<int> copyProgram(const std::filesystem::path& from, const std::filesystem::path& to,
+                        const PackageLayout& package = update::kThisPackage);
 
 /// A path as UTF-8 text, for the log and the interface. path::string() uses
 /// the ANSI code page on Windows and garbles or throws for a name like Jörg.
@@ -49,7 +60,7 @@ Result<int> copyProgram(const std::filesystem::path& from, const std::filesystem
 
 /// A folder may be removed on uninstalling only if it is what installing
 /// made: it is called VeloPlay and holds the program. Anything else stays.
-[[nodiscard]] bool isRemovable(const std::filesystem::path& folder);
+[[nodiscard]] bool isRemovable(const std::filesystem::path& folder, const PackageLayout& package = update::kThisPackage);
 
 } // namespace install
 

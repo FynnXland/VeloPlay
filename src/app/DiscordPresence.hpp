@@ -94,7 +94,8 @@ private:
     int nonce_ = 0;
 };
 
-/// The pipe to Discord on Windows (\\.\pipe\discord-ipc-0 to -9). Null elsewhere.
+/// The pipe to Discord on Windows (\\.\pipe\discord-ipc-0 to -9), the Unix
+/// socket of the same name in the Linux platform library. Null elsewhere.
 std::unique_ptr<IPipe> createPipe();
 
 } // namespace veloplay::discord

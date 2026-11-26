@@ -30,7 +30,16 @@ std::string releasesPageUrl() {
     return "https://github.com/" + std::string(kReleaseRepository) + "/releases/latest";
 }
 
-Result<ReleaseInfo> parseLatestRelease(std::string_view jsonText) {
+Result<ReleaseInfo> parseLatestRelease(std::string_view jsonText, const PackageLayout& package) {
+    auto found = findRelease(jsonText, package);
+    if (!found) return found.error();
+    if (!found.value()) {
+        return Error{ErrorCode::InvalidData, std::string("the latest release has no ") + package.platformName + " download"};
+    }
+    return std::move(*found.value());
+}
+
+Result<std::optional<ReleaseInfo>> findRelease(std::string_view jsonText, const PackageLayout& package) {
     const json root = json::parse(jsonText, nullptr, false);
     if (!root.is_object()) return Error{ErrorCode::InvalidData, "the release information is not valid JSON"};
 
@@ -49,7 +58,7 @@ Result<ReleaseInfo> parseLatestRelease(std::string_view jsonText) {
         return Error{ErrorCode::InvalidData, "the latest release has no files"};
     }
     for (const json& asset : *assets) {
-        if (!asset.is_object() || text(asset, "name") != kReleaseAssetName) continue;
+        if (!asset.is_object() || text(asset, "name") != package.releaseAsset) continue;
 
         info.downloadUrl = text(asset, "browser_download_url");
         // Never follow a download address that leaves our repository, whatever the API says.
@@ -68,9 +77,9 @@ Result<ReleaseInfo> parseLatestRelease(std::string_view jsonText) {
 
         const auto size = asset.find("size");
         if (size != asset.end() && size->is_number_unsigned()) info.size = size->get<std::uint64_t>();
-        return info;
+        return std::optional<ReleaseInfo>(std::move(info));
     }
-    return Error{ErrorCode::InvalidData, "the latest release has no Windows download"};
+    return std::optional<ReleaseInfo>{};
 }
 
 } // namespace veloplay::update

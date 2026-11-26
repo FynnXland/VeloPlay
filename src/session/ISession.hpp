@@ -16,6 +16,7 @@
 #include "input/DualSenseEffects.hpp"
 #include "media/VideoFrame.hpp"
 #include "protocol/Crypto.hpp"
+#include "protocol/Registration.hpp"
 #include "util/Result.hpp"
 
 // A Remote Play session as the rest of the client sees it. The implementation
@@ -42,6 +43,9 @@ struct SessionConfig {
         std::string accessToken; // secret
         std::array<std::uint8_t, 32> consoleId{};
         std::array<std::uint8_t, 8> accountId{};
+        /// Pair with the console on this way, without a PIN, and end: a Registered event carries the keys,
+        /// then the session quits as Stopped. Connecting is a session of its own afterwards.
+        bool pair = false;
     };
     std::optional<Psn> psn;
 };
@@ -80,8 +84,21 @@ struct TriggerEffects {
     friend bool operator==(const TriggerEffects&, const TriggerEffects&) = default;
 };
 
+/// How far a connection has come, for the connecting screen. Within one attempt it only goes forward.
+enum class ConnectStage {
+    Starting,       // on its way out of this PC
+    AtSony,         // signing in at Sony's servers, which tell the console
+    ThroughRouters, // looking for a way through the routers on both ends
+    AtConsole,      // the console answers
+    LoggedIn,       // the console let this client in
+    Measuring,      // the link is measured before the picture starts
+};
+
+/// The step a line of libchiaki's log stands for, if any. The library has no other way to say how far it is.
+[[nodiscard]] std::optional<ConnectStage> connectStageOf(std::string_view logLine);
+
 struct SessionEvent {
-    enum class Type { Connected, LoginPinRequested, Quit, Rumble, TriggerEffects, EffectStrength };
+    enum class Type { Connected, LoginPinRequested, Quit, Rumble, TriggerEffects, EffectStrength, Registered, Stage };
 
     Type type = Type::Connected;
     bool previousPinWrong = false;            // LoginPinRequested
@@ -92,6 +109,10 @@ struct SessionEvent {
     TriggerEffects triggers{};                // TriggerEffects
     bool strengthOfTriggers = false;          // EffectStrength: for the triggers, else for vibration and haptics
     input::EffectStrength strength = input::EffectStrength::Strong; // EffectStrength
+    /// Registered: what the console handed over when it paired through Sony's servers, as a pairing with PIN
+    /// gives it. The keys are secret.
+    protocol::RegisteredHost registered{};
+    ConnectStage stage = ConnectStage::Starting; // Stage
 };
 
 struct AudioFormat {
@@ -173,6 +194,12 @@ public:
 
     /// Asks the session to end. A Quit event follows.
     virtual void stop() = 0;
+
+    /// True if ending the session can take long and must not be waited for on the window's thread: through
+    /// Sony's servers, a link that broke can keep the library's threads busy for minutes.
+    [[nodiscard]] virtual bool slowToEnd() const { return false; }
+    /// From now on nothing reaches the sink. For a session that is let go of on another thread.
+    virtual void detachSink() {}
 
     /// Events since the last call, oldest first. A Quit event is the last one
     /// a session produces.

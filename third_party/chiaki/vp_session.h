@@ -52,6 +52,11 @@ typedef struct VpConnectInfo
 	const char *psn_token;
 	uint8_t psn_duid[VP_PSN_DUID_SIZE];
 	uint8_t psn_account_id[VP_PSN_ACCOUNT_ID_SIZE];
+	/* Only with psn_token: pair with the console on that way, without a PIN,
+	 * and end. The `registered` callback carries the keys; the session then
+	 * quits with VP_QUIT_STOPPED. Without that callback before the quit, the
+	 * console did not take this client. */
+	int psn_pair;
 	char regist_key[16];     /* ASCII, padded with zeros */
 	uint8_t rp_key[16];
 	uint32_t width;
@@ -62,6 +67,18 @@ typedef struct VpConnectInfo
 	int dualsense;           /* ask for adaptive trigger and haptics data */
 	double packet_loss_max;  /* upper bound of the loss reported to the console, 0..1 */
 } VpConnectInfo;
+
+/* What the console hands over when it pairs with this client through Sony's
+ * servers. The same as a pairing with PIN at home. regist_key and rp_key are
+ * secret: never log them. */
+typedef struct VpRegisteredHost
+{
+	char nickname[33];       /* zero-terminated */
+	uint8_t mac[6];          /* the console's id in its answers to the search */
+	char regist_key[16];     /* ASCII, padded with zeros */
+	uint8_t rp_key[16];
+	uint32_t rp_key_type;
+} VpRegisteredHost;
 
 typedef struct VpControllerState
 {
@@ -112,6 +129,9 @@ typedef struct VpCallbacks
 	/* DualSense haptics: `frames` left/right pairs of 16-bit PCM at 3000 Hz.
 	 * Only sent when the session was created with `dualsense`. */
 	void (*haptics)(void *user, const int16_t *stereo, size_t frames);
+	/* A session with psn_pair: the console paired with this client. Comes
+	 * before the quit callback. The struct is wiped after the call. */
+	void (*registered)(void *user, const VpRegisteredHost *host);
 } VpCallbacks;
 
 typedef struct VpLinkStats

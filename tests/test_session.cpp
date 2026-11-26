@@ -207,3 +207,16 @@ TEST(ChiakiSession, StopsWhileWaitingForTheConsole) {
     // Destroying a finished session must not hang.
     session.reset();
 }
+
+TEST(ConnectStage, FollowsTheLinesOfTheLibraryThatMarkAStep) {
+    using session::ConnectStage;
+    EXPECT_EQ(session::connectStageOf("websocket_thread_func: connecting to 1-2-3-4-pushcl.np.communication.playstation.net"),
+              ConnectStage::AtSony);
+    EXPECT_EQ(session::connectStageOf("Calculating packet allocation based on 4 responses with the same address"),
+              ConnectStage::ThroughRouters);
+    EXPECT_EQ(session::connectStageOf("REGIST - Starting RUDP session"), ConnectStage::AtConsole);
+    EXPECT_EQ(session::connectStageOf("Sending session request"), ConnectStage::AtConsole);
+    EXPECT_EQ(session::connectStageOf("Ctrl connected"), ConnectStage::LoggedIn);
+    EXPECT_EQ(session::connectStageOf("Starting Senkusha"), ConnectStage::Measuring);
+    EXPECT_FALSE(session::connectStageOf("Takion dropping data with seq num 0x2d3e79ea").has_value());
+}

@@ -169,18 +169,20 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <header style="display:flex;flex-direction:column;gap:16px">
   <span class="eyebrow">VeloPlay · Funktionsübersicht</span>
   <h1>Was VeloPlay kann und wie es das macht</h1>
-  <p class="lead">VeloPlay holt das Bild deiner PS5 auf den Windows-PC. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
+  <p class="lead">VeloPlay holt das Bild deiner PS5 auf den PC, unter Windows und seit 1.17.0 auch unter Linux. Diese Seite zeigt jede Funktion zweimal: so, wie du sie im Programm siehst, und so, wie sie im Hintergrund arbeitet.</p>
   <div class="facts">
-    <span class="pill">Version 1.16.0</span>
-    <span class="pill">Stand 22.11.2026</span>
+    <span class="pill">Version 1.17.0</span>
+    <span class="pill">Stand 25.11.2026</span>
     <span class="pill ok">Verbinden, Bild, Ton, Controller mit Triggern und Haptik</span>
     <span class="pill ok">Zwischenbilder: etwa 60 Bilder am Bildschirm, an einer RTX 4070 bestätigt</span>
+    <span class="pill soon">Linux: neu, an einem Laptop ausprobiert</span>
   </div>
   <nav aria-label="Abschnitte">
     <a href="#naechstes">Dein nächster Test</a>
     <a href="#stand">Stand</a>
     <a href="#ablauf">Ablauf</a>
     <a href="#oberflaeche">Oberfläche</a>
+    <a href="#linux">Linux</a>
     <a href="#aufbau">Aufbau</a>
     <a href="#hintergrund">Hintergrund</a>
     <a href="#updates">Updates</a>
@@ -193,11 +195,12 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 
 <section id="naechstes">
   <h2>Dein nächster Test</h2>
-  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 25.11.2026, Version 1.16.0.</p>
+  <p class="muted">Was du beim nächsten Mal machst, der Reihe nach. Wird nach jeder Version und jeder Rückmeldung nachgeführt. Stand: 25.11.2026, Version 1.17.0.</p>
   <div class="panel">
     <h3><span class="dot soon"></span>Zuerst</h3>
     <ol>
-      <li><strong>Update holen:</strong> VeloPlay bietet 1.16.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Update am Windows-PC holen:</strong> VeloPlay bietet 1.17.0 an (ein paar Minuten nach der Veröffentlichung). Auf „Aktualisieren“ und dann „Neu starten“.</li>
+      <li><strong>Danach kurz hinsehen:</strong> Am Windows-PC soll alles sein wie vorher, bis auf zwei Dinge: „Erweitert“ hat jetzt vier Seiten, und beim Verbinden siehst du den Weg vom PC zur PS5. Deine Bildeinstellungen bleiben, wie sie waren, und der Hinweis „VeloPlay hat deinen PC erkannt“ kommt dort nicht: Den gibt es nur bei einem allerersten Start. Sieht sonst etwas anders aus, sag es mir.</li>
     </ol>
   </div>
   <div class="panel">
@@ -211,27 +214,47 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     </ol>
   </div>
   <div class="panel">
-    <h3><span class="dot soon"></span>Neu, bitte ausprobieren</h3>
+    <h3><span class="dot soon"></span>Neu in 1.17.0, am Windows-PC</h3>
+    <ol>
+      <li><strong>Erweitert in vier Seiten:</strong> Einstellungen &gt; Erweitert hat jetzt Allgemein, Ton, Verbindung und Extras. Findest du alles wieder? Mikrofon und Netzwerkpuffer stehen unter Ton, „Von unterwegs spielen“ und die zusätzlichen Adressen unter Verbindung, Discord und die Fernsteuerung unter Extras, der Rest unter Allgemein.</li>
+      <li><strong>Verbinden zeigt den Weg:</strong> Nach „Verbinden“ siehst du drei Stationen: Dieser PC, Router, PS5. Leuchten sie der Reihe nach auf, und passt die Zeile darunter zu dem, was gerade passiert?</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h3><span class="dot soon"></span>Neu in 1.17.0, am Laptop mit Linux</h3>
+    <ol>
+      <li><strong>Update unter Linux:</strong> Jetzt ist dort nichts zu tun. Sobald es eine Version nach 1.17.0 gibt: Bietet der Laptop sie von selbst an, und läuft nach „Aktualisieren“ und „Neu starten“ die neue Version? Sie steht in der Fußzeile der Übersicht. Das wird das erste echte Update unter Linux.</li>
+      <li><strong>Aufnahme mit <kbd>F10</kbd>:</strong> Im Spiel <kbd>F10</kbd>, ein paar Sekunden spielen, noch einmal <kbd>F10</kbd>. Liegt das Video im Ordner „Videos/VeloPlay“, läuft es ab, und passt der Ton zum Bild?</li>
+      <li><strong>Mikrofon:</strong> Einstellungen &gt; Erweitert &gt; Ton &gt; „Mikrofon an die PS5 senden“. Steht im Spiel oben rechts „Mikrofon an“, und hört man dich in einer Party?</li>
+      <li><strong>Touchpad des Controllers:</strong> Einstellungen &gt; Steuerung &gt; Controller, ganz unten „Vom Desktop fernhalten“. Linux fragt nach deinem Passwort. Danach den Controller einmal neu verbinden. Klickt ein Druck aufs Touchpad im Spiel dann nicht mehr auf den Desktop?</li>
+      <li><strong>Leiste am oberen Rand:</strong> Im Vollbild den Mauszeiger an den oberen Bildschirmrand schieben. Gleitet VeloPlays Leiste herein, und tun Minimieren, Fenster und Schließen, was sie sollen?</li>
+      <li><strong>Zwischenbilder auf dem Laptop:</strong> Ein Spiel mit 30 Bildern, Zwischenbilder auf „Auto“, Anzeige mit <kbd>F9</kbd> auf „alle Werte“. Was steht bei „Bildschirm“? Um 60 ist gut. Liegt es deutlich darunter oder ruckelt das Bild, schalte die Zwischenbilder unter Ausgabe aus und sag mir beide Zahlen.</li>
+      <li><strong>„Für diese Hardware wiederherstellen“:</strong> Stell unter Ausgabe etwas um, zum Beispiel den Bildstil. Dann Einstellungen &gt; Erweitert &gt; Allgemein &gt; „Dieser PC“ und der Knopf. Nennt VeloPlay vorher, was es setzt, und sind danach die Bildeinstellungen zurück und die Kopplungen noch da?</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h3><span class="dot soon"></span>Aus 1.11 bis 1.16, noch ohne Rückmeldung</h3>
     <ol>
       <li><strong>Seite „Netzwerk“ (1.16.0):</strong> Im Spiel Esc, dann auf die Kachel „Verbindung“ klicken. Stimmen die Zahlen mit dem, was du merkst? Fahr mit der Maus über das Diagramm: Stehen dort die Werte der Sekunde? Nach dem Spiel bleibt der letzte Stream unter Einstellungen &gt; Eingang &gt; Netzwerk zu sehen.</li>
       <li><strong>Mauszeiger (1.15.1):</strong> Verschwindet er im Spiel nach kurzer Zeit und kommt mit der ersten Bewegung zurück?</li>
       <li><strong>Automatik (1.15.0):</strong> Einfach spielen wie immer, ruhig eine längere Runde. Danach interessiert mich: Hakte der Ton einmal kurz? Und stand im Protokoll eine Zeile „Automatic for …“ (am Ende jeder Runde) und „Sound: … ms kept“? Wenn du magst, schick mir diese Zeilen. Bei einer unruhigen Runde fragt VeloPlay beim nächsten Mal nach 720p; sieht das Bild dann ruhiger und weniger matschig aus?</li>
-      <li><strong>Discord (1.11.1):</strong> Unter Einstellungen &gt; Erweitert &gt; Discord dein Spiel eintragen. Steht es oben auf der Karte, ohne „PS5“ als Text und ohne „VeloPlay über VeloPlay“?</li>
-      <li><strong>Von unterwegs über Sony (1.14.0, Beta), der Reihe nach:</strong> (1) Auf dem PC unter Einstellungen &gt; Erweitert &gt; „Von unterwegs spielen“ bei PlayStation anmelden. Steht danach „Sony kennt: …“ mit deiner PS5? (2) Zu Hause ausprobieren: im selben Abschnitt „Zu Hause über Sony ausprobieren“ einschalten, dann „Verbinden“. Das darf eine halbe Minute dauern. Kommt ein Bild? (3) Auf dem Laptop VeloPlay installieren, zu Hause koppeln und dort ebenfalls anmelden. (4) Den Laptop mit dem Hotspot deines Handys verbinden (nicht mit dem WLAN zu Hause) und „Verbinden“. Bei der PS5 sollte „Hier nicht gefunden. Verbinden versucht es über das Internet“ stehen. Der Hotspot ist das schwierigste Netz; klappt es dort nicht, sagt das noch nichts über das WLAN deiner Freundin. (5) Bei deiner Freundin: PS5 zu Hause an lassen, dann verbinden. Bitte jedes Mal sagen, was passiert, und bei einem Fehler die Uhrzeit; das Protokoll liegt in „%APPDATA%\VeloPlay“.</li>
-      <li><strong>Hinweise abschalten (1.12.0):</strong> Einstellungen &gt; Erweitert &gt; „Hinweise über dem Bild“. Einmal „Einzeln wählen“ öffnen und einen Hinweis ausschalten, den du nicht brauchst. Verschwindet er im Spiel?</li>
+      <li><strong>Discord (1.11.1):</strong> Unter Einstellungen &gt; Erweitert &gt; Extras &gt; Discord dein Spiel eintragen. Steht es oben auf der Karte, ohne „PS5“ als Text und ohne „VeloPlay über VeloPlay“?</li>
+      <li><strong>Über Sony am Windows-PC (1.14.0, Beta):</strong> Am Laptop mit Linux hat der Weg geklappt. Am Windows-PC fehlt er noch: (1) Unter Einstellungen &gt; Erweitert &gt; Verbindung &gt; „Von unterwegs spielen“ bei PlayStation anmelden. Steht danach „Sony kennt: …“ mit deiner PS5? (2) Im selben Abschnitt „Zu Hause über Sony ausprobieren“ einschalten, dann „Verbinden“. Das darf bis zu einer Minute dauern. Kommt ein Bild? (3) Wenn du magst, den Laptop einmal über den Hotspot deines Handys verbinden. Das ist das schwierigste Netz; klappt es dort nicht, sagt das nichts über andere Netze. Bei einem Fehler bitte die Uhrzeit nennen.</li>
+      <li><strong>Hinweise abschalten (1.12.0):</strong> Einstellungen &gt; Erweitert &gt; Allgemein &gt; „Hinweise über dem Bild“. Einmal „Einzeln wählen“ öffnen und einen Hinweis ausschalten, den du nicht brauchst. Verschwindet er im Spiel?</li>
       <li><strong>Hinweis bei unruhigem WLAN:</strong> Kommt er zu oft? Einmal pro halbe Stunde ist gedacht. Er sagt jetzt „Kabel oder Repeater kann helfen“.</li>
     </ol>
   </div>
   <div class="panel">
     <h3><span class="dot"></span>Noch offen von früher</h3>
     <ol>
-      <li><strong>Mikrofon</strong> in einer Party: Hört man dich wirklich? (Einstellungen &gt; Erweitert &gt; Mikrofon)</li>
+      <li><strong>Mikrofon am Windows-PC</strong> in einer Party: Hört man dich wirklich? (Einstellungen &gt; Erweitert &gt; Ton)</li>
       <li><strong>Seitenwechsel in Spielmenüs</strong> mit Zwischenbildern: noch Fetzen beider Seiten zu sehen?</li>
       <li><strong>Fenster:</strong> an den Rand andocken, auf einen zweiten Bildschirm.</li>
       <li><strong>Kopfhörer</strong> während des Spiels einstecken: Wechselt der Ton mit?</li>
       <li><strong>Ab 24.12.2026:</strong> HDR, sobald der neue Bildschirm da ist.</li>
     </ol>
-    <p class="small muted">Bestätigt am 22.11.2026: Vollbild ohne schwarzen Streifen, Taskleiste kommt unten über das Bild, Hinweis bei unruhigem WLAN (die PS5 funkt mit 5 GHz), Tastenvorlagen, Stream läuft nach <kbd>Win</kbd>+<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>B</kbd> weiter (es erschien „Entpacker kommt nicht hinterher“, nicht „Bild neu aufgebaut“: der Neustart des Treibers hat das Grafikgerät offenbar gar nicht verloren), Dekoder auf der Grafikkarte, Bildstile, Ton im Takt, Discord mit „PS5“ groß, Seite „Steuerung“, Leiste oben über dem Bild, Anmeldung bei PlayStation, Videoaufnahme mit Ton, Fenster verschieben. Nicht getestet, auf eigenen Wunsch: „Verbinden“ nach dem Koppeln, Anmeldung im eigenen Browser. Bekannt und notiert: Auf der Karte im Spiel springen dünne weiße Linien mit Zwischenbildern; die PS5 nennt das laufende Spiel nicht.</p>
+    <p class="small muted">Bestätigt am 25.11.2026 am Laptop mit Linux (Intel-Grafik im Prozessor, DualSense über Bluetooth): Start, Anmeldung bei Sony im Browser, Koppeln über Sony ohne PIN, Bild und Ton in 720p über die Server von Sony aus einem anderen Netz, Installieren.</p>
+    <p class="small muted">Bestätigt am 22.11.2026: Vollbild ohne schwarzen Streifen, Taskleiste kommt unten über das Bild, Hinweis bei unruhigem WLAN (die PS5 funkt mit 5 GHz), Tastenvorlagen, Stream läuft nach <kbd>Win</kbd>+<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>B</kbd> weiter (es erschien „Entpacker kommt nicht hinterher“, nicht „Bild neu aufgebaut“: der Neustart des Treibers hat das Grafikgerät offenbar gar nicht verloren), Dekoder auf der Grafikkarte, Bildstile, Ton im Takt, Discord mit „PS5“ groß, Seite „Steuerung“, Leiste oben über dem Bild, Anmeldung bei PlayStation, Videoaufnahme mit Ton, Fenster verschieben. Nicht getestet, auf eigenen Wunsch: „Verbinden“ nach dem Koppeln, am Windows-PC die Anmeldung im eigenen Browser. Bekannt und notiert: Auf der Karte im Spiel springen dünne weiße Linien mit Zwischenbildern; die PS5 nennt das laufende Spiel nicht.</p>
   </div>
 </section>
 
@@ -243,10 +266,11 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li>PS5 im Heimnetz finden, mit Namen, Adresse und Zustand</li>
         <li>PS5 einmalig koppeln, in drei geführten Schritten</li>
+        <li>Eine PS5 deines Kontos über Sony koppeln, ohne PIN und von überall (Beta, seit 1.17.0, mit der Linux-Fassung an der echten PS5 ausprobiert)</li>
         <li>Die Account-ID per Anmeldung bei Sony holen, ohne Skript und ohne Kopieren</li>
         <li>PS5 aus dem Ruhemodus aufwecken</li>
         <li>Mit der PS5 verbinden und ihr Bild im Fenster oder im Vollbild sehen, mit Ton</li>
-        <li>Das Bild auf der Grafikkarte entpacken, ersatzweise auf dem Prozessor</li>
+        <li>Das Bild auf der Grafikkarte entpacken, ersatzweise auf dem Prozessor (unter Linux immer auf dem Prozessor)</li>
         <li>Die PS5 mit dem Controller am PC steuern, oder mit Maus und Tastatur, auf Wunsch mit eigener Belegung pro Spiel</li>
         <li>Vibration, adaptive Trigger (Widerstand von L2 und R2) und Haptik des DualSense</li>
         <li>Nach einem Abbruch von selbst neu verbinden, bis zu dreimal</li>
@@ -257,17 +281,21 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li>Ein Menü im Spiel, das zeigt, wie es Bild, Verbindung und Steuerung geht, und das Wichtigste sofort umschaltet</li>
         <li>Das Mikrofon an die PS5 senden, für den Sprachchat</li>
         <li>VeloPlay selbst mit dem Controller bedienen, und den Controller samt Vibration und adaptiven Triggern testen</li>
-        <li>Zwischenbilder, auf NVIDIA-Karten mit deren eigener Bewegungssuche (Optical Flow)</li>
-        <li>Auf NVIDIA-Karten das Bild mit RTX Video glätten und vergrößern, im Spiel mit F8 an- und abschaltbar</li>
+        <li>Zwischenbilder auf jeder Grafik, unter Windows auf NVIDIA-Karten mit deren eigener Bewegungssuche (Optical Flow)</li>
+        <li>Unter Windows auf NVIDIA-Karten das Bild mit RTX Video glätten und vergrößern, im Spiel mit F8 an- und abschaltbar</li>
         <li>Eingang automatisch: Auflösung, Bildrate und Datenrate wählt das Programm</li>
         <li>Verbindung zur PS5 messen und passende Datenrate vorschlagen</li>
         <li>Neue Version mit einem Klick laden und einrichten</li>
-        <li>Sich auf dem PC installieren, mit Eintrag im Startmenü und bei den Apps von Windows</li>
+        <li>Sich auf dem PC installieren, mit Eintrag im Startmenü und bei den Apps von Windows, unter Linux mit Eintrag im Anwendungsmenü</li>
+        <li>Beim ersten Start die Hardware ansehen und passende Bildeinstellungen wählen (seit 1.17.0)</li>
+        <li>Beim Verbinden den Weg zeigen: dieser PC, Router, PS5, und welche Station erreicht ist (seit 1.17.0)</li>
         <li>Fotos vom Spiel mit <kbd>F12</kbd> und Videos mit Ton mit <kbd>F10</kbd>, ohne VeloPlays Anzeigen darauf</li>
         <li>Das Bild einer Capture-Card zeigen, mit Zwischenbildern und Ton (Beta, mit einer echten Karte noch nicht ausprobiert)</li>
         <li>In Discord zeigen, welches Spiel du über VeloPlay spielst und seit wann; nennt die PS5 keins, steht dort, was du einträgst</li>
         <li>Mit Lenkrad und Pedalen lenken (Beta, mit einem echten Lenkrad noch nicht ausprobiert)</li>
-        <li>Auf AMD-Karten die Zwischenbilder von AMDs eigenem Verfahren berechnen lassen (Beta, mit einer AMD-Karte noch nicht ausprobiert)</li>
+        <li>Unter Windows auf AMD-Karten die Zwischenbilder von AMDs eigenem Verfahren berechnen lassen (Beta, mit einer AMD-Karte noch nicht ausprobiert)</li>
+        <li>Von unterwegs spielen über die Server von Sony, ohne Einstellung am Router (Beta, seit 1.14.0; mit der Linux-Fassung aus einem anderen Netz ausprobiert, mit der Windows-Fassung noch nicht)</li>
+        <li>Unter Linux laufen (seit 1.17.0): ein eigenes Programm mit Bild, Ton, Controller, Zwischenbildern, Aufnahme und Updates. An einem Laptop ausprobiert sind Start, Koppeln, Bild und Ton und das Installieren; was fehlt, steht unter <a href="#linux">Linux</a></li>
         <li>Skripte auf dem PC Tasten senden lassen</li>
         <li>Deutsch und Englisch</li>
       </ul>
@@ -275,11 +303,12 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div class="panel">
       <h3><span class="dot soon"></span>Kommt als Nächstes</h3>
       <ul>
-        <li>Von unterwegs spielen: seit 1.14.0 über die Server von Sony (Beta), seit 1.13.0 über ein VPN ins Heimnetz; beides an einer echten PS5 noch nicht ausprobiert</li>
+        <li>Von unterwegs über ein VPN ins Heimnetz: seit 1.13.0 gebaut, an einer echten PS5 noch nicht ausprobiert</li>
         <li>HDR</li>
       </ul>
       <p class="small muted">Zwischenbilder, Hochskalieren und Schärfen laufen seit dem 21.11.2026 auf einer RTX 4070: Am Bildschirm kommen etwa 60 Bilder pro Sekunde an, auch mit RTX Video. RTX Video verändert das Bild dort messbar, der sichtbare Unterschied ist bei gleicher Bildgröße aber gering.</p>
-      <p class="small muted">Wichtig: An einer echten PS5 bestätigt sind Suche, Kopplung, Aufwecken aus dem Ruhemodus, Verbindung, ein flüssiges Bild über die Grafikkarte, Ton und die Steuerung mit dem Controller. Die adaptiven Trigger funktionieren im Test und im Spiel, ein Spiel mit 30 Bildern wird zuverlässig erkannt, und die Datenrate passt sich von selbst an (Rückmeldung vom 22.11.2026). Auch die Haptik ist zu spüren. Noch nicht bestätigt sind das Mikrofon und die Anmeldung bei PlayStation für die Account-ID. Zwei frühere Fehler sind laut Rückmeldung vom 21.11.2026 nicht mehr aufgetreten: Eingaben kommen nicht mehr spürbar später an als mit PS Remote Play, und das Fenster reagiert nach Alt+Tab weiter. Die Tabelle „Was wie geprüft ist“ sagt genau, was das heißt.</p>
+      <p class="small muted">Wichtig: An einer echten PS5 bestätigt sind Suche, Kopplung, Aufwecken aus dem Ruhemodus, Verbindung, ein flüssiges Bild über die Grafikkarte, Ton und die Steuerung mit dem Controller. Die adaptiven Trigger funktionieren im Test und im Spiel, ein Spiel mit 30 Bildern wird zuverlässig erkannt, und die Datenrate passt sich von selbst an (Rückmeldung vom 22.11.2026). Auch die Haptik ist zu spüren, und die Anmeldung bei PlayStation für die Account-ID hat am echten Konto geklappt. Noch nicht bestätigt ist das Mikrofon. Zwei frühere Fehler sind laut Rückmeldung vom 21.11.2026 nicht mehr aufgetreten: Eingaben kommen nicht mehr spürbar später an als mit PS Remote Play, und das Fenster reagiert nach Alt+Tab weiter. Die Tabelle „Was wie geprüft ist“ sagt genau, was das heißt.</p>
+      <p class="small muted">Die Linux-Fassung ist neu. Am 25.11.2026 an einem Laptop ausprobiert (Intel-Grafik im Prozessor, Ubuntu, DualSense über Bluetooth): Start, Anmeldung bei Sony im Browser, Koppeln über Sony ohne PIN, Bild und Ton in 720p über die Server von Sony aus einem anderen Netz, Installieren. Dort noch nicht benutzt: Aufnahme, Capture-Card, Mikrofon, Discord, Haptik, adaptive Trigger und das Update aus dem Programm.</p>
     </div>
   </div>
 </section>
@@ -288,6 +317,27 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <h2>So läuft es ab</h2>
   <p class="muted">Die Schritte in der Reihenfolge, in der du sie beim ersten Einrichten gehst.</p>
   <ol class="steps">
+    <li class="step">
+      <h3>Erster Start: VeloPlay sieht sich deinen PC an <span class="pill soon" style="margin-left:6px">neu</span></h3>
+      <div class="pair">
+        <div><span class="label">Was du siehst</span>
+          <p>Beim allerersten Start erscheint ein Blatt „VeloPlay hat deinen PC erkannt“: Grafik, Prozessor, Arbeitsspeicher, Bildschirm und System, darunter ein Satz zur Einschätzung und die Bildeinstellungen, die VeloPlay dazu gewählt hat. „Passt“ schließt es, „Einstellungen ansehen“ öffnet die Einstellungen. Wer VeloPlay schon hatte, sieht das Blatt nicht, und an seinen Einstellungen ändert sich nichts.</p></div>
+        <div><span class="label">Was dahinter passiert</span>
+          <p>VeloPlay ordnet die Grafik in eine von vier Stufen ein und stellt Zwischenbilder, Hochskalierung, Schärfe und das Glätten der Farbstufen danach. Muss der Prozessor das Video selbst entpacken und hat er wenige Kerne, fragt VeloPlay die PS5 nach höchstens 720p.</p></div>
+      </div>
+      <details><summary>Technik im Detail</summary>
+        <ul>
+          <li><strong>Eigene Grafikkarte:</strong> die Voreinstellungen, also Zwischenbilder „Auto“, Lanczos, Schärfe 20 %, Farbstufen glätten an. RTX Video wählt VeloPlay für niemanden, das bleibt dein Schalter.</li>
+          <li><strong>Grafik im Prozessor mit genug Kraft</strong> (etwa Intel Iris Xe): dieselben Einstellungen, mit dem Hinweis, die Zwischenbilder abzuschalten, wenn das Bild ruckelt. Auf Bildschirmen mit mehr als 1440 Zeilen bleibt die Hochskalierung aus. Eine eigene Karte mit weniger als 1,5 GB Speicher zählt auch hierher.</li>
+          <li><strong>Schwache Grafik im Prozessor</strong> (bekannt kleine Chips, weniger als vier Threads oder weniger als 6 GB Arbeitsspeicher) <strong>und Rechner ohne Grafiktreiber:</strong> Zwischenbilder, Hochskalierung, Schärfe und Glätten sind aus. Dort bleibt nur, was der Stream braucht.</li>
+          <li><strong>Höchstens 720p:</strong> wenn der Prozessor das Video entpackt (unter Linux immer, unter Windows ohne Grafiktreiber) und höchstens vier Threads hat. Der Schalter steht unter Einstellungen &gt; Eingang.</li>
+          <li><strong>Nur beim ersten Start.</strong> Eine Einstellungsdatei aus einer früheren Version wird nie angepasst. Läuft VeloPlay später auf anderer Grafik als der, für die gewählt wurde, fragt ein Blatt „Andere Hardware erkannt“ mit „Anpassen“ und „So lassen“.</li>
+          <li><strong>Wiederherstellen:</strong> Einstellungen &gt; Erweitert &gt; Allgemein &gt; „Dieser PC“ nennt die erkannte Hardware. „Für diese Hardware wiederherstellen“ zeigt erst, was gesetzt wird, und fragt nach. Kopplungen und alle anderen Einstellungen bleiben.</li>
+          <li><strong>Geschätzt, nicht gemessen:</strong> Gemessen ist nur eine RTX 4070 (rund 4 Millisekunden pro Zwischenbild bei 1080p). Die Grenzen zwischen den Stufen sind Schätzungen.</li>
+          <li>Code: <code>tierOf()</code>, <code>recommendedSettings()</code>, <code>applyAdvice()</code> in <code>src/app/Hardware.cpp</code>.</li>
+        </ul>
+      </details>
+    </li>
     <li class="step">
       <h3>Starten und suchen</h3>
       <div class="pair">
@@ -304,7 +354,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li>Absender-Port <code>9303</code> bis <code>9319</code>, wie beim offiziellen Client; sonst ein freier Port.</li>
           <li>Der Rundruf hat zwei Schwächen: Manche WLAN-Zugangspunkte und Repeater reichen ihn nicht weiter, und eine Firewall kann die Antwort verwerfen, weil sie von einer anderen Adresse kommt als der angefragten. Deshalb die Einzelabfrage: alle zehn Sekunden an jede Adresse, solange keine Konsole bekannt ist, in Netzen bis 254 Adressen. Die Antwort auf eine direkte Frage kommt durch jede Firewall.</li>
           <li>Eine einmal gefundene Konsole wird danach direkt gefragt und bleibt so auch ohne Rundruf auf der Liste.</li>
-          <li>Hilft beides nicht, liegen PC und PS5 in getrennten Netzen. Sind die Netze nur getrennt adressiert, hilft die IP-Adresse der PS5 unter Einstellungen &gt; Erweitert &gt; Zusätzliche Adressen.</li>
+          <li>Hilft beides nicht, liegen PC und PS5 in getrennten Netzen. Sind die Netze nur getrennt adressiert, hilft die IP-Adresse der PS5 unter Einstellungen &gt; Erweitert &gt; Verbindung &gt; Zusätzliche Adressen.</li>
           <li>Ein Gast-WLAN ist absichtlich vom Heimnetz abgeschottet, bei der FRITZ!Box erkennbar an Adressen, die mit <code>192.168.179.</code> beginnen. Dort hilft auch die Adresse von Hand nicht: Die PS5 muss ins normale WLAN.</li>
           <li>Code: <code>DiscoveryService</code>, <code>HostTracker</code>, <code>parseDiscoveryResponse()</code> in <code>src/protocol</code>.</li>
         </ul>
@@ -314,20 +364,23 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Koppeln</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Ein Klick auf „Koppeln“ öffnet drei Schritte: Konsole wählen, Account-ID eingeben, PIN von der PS5 eintippen. Die Account-ID musst du nicht kennen: „Bei PlayStation anmelden“ öffnet die Anmeldeseite von Sony in einem eigenen Fenster, danach steht die ID im Feld. Eingaben werden beim Tippen geprüft. Schlägt es fehl, steht dort, woran es lag und was zu tun ist.</p></div>
+          <p>Ein Klick auf „Koppeln“ öffnet drei Schritte: Konsole wählen, Account-ID eingeben, PIN von der PS5 eintippen. Die Account-ID musst du nicht kennen: „Bei PlayStation anmelden“ öffnet die Anmeldeseite von Sony in einem eigenen Fenster, danach steht die ID im Feld. Eingaben werden beim Tippen geprüft. Schlägt es fehl, steht dort, woran es lag und was zu tun ist.</p>
+          <p><strong>Ohne PIN (seit 1.17.0, Beta):</strong> Bist du unter Einstellungen &gt; Erweitert &gt; Verbindung bei PlayStation angemeldet, steht eine PS5 deines Kontos, die auf diesem PC noch nicht gekoppelt ist, mit „Über Sony koppeln“ in der Liste. Das geht von überall. Die PS5 muss an sein, Remote Play eingeschaltet.</p></div>
         <div><span class="label">Was dahinter passiert</span>
-          <p>VeloPlay weist der PS5 nach, dass es die PIN und dein Konto kennt. Die PS5 gibt dafür zwei Schlüssel heraus. Sie werden verschlüsselt gespeichert und gelten, bis du die Kopplung entfernst.</p></div>
+          <p>VeloPlay weist der PS5 nach, dass es die PIN und dein Konto kennt. Die PS5 gibt dafür zwei Schlüssel heraus. Sie werden verschlüsselt gespeichert und gelten, bis du die Kopplung entfernst.</p>
+          <p>Beim Koppeln über Sony weist dich die Anmeldung bei PlayStation aus statt der PIN. Die Server von Sony bringen PC und PS5 zusammen, die PS5 gibt dieselben Schlüssel heraus, und VeloPlay verbindet gleich danach.</p></div>
       </div>
       <details><summary>Technik im Detail</summary>
         <ul>
           <li>Ankündigung <code>SRC3</code> per UDP an Port <code>9295</code>, die PS5 antwortet <code>RES3</code>. Danach eine Anfrage per TCP an denselben Port.</li>
           <li>Die Anfrage ist mit AES-128 (CFB) verschlüsselt. Der Schlüssel entsteht aus einer festen Tabelle und der PIN. Mit falscher PIN kann die PS5 nichts entziffern und lehnt ab.</li>
-          <li>Ergebnis: <code>RP-Key</code> (für spätere Sitzungen) und <code>RegistKey</code> (zum Aufwecken). Beide landen über Windows DPAPI verschlüsselt in der Einstellungsdatei.</li>
+          <li>Ergebnis: <code>RP-Key</code> (für spätere Sitzungen) und <code>RegistKey</code> (zum Aufwecken). Beide landen verschlüsselt in der Einstellungsdatei: unter Windows über DPAPI, unter Linux mit einem Schlüssel, der im Schlüsselbund des Desktops liegt.</li>
           <li>Die Account-ID wird als Base64 oder als Zahl angenommen.</li>
           <li><strong>Anmeldung bei Sony:</strong> Das Fenster ist ein eingebetteter Browser (WebView2, Teil von Windows). Nach der Anmeldung leitet Sony auf eine feste Adresse weiter, die einen Einmal-Code trägt. VeloPlay fängt diese Weiterleitung ab, tauscht den Code bei Sony gegen ein kurzlebiges Zugriffstoken und fragt damit die Kontonummer ab. Sony gibt die Zieladresse fest vor, deshalb kann der normale Browser nicht von selbst in das Programm zurückspringen.</li>
           <li>Passwort, Code und Token werden weder gespeichert noch protokolliert. Was das Fenster ablegt (Cookies), wird beim Beenden und beim nächsten Start gelöscht. Gespeichert wird nur die Account-ID.</li>
           <li>Das Verfahren stammt aus dem Skript <code>psn-account-id.py</code> des Projekts chiaki-ng, das dafür grill2010 dankt. VeloPlay führt dieselben Schritte aus.</li>
-          <li>Fehlt WebView2 (möglich unter Windows 10 ohne Edge), öffnet sich der normale Browser. Die Adresse der leeren Seite nach der Anmeldung fügst du dann in das Feld für die Account-ID ein.</li>
+          <li>Fehlt WebView2 (möglich unter Windows 10 ohne Edge), öffnet sich der normale Browser. Die Adresse der leeren Seite nach der Anmeldung fügst du dann in das Feld für die Account-ID ein. Unter Linux ist das immer der Weg: Dort gibt es kein eingebettetes Fenster.</li>
+          <li><strong>Koppeln über Sony (seit 1.17.0):</strong> derselbe Weg wie beim Verbinden von unterwegs, nur mit der Bitte an die PS5, diesen PC aufzunehmen. Das dauert bis zu einer Minute. Antwortet die PS5 ohne Kennung oder Schlüssel, wird nichts gespeichert, und ein Hinweis nennt, was zu prüfen ist. War die PS5 schon mit PIN gekoppelt, bleibt, was VeloPlay über die Strecke zu ihr gelernt hat. Findet VeloPlay eine ungekoppelte PS5 im eigenen Netz und bist du angemeldet, stehen beide Knöpfe nebeneinander: „Über Sony koppeln“ und „Koppeln“.</li>
           <li>Code: <code>buildRegistRequest()</code>, <code>RegistCipher</code>, <code>registerWithConsole()</code>. Die erzeugten Bytes sind gegen chiaki-ng geprüft.</li>
         </ul>
       </details>
@@ -358,7 +411,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       </div>
       <details><summary>Technik im Detail</summary>
         <ul>
-          <li>Es sind dieselben Suchpakete wie in Schritt 1. Deshalb klappt die Messung ohne Kopplung und auch im Ruhemodus.</li>
+          <li>Es sind dieselben Suchpakete wie bei der Suche. Deshalb klappt die Messung ohne Kopplung und auch im Ruhemodus.</li>
           <li>Antworten nach mehr als 300 ms zählen als verloren. Bewertet wird ab zehn Messungen.</li>
           <li>Code: <code>ConnectionProbe</code>, <code>LatencyStats</code>, <code>rateLink()</code>, <code>adviceFor()</code>.</li>
         </ul>
@@ -368,13 +421,16 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Verbinden</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Ein Klick auf „Verbinden“. Liegt die PS5 im Ruhemodus, wird sie vorher aufgeweckt. Nach einigen Sekunden steht dort „Verbunden“, oben links laufen die Werte der Verbindung. Fragt die PS5 nach dem vierstelligen Anmelde-Code deines Benutzers, gibst du ihn hier ein.</p></div>
+          <p>Ein Klick auf „Verbinden“. Liegt die PS5 im Ruhemodus, wird sie vorher aufgeweckt. Nach einigen Sekunden steht dort „Verbunden“, oben links laufen die Werte der Verbindung. Fragt die PS5 nach dem vierstelligen Anmelde-Code deines Benutzers, gibst du ihn hier ein.</p>
+          <p><strong>Der Weg (seit 1.17.0):</strong> Während du wartest, siehst du die Stationen: Dieser PC, Router, PS5. Geht es über Sony, kommen die Server von Sony und der Router zu Hause dazu. Die erreichte Station leuchtet, ein Punkt läuft auf der Strecke, an der gerade gearbeitet wird, und eine Zeile nennt den Schritt, etwa „Weg durch die Router wird gesucht“ oder „Die PS5 antwortet“.</p></div>
         <div><span class="label">Was dahinter passiert</span>
           <p>VeloPlay weist sich mit den Schlüsseln aus der Kopplung aus, handelt Auflösung, Bildrate, Datenrate und Codec aus und bekommt dann verschlüsselte Bild- und Tonpakete. In der Gegenrichtung gehen die Eingaben des Controllers zur Konsole.</p></div>
       </div>
       <details><summary>Technik im Detail</summary>
         <ul>
-          <li>Diesen Teil übernimmt <code>libchiaki</code> aus dem Projekt chiaki-ng, weil er an vielen echten Konsolen erprobt ist. VeloPlay bindet nur den Teil für das Heimnetz ein, ohne den Weg über Sonys Server.</li>
+          <li>Diesen Teil übernimmt <code>libchiaki</code> aus dem Projekt chiaki-ng, weil er an vielen echten Konsolen erprobt ist. Bis 1.13 war nur der Teil für das Heimnetz eingebunden, seit 1.14.0 auch der Weg über Sonys Server.</li>
+          <li><strong>Die Schritte auf dem Wartebildschirm (seit 1.17.0)</strong> liest VeloPlay aus den Meldungen der Bibliothek: „Verbindung wird vorbereitet“, „Anmeldung bei den Servern von Sony“, „Weg durch die Router wird gesucht“, „Die PS5 antwortet“, „Bei der PS5 angemeldet“, „Verbindung wird ausgemessen“. Die Stationen sind eine Zeichnung des Wegs, keine Messung der einzelnen Strecken.</li>
+          <li><strong>Abgerissene Verbindung über Sony (seit 1.17.0):</strong> Reißt eine Verbindung über Sony ab, beendete die Bibliothek die alte Sitzung manchmal nicht, und das Fenster wartete darauf; am Laptop stand es so minutenlang. Jetzt lässt VeloPlay eine Sitzung, die nicht endet, nach höchstens zehn Sekunden los und verbindet neu. Mit einer nachgestellten Sitzung getestet, am echten Abriss noch nicht gesehen.</li>
           <li>Ablauf: Sitzungsanfrage per TCP an Port <code>9295</code>, Steuerverbindung auf demselben Port, eine kurze Messstrecke per UDP auf <code>9297</code> (Antwortzeit und Paketgröße), dann der Stream per UDP auf <code>9296</code> mit Fehlerkorrektur.</li>
           <li>Mit „Automatisch“ (Voreinstellung seit 0.9.0) fragt VeloPlay 1080p mit 60 Bildern pro Sekunde und HEVC an. Die Datenrate beginnt bei 15 Mbit/s, so viel nutzt auch die offizielle App für 1080p. Nach einer Sitzung von mindestens zwei Minuten ohne Aussetzer gibt es beim nächsten Mal ein Viertel mehr, bis 30 Mbit/s. Gingen mehr als fünf von tausend Bildern verloren oder stand der Stream, gibt es weniger, und VeloPlay merkt sich pro Konsole, ab wo es schiefging. Unter 7 Mbit/s wird 720p angefragt. <strong>Seit 1.15.0</strong> zählt auch, was wirklich ankommt: Bei Problemen senkt die PS5 ihre Datenrate selbst. Kamen in einer Runde mit unruhiger Verbindung oder verlorenen Bildern weniger als 5 Mbit/s an, fragt die nächste nach 720p, und nach zwei sauberen Runden mit 720p wieder nach 1080p. Mehr wird nicht angefragt, solange die PS5 weniger als die Hälfte nutzt. Von unterwegs beginnt es mit 720p und 6 Mbit/s.</li>
           <li>Ohne „Automatisch“ gilt, was in den Einstellungen steht: 1080p oder 720p, 30 oder 60 Bilder pro Sekunde, HEVC oder H.264, 5 bis 60 Mbit/s. Lehnt die Konsole das Profil ab, wird automatisch eine Stufe tiefer verhandelt.</li>
@@ -391,7 +447,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Am PC spielen</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
-          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät von Windows und wechselt mit, wenn du Kopfhörer einsteckst. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> schaltet die Anzeige der Werte um (aus, klein, alle Werte), <kbd>F8</kbd> schaltet die Hochskalierung um, <kbd>F7</kbd> den Bildstil (seit 1.10.0). Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
+          <p>Das Bild der PS5 füllt das Fenster, der Ton kommt über das Standard-Tongerät des Systems und wechselt unter Windows mit, wenn du Kopfhörer einsteckst. <kbd>F11</kbd> schaltet auf Vollbild, <kbd>Esc</kbd> öffnet ein kleines Menü zum Trennen, <kbd>F9</kbd> schaltet die Anzeige der Werte um (aus, klein, alle Werte), <kbd>F8</kbd> schaltet die Hochskalierung um, <kbd>F7</kbd> den Bildstil (seit 1.10.0). Am DualSense spürst du Vibration, den Widerstand der Trigger und die Haptik.</p></div>
         <div><span class="label">Was dahinter passiert</span>
           <p>Jedes Bild kommt als gepacktes Paket an. Die Grafikkarte entpackt es, ein kleines Programm auf der Karte rechnet die Farben um und passt die Größe ans Fenster an. Der Ton wird entpackt und mit einer kleinen Reserve abgespielt, damit verspätete Pakete nicht knacken.</p></div>
       </div>
@@ -405,15 +461,16 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Dekoder und Anzeige teilen sich die Grafikkarte:</strong> Das Programm wartet vor dem Zeichnen auf den Monitor, nicht währenddessen. So steht der Dekoder nicht still, solange auf das nächste Bild des Monitors gewartet wird.</li>
           <li><strong>Tongerät wechseln (seit 0.14.0):</strong> Einmal pro Sekunde sieht VeloPlay nach, ob Windows noch auf demselben Gerät abspielt. Steckst du Kopfhörer ein oder verschwindet das Gerät, öffnet sich der Ton auf dem neuen Standardgerät. Vorher blieb er bis zur nächsten Verbindung stumm.</li>
           <li><strong>Ton:</strong> Opus, 48 kHz, Stereo. Reserve mit dem Netzwerkpuffer „Automatisch“ (Voreinstellung seit 1.15.0) zwischen 60 und 140 ms: Beginn bei 80 ms, jede Lücke im Ton gibt sofort 20 ms dazu, jede ruhige Minute nimmt 10 ms weg. „Geringe Latenz“ hält fest 80 ms, „Stabil“ fest 140 ms. Läuft mehr als 80 ms darüber hinaus auf, wird alter Ton verworfen, damit er nicht hinter dem Bild herhinkt.</li>
-          <li><strong>Mikrofon (seit 0.15.0, zunächst aus):</strong> Das Standard-Mikrofon von Windows wird mit 48 kHz in Stereo aufgenommen, in Blöcke von 10 ms geschnitten und mit Opus auf genau 40 Bytes pro Block gepackt; andere Größen verwirft die PS5. Es läuft nur, solange ein Bild gezeigt wird und der Schalter an ist, und oben rechts steht dann „Mikrofon an“. Beendet die PS5 die Verbindung von sich aus, wird das Senden vorher unter einer Sperre abgestellt; das Programm, von dem die Übertragung stammt, hat an dieser Stelle keine.</li>
+          <li><strong>Mikrofon (seit 0.15.0, zunächst aus):</strong> Das Standard-Mikrofon des Systems wird mit 48 kHz in Stereo aufgenommen, in Blöcke von 10 ms geschnitten und mit Opus auf genau 40 Bytes pro Block gepackt; andere Größen verwirft die PS5. Es läuft nur, solange ein Bild gezeigt wird und der Schalter an ist, und oben rechts steht dann „Mikrofon an“. Beendet die PS5 die Verbindung von sich aus, wird das Senden vorher unter einer Sperre abgestellt; das Programm, von dem die Übertragung stammt, hat an dieser Stelle keine.</li>
           <li><strong>Adaptive Trigger:</strong> Die PS5 schickt je Trigger eine Effektart und zehn Parameter. VeloPlay reicht sie über SDL unverändert an den DualSense weiter und gibt die Trigger beim Trennen wieder frei.</li>
           <li><strong>Haptik:</strong> Die PS5 schickt sie als eigene Tonspur mit 3000 Hz. Am USB-Kabel meldet sich der DualSense als Tongerät mit vier Kanälen; VeloPlay spielt die Spur dort auf Kanal 3 und 4. Dafür muss das Gerät in Windows auf „Quadrofonie“ stehen. Sonst, und über Bluetooth, wird aus der Lautstärke der Spur Vibration.</li>
+          <li><strong>Unter Linux (seit 1.17.0):</strong> Der Prozessor entpackt das Bild, in der Anzeige steht also „CPU“. Gezeichnet wird mit OpenGL 3.3, Ton und Mikrofon laufen über SDL3 (PipeWire, PulseAudio oder ALSA). Für die adaptiven Trigger braucht VeloPlay Zugriff auf <code>/dev/hidraw*</code>; mit Steam ist das eingerichtet, sonst fehlt nur der Widerstand der Trigger.</li>
           <li><strong>Noch nicht:</strong> HDR. Der Schalter in den Einstellungen sagt das dazu.</li>
         </ul>
       </details>
     </li>
     <li class="step">
-      <h3>Zwischenbilder und Hochskalierung <span class="pill soon" style="margin-left:6px">neu</span></h3>
+      <h3>Zwischenbilder und Hochskalierung</h3>
       <div class="pair">
         <div><span class="label">Was du siehst</span>
           <p>Ein Spiel, das die PS5 mit 30 Bildern pro Sekunde schickt, läuft mit 60 über den Bildschirm. Das Bild wird scharf auf die Größe des Fensters hochgerechnet. Voreingestellt ist „Auto“: VeloPlay misst, ob 30 oder 60 Bilder ankommen, verdoppelt 30 und zeigt 60, wie sie sind.</p></div>
@@ -426,8 +483,9 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Verfahren „VeloPlay Flow“:</strong> Beide Bilder werden auf halbe Größe verkleinert und in Helligkeit und zwei Farbwerte zerlegt, mit immer kleineren Kopien darunter. Von der kleinsten Kopie zur größten sucht jeder Block die Verschiebung, bei der beide Bilder am besten zusammenpassen, ausgehend vom Ergebnis der Stufe darüber. Gesucht wird um den Zeitpunkt dazwischen herum, deshalb entstehen im neuen Bild keine Löcher.</li>
           <li><strong>Zusammensetzen:</strong> Jeder Bildpunkt wird entlang dieser Verschiebung aus beiden Bildern geholt und gemischt. Wo die beiden nicht zusammenpassen (etwas kommt ins Bild oder die Suche lag falsch), wird stattdessen schlicht überblendet.</li>
           <li><strong>Für jede Karte:</strong> „VeloPlay Flow“ braucht nur Pixel-Shader, kein Compute, nichts von einem Hersteller.</li>
-          <li><strong>Auf NVIDIA-Karten ab der RTX-20-Serie (seit 0.10.0):</strong> Die Suche nach der Bewegung übernimmt der dafür gebaute Teil der Grafikkarte („NVIDIA Optical Flow“, im Treiber enthalten, ein Vektor pro vier mal vier Bildpunkte). Er liegt auch dort richtig, wo eine Suche von grob nach fein danebengreift, etwa bei Leitersprossen, die alle gleich aussehen. Seine Vektoren werden auf den Zeitpunkt dazwischen umgerechnet; jede Stelle wählt dann unter den Vektoren ihrer Nachbarn den, mit dem beide Bilder dort am besten zusammenpassen. Das Zusammensetzen bleibt gleich. Fehlt der Teil oder meldet er einen Fehler, übernimmt „VeloPlay Flow“ allein. Die Anzeige im Spiel nennt, welches Verfahren läuft.</li>
-          <li><strong>AMD FRC (seit 1.7.0, Beta, nur auf AMD-Karten):</strong> Mit „AMD FRC für 2x“ berechnet AMDs eigenes Verfahren aus dem Grafiktreiber (AMF, Datei <code>amfrt64.dll</code>) das Bild in der Mitte, auf demselben Direct3D-Gerät, ohne Blick auf das übernächste Bild (das würde ein ganzes Bild mehr Verzögerung kosten). Jedes Bild bekommt einen Zeitstempel, und das Zwischenbild wird nur für das Bildpaar genommen, aus dem es gemacht ist. Bei 3x und 4x und wenn FRC einen Fehler meldet, rechnet „VeloPlay Flow“ weiter. Auf anderen Karten ist der Schalter ausgegraut und im Menü im Spiel nicht zu sehen.</li>
+          <li><strong>Unter Linux (seit 1.17.0):</strong> „VeloPlay Flow“, das Glätten der Farbstufen, die Bildstile, Lanczos und das Schärfen sind nach OpenGL 3.3 übertragen und laufen dort gegen dieselben Testszenen wie unter Windows. NVIDIA Optical Flow, AMD FRC und RTX Video gibt es nur unter Windows. Auf Grafik im Prozessor kosten die Zwischenbilder mehr Zeit; wie gut sie auf einem Laptop laufen, ist noch nicht gemessen.</li>
+          <li><strong>Unter Windows auf NVIDIA-Karten ab der RTX-20-Serie (seit 0.10.0):</strong> Die Suche nach der Bewegung übernimmt der dafür gebaute Teil der Grafikkarte („NVIDIA Optical Flow“, im Treiber enthalten, ein Vektor pro vier mal vier Bildpunkte). Er liegt auch dort richtig, wo eine Suche von grob nach fein danebengreift, etwa bei Leitersprossen, die alle gleich aussehen. Seine Vektoren werden auf den Zeitpunkt dazwischen umgerechnet; jede Stelle wählt dann unter den Vektoren ihrer Nachbarn den, mit dem beide Bilder dort am besten zusammenpassen. Das Zusammensetzen bleibt gleich. Fehlt der Teil oder meldet er einen Fehler, übernimmt „VeloPlay Flow“ allein. Die Anzeige im Spiel nennt, welches Verfahren läuft.</li>
+          <li><strong>AMD FRC (seit 1.7.0, Beta, nur unter Windows auf AMD-Karten):</strong> Mit „AMD FRC für 2x“ berechnet AMDs eigenes Verfahren aus dem Grafiktreiber (AMF, Datei <code>amfrt64.dll</code>) das Bild in der Mitte, auf demselben Direct3D-Gerät, ohne Blick auf das übernächste Bild (das würde ein ganzes Bild mehr Verzögerung kosten). Jedes Bild bekommt einen Zeitstempel, und das Zwischenbild wird nur für das Bildpaar genommen, aus dem es gemacht ist. Bei 3x und 4x und wenn FRC einen Fehler meldet, rechnet „VeloPlay Flow“ weiter. Auf anderen Karten ist der Schalter ausgegraut und im Menü im Spiel nicht zu sehen.</li>
           <li><strong>Farbe zählt mit (seit 0.17.1):</strong> Bis dahin verglich die Suche nur die Helligkeit. Etwas Blaues vor einer grauen Wand, die genau gleich hell ist, gab es für sie nicht: Sie folgte dort dem Bildrauschen und mischte Blau und Grau durcheinander, was als starkes Flackern zu sehen war (Meldung zu einer Zapfpistole in einer Zwischensequenz). Jetzt vergleicht sie Helligkeit und Farbe, auch bei der Kontrolle nach dem Holen. Die Suche der NVIDIA-Karte bekommt nur ein Graubild und sieht solche Formen weiter nicht; deshalb läuft „VeloPlay Flow“ auf NVIDIA-Karten immer mit, und sein Vektor gewinnt dort, wo er deutlich besser passt.</li>
           <li><strong>Seitenwechsel in Menüs (seit 0.18.0):</strong> Ersetzt ein Spiel eine Menüseite durch die nächste, während drumherum alles steht, ist das für das ganze Bild kein Schnitt. Im ersetzten Teil fand die Suche dann zufällige Treffer zwischen alter und neuer Schrift, und für ein Bild lang war ein Gemisch beider Seiten zu sehen. Jetzt wird das Bild in Teile von etwa 40 Bildpunkten zerlegt: Ein Teil, der bis eben stillstand und nun weder verschoben noch an Ort und Stelle zum vorigen Bild passt, zeigt das nähere echte Bild. Beides muss zutreffen, damit eine bewegte Szene nicht in Stücke aus zwei Zeitpunkten zerfällt.</li>
           <li><strong>Schnitte (seit 0.11.0):</strong> Springt das Spiel zu einem anderen Bild, passt nichts mehr zusammen. Findet mehr als die Hälfte des Bildes kein Gegenstück, wird nicht gemischt, sondern das nähere der beiden echten Bilder gezeigt.</li>
@@ -440,7 +498,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
           <li><strong>Schärfe der berechneten Bilder:</strong> Beim Zusammensetzen wird mit einem kubischen Filter gelesen, damit das neue Bild so scharf ist wie die echten davor und danach.</li>
           <li><strong>Automatik:</strong> Einmal pro Sekunde wird gezählt, wie viele Bilder ankommen. Erst drei Sekunden in Folge mit der anderen Rate schalten um, damit ein schlechter Moment im WLAN nichts verstellt.</li>
           <li><strong>Hochskalieren:</strong> Lanczos mit 16 Stützstellen, begrenzt auf den Wertebereich der Nachbarn, damit neben harten Kanten kein Schatten entsteht. Beim Verkleinern bleibt es beim einfachen Filter.</li>
-          <li><strong>RTX Video Super Resolution:</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich. Ein Test schickt deshalb dasselbe Bild einmal mit und einmal ohne diesen Schalter durch den Videoprozessor und vergleicht. Auf der RTX 4070 (21.11.2026): Das Ergebnis weicht im Mittel um 3,2 bis 3,5 Graustufen ab, wenn vergrößert wird, und um 1,9, wenn das Bild seine Größe behält (1080p auf 1080p); knapp die Hälfte der Bildpunkte ändert sich. Das Netz arbeitet also auch ohne Vergrößern. Seit 0.13.0 läuft RTX Video deshalb immer, wenn das Bild nicht verkleinert wird. Rechenzeit in der Messung: etwa 2 ms mehr von 540p auf 1080p, etwa 6 ms mehr bei einem 1080p-Bild.</li>
+          <li><strong>RTX Video Super Resolution (nur unter Windows):</strong> läuft über den Videoprozessor von Direct3D 11 mit einem Schalter, den nur der Treiber von NVIDIA kennt (derselbe Weg wie in Chromium und mpv). Ob der Treiber sein Netz wirklich anwendet, kann VeloPlay nicht abfragen; ohne die Einstellung in der NVIDIA-App skaliert der Videoprozessor gewöhnlich. Ein Test schickt deshalb dasselbe Bild einmal mit und einmal ohne diesen Schalter durch den Videoprozessor und vergleicht. Auf der RTX 4070 (21.11.2026): Das Ergebnis weicht im Mittel um 3,2 bis 3,5 Graustufen ab, wenn vergrößert wird, und um 1,9, wenn das Bild seine Größe behält (1080p auf 1080p); knapp die Hälfte der Bildpunkte ändert sich. Das Netz arbeitet also auch ohne Vergrößern. Seit 0.13.0 läuft RTX Video deshalb immer, wenn das Bild nicht verkleinert wird. Rechenzeit in der Messung: etwa 2 ms mehr von 540p auf 1080p, etwa 6 ms mehr bei einem 1080p-Bild.</li>
           <li><strong>Farbstufen glätten (seit 1.4.0, voreingestellt an):</strong> Bei 6 bis 15 Mbit/s zeigen Himmel und weiche Verläufe Stufen, die nur ein oder zwei Helligkeitsstufen auseinanderliegen. Vor dem Vergrößern vergleicht jeder Bildpunkt sich mit vier Nachbarn in zufälligem Abstand (bis 16 Bildpunkte) und zufälliger Richtung. Nur wo alle vier höchstens etwa drei Stufen von ihm abweichen, nimmt er ihren Mittelwert; überall mit Kanten oder Details bleibt er, wie er ist. Wo das einen Bildpunkt verschiebt, verhindert ein leichtes Rauschen von höchstens einer Stufe, dass beim Speichern in 8 Bit neue Stufen entstehen. Das Zufallsmuster ist in jedem Bild dasselbe, damit ein stehendes Bild nicht grieselt (in 1.4.0 war es das noch nicht). Das läuft nach den Zwischenbildern, echte und berechnete Bilder werden also gleich behandelt, und Lanczos oder RTX Video vergrößern das geglättete Bild. Die Idee ist bekannt aus flash3kyuu und libplacebo (chiaki-ng hat so etwas standardmäßig an); der Shader ist für VeloPlay neu geschrieben.</li>
           <li><strong>Schärfen:</strong> nach dem Verfahren RCAS aus AMDs FidelityFX Super Resolution 1 (MIT-Lizenz): Kanten werden angehoben, aber nur so weit, wie der Kontrast der Umgebung es zulässt.</li>
           <li><strong>Geht etwas nicht:</strong> Kann die Karte das Verfahren nicht einrichten, zeigt VeloPlay die Bilder, wie sie ankommen, und die Anzeige nennt „nicht verfügbar“.</li>
@@ -459,9 +517,9 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div>
       <h3>Übersicht</h3>
       <ul>
-        <li><strong>Leiste ganz oben (seit 0.17.0):</strong> VeloPlay hat keine Titelleiste von Windows mehr, sondern eine eigene: Name, Uhrzeit und Knöpfe für Vollbild, Minimieren, Vergrößern und Schließen. An der Leiste verschiebst du das Fenster. VeloPlay startet im Vollbild; <kbd>F11</kbd> oder der Knopf wechselt zum Fenster, und die Wahl bleibt gemerkt. Im Vollbild legt sich die Taskleiste von Windows über das Bild, wenn der Mauszeiger einen Moment am unteren Bildschirmrand ruht, und geht wieder, wenn er sie verlässt; das Bild bleibt dabei so groß, wie es ist (seit 1.9.0). Geht der Zeiger an den oberen Rand, gleitet die Leiste über das Bild, auch im Stream.</li>
+        <li><strong>Leiste ganz oben (seit 0.17.0):</strong> VeloPlay hat keine Titelleiste von Windows mehr, sondern eine eigene: Name, Uhrzeit und Knöpfe für Vollbild, Minimieren, Vergrößern und Schließen. An der Leiste verschiebst du das Fenster. VeloPlay startet im Vollbild; <kbd>F11</kbd> oder der Knopf wechselt zum Fenster, und die Wahl bleibt gemerkt. Im Vollbild legt sich die Taskleiste von Windows über das Bild, wenn der Mauszeiger einen Moment am unteren Bildschirmrand ruht, und geht wieder, wenn er sie verlässt; das Bild bleibt dabei so groß, wie es ist (seit 1.9.0). Geht der Zeiger an den oberen Rand, gleitet die Leiste über das Bild, auch im Stream. Unter Linux zeichnet der Desktop den Rahmen des Fensters; VeloPlays eigene Leiste gibt es dort im Vollbild, wo sie am oberen Rand hereingleitet.</li>
         <li><strong>Konsolenzeile:</strong> Name, Zustand, laufendes Spiel, IP-Adresse.</li>
-        <li><strong>Verbinden, Aufwecken, Koppeln:</strong> „Verbinden“ weckt eine schlafende Konsole gleich mit auf. Bei einer neuen Konsole steht dort „Koppeln“.</li>
+        <li><strong>Verbinden, Aufwecken, Koppeln:</strong> „Verbinden“ weckt eine schlafende Konsole gleich mit auf. Bei einer neuen Konsole steht dort „Koppeln“, und wenn du bei PlayStation angemeldet bist, auch „Über Sony koppeln“ (seit 1.17.0).</li>
         <li><strong>Drei Punkte:</strong> Verbindung prüfen, Kopplung entfernen (mit Rückfrage). Das Menü hängt an der rechten Kante der drei Punkte und öffnet sich nach links, damit es auch in einem schmalen Fenster ganz zu sehen ist.</li>
         <li><strong>Oben rechts:</strong> angeschlossener Controller mit Verbindungsart, daneben die Einstellungen.</li>
         <li><strong>Bildmodus:</strong> „Automatisch“ wählt Auflösung, Bildrate und Datenrate selbst und erkennt, ob das Spiel mit 30 oder 60 Bildern läuft. „30-fps-Spiel“ fordert 30 Bilder an und berechnet die Bilder dazwischen, „60-fps-Spiel“ fordert 60 an und zeigt sie, wie sie sind.</li>
@@ -471,14 +529,54 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/koppeln.png" alt="Kopplung, Schritt 2: Feld für die Account-ID mit einer beanstandeten Eingabe, darunter der Knopf Bei PlayStation anmelden" width="1100" height="720">
+    <img class="shot" src="img/erster-start.png" alt="Blatt VeloPlay hat deinen PC erkannt über der Übersicht: Grafik, Prozessor, Arbeitsspeicher, Bildschirm und System eines Beispiel-PCs, darunter die gewählten Einstellungen Zwischenbilder Auto, Hochskalierung Lanczos, Schärfe 20 Prozent, Farbstufen glätten an, und die Knöpfe Einstellungen ansehen und Passt" width="1100" height="720">
+    <div>
+      <h3>Erster Start (seit 1.17.0)</h3>
+      <ul>
+        <li><strong>Oben:</strong> was VeloPlay gefunden hat: Grafik, Prozessor mit Zahl der Threads, Arbeitsspeicher, Bildschirm, System.</li>
+        <li><strong>Ein Satz zur Einschätzung:</strong> etwa „Eigene Grafikkarte: Zwischenbilder und Hochskalierung laufen mit“ oder „Dein Prozessor entpackt das Video selbst. Damit er mitkommt, fragt VeloPlay die PS5 nach höchstens 720p“.</li>
+        <li><strong>Gewählt:</strong> die Bildeinstellungen, die VeloPlay dazu gesetzt hat.</li>
+        <li><strong>Passt</strong> schließt das Blatt, <strong>Einstellungen ansehen</strong> öffnet die Einstellungen.</li>
+        <li><strong>Nur einmal:</strong> Das Blatt kommt beim allerersten Start. Wer von einer früheren Version kommt, sieht es nicht und behält seine Einstellungen.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/koppeln.png" alt="Kopplung, Schritt 2: Feld für die Account-ID mit einer beanstandeten Eingabe, darunter der Knopf Bei PlayStation anmelden und der Link Lieber im eigenen Browser anmelden, etwa mit Passkey" width="1100" height="720">
     <div>
       <h3>Koppeln</h3>
       <ul>
         <li><strong>Schritt 1:</strong> Konsole aus der Liste wählen oder IP-Adresse eintippen.</li>
-        <li><strong>Schritt 2:</strong> „Bei PlayStation anmelden“ holt die Account-ID über die Anmeldung bei Sony. Wer sie kennt, tippt sie ein; im Bild ist ein Online-Name eingetragen, den das Feld als falsch markiert. Nach der ersten Kopplung ist die ID vorausgefüllt.</li>
+        <li><strong>Schritt 2:</strong> „Bei PlayStation anmelden“ holt die Account-ID über die Anmeldung bei Sony. Wer sie kennt, tippt sie ein; im Bild ist ein Online-Name eingetragen, den das Feld als falsch markiert. Nach der ersten Kopplung ist die ID vorausgefüllt. Der Link darunter öffnet die Anmeldung im eigenen Browser, etwa für Passkeys; unter Linux ist das der einzige Weg.</li>
         <li><strong>Schritt 3:</strong> achtstellige PIN von der PS5.</li>
         <li><strong>Danach:</strong> Fortschritt mit „Abbrechen“, dann Erfolg oder eine Fehlermeldung mit „Erneut versuchen“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/ueber-sony-koppeln.png" alt="Übersicht mit einer Konsole Wohnzimmer, grauer Punkt, darunter In deinem PlayStation-Konto und Koppeln ohne PIN, rechts der Knopf Über Sony koppeln" width="1100" height="720">
+    <div>
+      <h3>Über Sony koppeln, ohne PIN (seit 1.17.0, Beta)</h3>
+      <ul>
+        <li><strong>Voraussetzung:</strong> einmal unter Einstellungen &gt; Erweitert &gt; Verbindung bei PlayStation anmelden.</li>
+        <li><strong>In der Liste:</strong> Eine PS5 deines Kontos, die auf diesem PC nicht gekoppelt ist, erscheint mit „In deinem PlayStation-Konto · Koppeln ohne PIN“, auch wenn sie nicht im selben Netz ist. Im Bild ist das ein Laptop, der die PS5 noch nie gesehen hat.</li>
+        <li><strong>Über Sony koppeln:</strong> Ein Klick koppelt und verbindet. Du musst dafür nicht an die Konsole.</li>
+        <li><strong>Was die PS5 braucht:</strong> Sie muss an sein, Remote Play eingeschaltet. Klappt es nicht, sagt ein Hinweis das und nennt den Weg mit PIN, der zu Hause immer geht.</li>
+        <li><strong>Zu Hause:</strong> Findet VeloPlay die ungekoppelte PS5 im eigenen Netz, stehen beide Knöpfe da, „Über Sony koppeln“ und „Koppeln“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/koppeln-ueber-sony.png" alt="Wartebildschirm Verbinde mit Wohnzimmer: VeloPlay koppelt sich über die Server von Sony mit der PS5, ohne PIN, und verbindet danach. Darunter fünf Stationen, Dieser PC und Router leuchten, Server von Sony, Router zu Hause und PS5 sind noch grau, darunter Verbindung wird vorbereitet und Abbrechen" width="1100" height="720">
+    <div>
+      <h3>Während des Koppelns über Sony</h3>
+      <ul>
+        <li><strong>Ein Bildschirm für beides:</strong> Koppeln und Verbinden laufen hintereinander. Das dauert bis zu einer Minute.</li>
+        <li><strong>Die Stationen:</strong> derselbe Weg wie beim Verbinden über Sony, siehe „Verbinden zeigt den Weg“ weiter unten.</li>
+        <li><strong>Abbrechen:</strong> jederzeit. Eine Kopplung, die schon geklappt hat, bleibt.</li>
       </ul>
     </div>
   </div>
@@ -498,7 +596,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/update.png" alt="Übersicht mit Hinweis Version 0.4.0 ist da und Knopf Aktualisieren" width="1100" height="720">
+    <img class="shot" src="img/update.png" alt="Übersicht mit Hinweis Version 0.6.0 ist da, dem Link Was ist neu? und dem Knopf Aktualisieren" width="1100" height="720">
     <div>
       <h3>Update-Hinweis</h3>
       <ul>
@@ -511,7 +609,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/einstellungen.png" alt="Einstellungen, Reiter Erweitert mit Sprache und Updates" width="1100" height="720">
+    <img class="shot" src="img/einstellungen.png" alt="Einstellungen, Reiter Erweitert: darunter die zweite Leiste mit Allgemein, Ton, Verbindung und Extras, offen ist Allgemein mit Sprache, Hinweise über dem Bild und Anzeige im Spiel" width="1100" height="720">
     <div>
       <h3>Einstellungen</h3>
       <ul>
@@ -522,11 +620,46 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Lenkrad (seit 1.6.0, Beta, eigene Seite seit 1.8.0):</strong> Die PS5 kennt über Remote Play nur einen Controller, also bewegt das Lenkrad den linken Stick, das Gas drückt R2, die Bremse L2, die Knöpfe drücken die Tasten, die du ihnen gibst, das Steuerkreuz bleibt Steuerkreuz. Welche Achse und welcher Knopf was ist, unterscheidet sich von Lenkrad zu Lenkrad; deshalb zeigst du jedes Teil einmal, indem du es bewegst (drehen, Pedal ganz durchtreten und loslassen, Knopf drücken), und ein Balken zeigt live, was ankommt. Lenkräder mit Force Feedback ziehen beim Spielen zur Mitte, höchstens mit 60 % ihrer Kraft, voreingestellt 30 %; nach dem Stream und beim Beenden lassen sie los. Lenkkräfte aus dem Spiel kommen über Remote Play nicht an.</li>
         <li><strong>Aufnahme (seit 1.2.0, Videos seit 1.3.0):</strong> die Ordner für Fotos und Videos, je mit einem Knopf, der den Ordner öffnet. Clips stehen dort als „kommt mit einer der nächsten Versionen“, ohne Schalter, der noch nichts tut.</li>
         <li><strong>Maus &amp; Tastatur (unter Steuerung):</strong> einschalten, Belegung für alle Spiele oder pro Spiel, Mausempfindlichkeit, Vorlagen und Tasten.</li>
-        <li><strong>Erweitert:</strong> Sprache, Updates, Installation, Netzwerkpuffer, zusätzliche Adressen, Fernsteuerung für Skripte.</li>
-        <li><strong>Discord (seit 1.5.0):</strong> „In Discord anzeigen, was du spielst“ ist voreingestellt an. Solange gestreamt wird, steht in der Mitgliederliste „Spielt“ und der Name des Spiels (seit 1.9.0), auf der Profilkarte das Spiel und „über VeloPlay“, dazu die Spielzeit, groß „PS5“ oder das Symbol einer Capture-Card und klein das VeloPlay-Logo. Die Bilder holt Discord seit 1.10.1 direkt aus dem öffentlichen Projekt. Nennt die Konsole ihr Spiel während des Streams nicht mehr, bleibt der zuletzt bekannte Name stehen. Ein Bild des Spiels selbst gibt es nicht: Jede Quelle dafür bräuchte eine Anmeldung bei Sony, einen geheimen Schlüssel oder eine nicht dokumentierte Schnittstelle. Andere sehen einen Knopf „VeloPlay holen“. Ein zweiter Schalter lässt den Namen des Spiels weg. Discord muss als Programm auf demselben PC laufen; VeloPlay spricht es über dessen lokale Verbindung an (benannte Leitung <code>discord-ipc-0</code> bis <code>-9</code>), schickt eine Änderung höchstens alle 15 Sekunden und löscht die Karte, sobald der Stream endet.</li>
-        <li><strong>Installation (seit 1.1.0):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben.</li>
+        <li><strong>Erweitert (vier Seiten seit 1.17.0):</strong> „Allgemein“ hat Sprache, Hinweise über dem Bild, Anzeige im Spiel, Dieser PC, Updates und Installation. „Ton“ hat Netzwerkpuffer und Mikrofon. „Verbindung“ hat „Von unterwegs spielen“ und die zusätzlichen Adressen. „Extras“ hat Discord und die Fernsteuerung für Skripte. Vorher stand alles untereinander auf einer Seite.</li>
+        <li><strong>Discord (seit 1.5.0, unter Erweitert &gt; Extras):</strong> „In Discord anzeigen, was du spielst“ ist voreingestellt an. Solange gestreamt wird, steht in der Mitgliederliste „Spielt“ und der Name des Spiels (seit 1.9.0), auf der Profilkarte das Spiel und „über VeloPlay“, dazu die Spielzeit, groß „PS5“ oder das Symbol einer Capture-Card und klein das VeloPlay-Logo. Die Bilder holt Discord seit 1.10.1 direkt aus dem öffentlichen Projekt. Nennt die Konsole ihr Spiel während des Streams nicht mehr, bleibt der zuletzt bekannte Name stehen. Ein Bild des Spiels selbst gibt es nicht: Jede Quelle dafür bräuchte eine Anmeldung bei Sony, einen geheimen Schlüssel oder eine nicht dokumentierte Schnittstelle. Andere sehen einen Knopf „VeloPlay holen“. Ein zweiter Schalter lässt den Namen des Spiels weg. Discord muss als Programm auf demselben PC laufen; VeloPlay spricht es über dessen lokale Verbindung an (benannte Leitung <code>discord-ipc-0</code> bis <code>-9</code>), schickt eine Änderung höchstens alle 15 Sekunden und löscht die Karte, sobald der Stream endet.</li>
+        <li><strong>Installation (seit 1.1.0, unter Erweitert &gt; Allgemein):</strong> „Auf diesem PC installieren“ kopiert VeloPlays eigene Dateien nach <code>%LOCALAPPDATA%\Programs\VeloPlay</code>, legt einen Eintrag im Startmenü an und trägt es in Windows bei den installierten Apps ein, ohne Administratorrechte. Danach läuft das installierte Programm weiter. Entfernen geht wie bei jeder App unter Einstellungen &gt; Apps; Einstellungen und Kopplungen bleiben. Unter Linux siehe <a href="#linux">Linux</a>.</li>
       </ul>
       <p class="small muted">Änderungen werden von selbst gespeichert. Die Werte unter „Eingang“ gelten ab der nächsten Verbindung, alles andere sofort.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/erweitert-ton.png" alt="Einstellungen, Erweitert, Seite Ton: Netzwerkpuffer mit Automatisch, Geringe Latenz und Stabil, darunter der Schalter Mikrofon an die PS5 senden" width="1100" height="720">
+    <div>
+      <h3>Erweitert: Ton</h3>
+      <ul>
+        <li><strong>Netzwerkpuffer:</strong> gilt für den Ton. „Automatisch“ hält so wenig Ton vorrätig wie möglich und legt nach, sobald das WLAN eine Lücke reißt. „Geringe Latenz“ hält immer 80 ms, „Stabil“ immer 140 ms.</li>
+        <li><strong>Mikrofon an die PS5 senden:</strong> für den Sprachchat, zunächst aus. Solange gesendet wird, steht oben rechts im Bild „Mikrofon an“. Nimm Kopfhörer, sonst hören die anderen den Ton des Spiels mit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/erweitert-extras.png" alt="Einstellungen, Erweitert, Seite Extras: Discord mit zwei Schaltern und dem Feld Spiel, wenn die PS5 keins nennt, darunter Fernsteuerung für Skripte mit Schalter, Port und Kennwort" width="1100" height="720">
+    <div>
+      <h3>Erweitert: Extras</h3>
+      <ul>
+        <li><strong>Discord:</strong> die Anzeige ein- und ausschalten, den Namen des Spiels zeigen oder weglassen, und ein Spiel eintragen für den Fall, dass die PS5 keins nennt.</li>
+        <li><strong>Fernsteuerung für Skripte:</strong> zunächst aus. Port und, wenn du willst, ein Kennwort. Nur Programme auf demselben PC kommen heran.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/dieser-pc.png" alt="Einstellungen, Erweitert, Seite Allgemein auf einem Beispiel-Laptop mit Linux: Abschnitt Dieser PC mit Grafik, Prozessor, Arbeitsspeicher und System, dem Satz, dass die Bildeinstellungen von der Wahl für diese Hardware abweichen, der Liste Das wird gesetzt und den Knöpfen Wiederherstellen und Abbrechen" width="1100" height="720">
+    <div>
+      <h3>Dieser PC: für diese Hardware wiederherstellen (seit 1.17.0)</h3>
+      <ul>
+        <li><strong>Wo:</strong> Einstellungen &gt; Erweitert &gt; Allgemein &gt; „Dieser PC“.</li>
+        <li><strong>Eine Zeile zur Hardware:</strong> Grafik, Prozessor, Arbeitsspeicher, System. Darunter, ob deine Bildeinstellungen zu dem passen, was VeloPlay für diese Hardware wählt, oder davon abweichen.</li>
+        <li><strong>Für diese Hardware wiederherstellen:</strong> zeigt erst die Liste „Das wird gesetzt“ und fragt nach. Im Bild ist die Rückfrage offen.</li>
+        <li><strong>Was bleibt:</strong> Kopplungen und alle anderen Einstellungen.</li>
+      </ul>
     </div>
   </div>
 
@@ -537,13 +670,14 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <ul>
         <li><strong>Fotos:</strong> <kbd>F12</kbd> im Spiel. Hier steht der Ordner, ein Klick öffnet ihn.</li>
         <li><strong>Videoaufnahme:</strong> <kbd>F10</kbd> im Spiel startet und beendet sie. Die Videos landen als MP4 unter Videos\VeloPlay. Fehlt Windows das Nötige dafür (Windows N ohne Media Feature Pack), steht das hier statt des Ordners.</li>
-        <li><strong>Clips und Videoaufnahme:</strong> kommen mit einer der nächsten Versionen. Bis dahin gibt es dafür keine Schalter.</li>
+        <li><strong>Clips:</strong> kommen mit einer der nächsten Versionen. Bis dahin gibt es dafür keinen Schalter.</li>
+        <li><strong>Unter Linux:</strong> Fotos und Videos liegen in den Ordnern „Bilder“ und „Videos“ deines Benutzers, je im Unterordner VeloPlay.</li>
       </ul>
     </div>
   </div>
 
   <div class="screen">
-    <img class="shot" src="img/installieren.png" alt="Einstellungen, Reiter Erweitert: Abschnitt Installation mit Erklärung, Zielordner und dem Knopf Auf diesem PC installieren" width="1100" height="720">
+    <img class="shot" src="img/installieren.png" alt="Einstellungen, Erweitert, Seite Allgemein, nach unten geblättert: Updates mit dem Knopf Jetzt suchen, darunter der Abschnitt Installation mit Erklärung, Zielordner und dem Knopf Auf diesem PC installieren" width="1100" height="720">
     <div>
       <h3>Installieren</h3>
       <ul>
@@ -551,6 +685,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
         <li><strong>Was kopiert wird:</strong> nur VeloPlays eigene Dateien. Liegt VeloPlay entpackt im Download-Ordner, bleibt alles andere dort, wo es ist.</li>
         <li><strong>Danach:</strong> Das installierte Programm startet und macht weiter, mit denselben Einstellungen und Kopplungen. Updates kommen wie gewohnt.</li>
         <li><strong>Entfernen:</strong> Windows-Einstellungen &gt; Apps &gt; Installierte Apps &gt; VeloPlay. Eine entpackte Kopie entfernt sich nie selbst.</li>
+        <li><strong>Unter Linux (seit 1.17.0):</strong> Derselbe Knopf legt VeloPlay unter <code>~/.local/share/VeloPlay</code> ab und trägt es ins Anwendungsmenü ein. Entfernen geht über das Kontextmenü des Eintrags oder mit <code>VeloPlay --uninstall</code>.</li>
       </ul>
     </div>
   </div>
@@ -590,7 +725,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <h3>Im Spiel</h3>
       <p class="small muted">Im Beispielbild ist die Fläche schwarz, weil das Vorschau-Werkzeug kein Spielbild hat. Dort liegt im Betrieb das Bild der PS5.</p>
       <ul>
-        <li><strong>Ecke (seit 1.2.0):</strong> Die Anzeige sitzt oben links, oben rechts, unten links oder unten rechts, eingestellt unter Einstellungen &gt; Erweitert. So verdeckt sie nichts vom Spiel, etwa eine Lebensanzeige. Der Hinweis „Mikrofon an“ und der Hinweis nach einem Foto weichen in die andere Ecke aus.</li>
+        <li><strong>Ecke (seit 1.2.0):</strong> Die Anzeige sitzt oben links, oben rechts, unten links oder unten rechts, eingestellt unter Einstellungen &gt; Erweitert &gt; Allgemein. So verdeckt sie nichts vom Spiel, etwa eine Lebensanzeige. Der Hinweis „Mikrofon an“ und der Hinweis nach einem Foto weichen in die andere Ecke aus.</li>
         <li><strong>Foto mit <kbd>F12</kbd> (seit 1.2.0):</strong> speichert das Bild des Spiels als PNG unter Bilder\VeloPlay. Aufgenommen wird das Bild, wie es auf dem Bildschirm ist, mit Zwischenbildern und Hochskalierung, aber ohne VeloPlays Anzeige und Hinweise. Unten rechts steht kurz, wohin es ging.</li>
         <li><strong>Video mit <kbd>F10</kbd> (seit 1.3.0):</strong> nimmt das Bild auf, wie es auf dem Bildschirm ist, mit Zwischenbildern und mit dem Ton, der aus den Lautsprechern kommt, als MP4 unter Videos\VeloPlay. Oben rechts steht „Aufnahme“ mit der Dauer. <kbd>F10</kbd> beendet sie; sie endet auch von selbst, wenn der Stream endet oder sich die Fenstergröße ändert (eine Videodatei hat eine feste Größe).</li>
         <li><strong>Kleine Anzeige (seit 0.15.0):</strong> Wer nur das Wichtigste sehen will, schaltet mit <kbd>F9</kbd> auf die kleine Anzeige: ein Punkt für die Verbindung, dazu Bilder pro Sekunde, Antwortzeit und Datenrate in einer Zeile. Alles Weitere unten gehört zur Anzeige mit allen Werten.</li>
@@ -682,6 +817,20 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 
   <div class="screen">
+    <img class="shot" src="img/verbinden-weg.png" alt="Wartebildschirm Verbinde mit Wohnzimmer über die Server von Sony: fünf Stationen in einer Reihe, Dieser PC, Router und Server von Sony sind erreicht und mit Linien verbunden, ein Punkt läuft auf der Strecke zum Router zu Hause, die PS5 ist noch grau, darunter die Zeile Weg durch die Router wird gesucht und der Knopf Abbrechen" width="1100" height="720">
+    <div>
+      <h3>Verbinden zeigt den Weg (seit 1.17.0)</h3>
+      <ul>
+        <li><strong>Zu Hause:</strong> drei Stationen: Dieser PC, Router, PS5.</li>
+        <li><strong>Über Sony:</strong> fünf Stationen, wie im Bild: Dieser PC, Router, Server von Sony, Router zu Hause, PS5. Darüber steht, dass das bis zu einer Minute dauert.</li>
+        <li><strong>Was leuchtet:</strong> jede Station, die erreicht ist. Die Linie dazwischen wird fest, und ein Punkt läuft auf der Strecke, an der gerade gearbeitet wird.</li>
+        <li><strong>Die Zeile darunter:</strong> nennt den Schritt: „Verbindung wird vorbereitet“, „Anmeldung bei den Servern von Sony“, „Weg durch die Router wird gesucht“, „Die PS5 antwortet“, „Bei der PS5 angemeldet“, „Verbindung wird ausgemessen“.</li>
+        <li><strong>Wozu:</strong> Bleibt es hängen, siehst du, an welcher Stelle. Dieselbe Reihe steht beim Neuverbinden nach einem Abbruch.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
     <img class="shot" src="img/verbunden.png" alt="Bildschirm Verbunden mit Wohnzimmer vor dem ersten Bild, darunter die Knöpfe Trennen und PS5 in den Ruhemodus" width="1100" height="720">
     <div>
       <h3>Verbunden, bevor das Bild da ist</h3>
@@ -698,7 +847,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     <div>
       <h3>Verbinden, Anmelde-Code, neu verbinden</h3>
       <ul>
-        <li><strong>Verbinden:</strong> ein Satz, was gerade passiert, und „Abbrechen“. Startet die Konsole noch, steht dort der wievielte Versuch läuft.</li>
+        <li><strong>Verbinden:</strong> der Weg mit seinen Stationen, ein Satz, was gerade passiert, und „Abbrechen“. Startet die Konsole noch, steht dort der wievielte Versuch läuft.</li>
         <li><strong>Anmelde-Code:</strong> erscheint nur, wenn dein Benutzer auf der PS5 mit einem Code geschützt ist. War er falsch, fragt die PS5 erneut.</li>
         <li><strong>Neu verbinden:</strong> nach einem Abbruch, mit Zähler „Versuch 2 von 3“ und „Abbrechen“.</li>
       </ul>
@@ -719,28 +868,124 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </div>
 </section>
 
+<section id="linux">
+  <h2>VeloPlay unter Linux</h2>
+  <p>Seit 1.17.0 gibt es VeloPlay als eigenes Programm für Linux, für PCs und Laptops mit x86-64 und etwa Ubuntu 22.04, Debian 12, Fedora 38 oder neuer. Es sieht aus wie unter Windows und kann fast dasselbe. Die Fassung ist neu und bisher an einem einzigen Laptop ausprobiert; was dort lief und was nicht benutzt wurde, steht unten.</p>
+  <h3>Holen und einrichten</h3>
+  <ol>
+    <li><strong>Laden.</strong> Von der Seite der neuesten Version die Datei <code>VeloPlay-linux-x64.zip</code> laden und entpacken.</li>
+    <li><strong>Einmal starten.</strong> Im entpackten Ordner ein Terminal öffnen und <code>./VeloPlay</code> eingeben.</li>
+    <li><strong>Installieren.</strong> Einstellungen &gt; Erweitert &gt; Allgemein &gt; Installieren legt VeloPlay unter <code>~/.local/share/VeloPlay</code> ab und trägt es ins Anwendungsmenü ein. Ab dann startest du es von dort.</li>
+    <li><strong>Updates.</strong> VeloPlay meldet neue Versionen selbst und richtet sie mit einem Klick ein, wie unter Windows.</li>
+  </ol>
+  <div class="split">
+    <div class="panel">
+      <h3><span class="dot ok"></span>Wie unter Windows</h3>
+      <ul>
+        <li>Suchen, Koppeln, Aufwecken, Verbinden, auch über die Server von Sony</li>
+        <li>Bild und Ton, Fenster und Vollbild</li>
+        <li>Die eigenen Zwischenbilder („VeloPlay Flow“), Farbstufen glätten, Bildstile, Lanczos und Schärfen</li>
+        <li>Controller mit Touchpad und Bewegungssensor, Maus und Tastatur</li>
+        <li>Mikrofon</li>
+        <li>Fotos mit <kbd>F12</kbd>, Videos mit <kbd>F10</kbd></li>
+        <li>Capture-Cards</li>
+        <li>Die Karte in Discord</li>
+        <li>Installieren und Updates aus dem Programm</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3><span class="dot soon"></span>Anders unter Linux</h3>
+      <ul>
+        <li><strong>Nur unter Windows:</strong> RTX Video, NVIDIA Optical Flow und AMD FRC. Die Schalter für RTX Video und AMD FRC sind ausgegraut und sagen das.</li>
+        <li><strong>Der Prozessor entpackt das Bild,</strong> nicht die Grafikkarte. Hat er höchstens vier Threads, fragt VeloPlay nach höchstens 720p.</li>
+        <li><strong>Kopplungen liegen im Schlüsselbund des Desktops</strong> (GNOME Schlüsselbund, KWallet). Ohne Schlüsselbund kann VeloPlay eine Kopplung nicht behalten.</li>
+        <li><strong>Die Anmeldung bei Sony öffnet deinen Browser.</strong> Danach zeigt er eine fast leere Seite; ihre Adresse kopierst du in VeloPlay.</li>
+        <li><strong>Adaptive Trigger</strong> brauchen Zugriff auf <code>/dev/hidraw*</code>. Mit Steam ist das eingerichtet, sonst fehlt nur der Widerstand der Trigger.</li>
+        <li><strong>Die eigene Leiste</strong> mit Minimieren, Fenster und Schließen gibt es im Vollbild: Sie gleitet herein, wenn der Mauszeiger an den oberen Rand geht. Im Fenster zeichnet der Desktop den Rahmen.</li>
+        <li><strong>Einstellungen und Protokolle</strong> liegen unter <code>~/.config/veloplay</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/erster-start-linux.png" alt="Blatt VeloPlay hat deinen PC erkannt auf einem Beispiel-Laptop mit Linux: Intel Iris Xe Graphics im Prozessor, 8 Threads, 16 GB, 1920 x 1080 bei 60 Hz, darunter der Satz Grafik im Prozessor mit genug Kraft für Zwischenbilder, ruckelt das Bild, schalte sie unter Ausgabe aus, und die gewählten Einstellungen" width="1100" height="720">
+    <div>
+      <h3>Erster Start auf einem Laptop</h3>
+      <ul>
+        <li><strong>Grafik im Prozessor:</strong> VeloPlay erkennt sie und sagt, was es ihr zutraut. Im Bild ein Beispiel-Laptop mit Intel Iris Xe: Zwischenbilder bleiben auf „Auto“, mit dem Rat, sie abzuschalten, wenn das Bild ruckelt.</li>
+        <li><strong>Schwächere Grafik:</strong> Zwischenbilder, Hochskalierung und Glätten sind von Anfang an aus.</li>
+        <li><strong>Ändern:</strong> alles unter Einstellungen. Die Wahl stellst du unter Erweitert &gt; Allgemein &gt; „Dieser PC“ wieder her.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/linux-ausgabe.png" alt="Einstellungen, Reiter Ausgabe unter Linux: Zwischenbilder auf Auto, AMD FRC ausgegraut mit dem Satz Gibt es unter Linux noch nicht, Hochskalierung auf Lanczos, RTX Video ausgegraut mit dem Satz RTX Video gibt es nur unter Windows, Schärfe 20 Prozent, Farbstufen glätten an" width="1100" height="720">
+    <div>
+      <h3>Ausgabe unter Linux</h3>
+      <ul>
+        <li><strong>Zwischenbilder:</strong> „Auto“, „Aus“ und 2x bis 4x wie unter Windows, berechnet mit „VeloPlay Flow“.</li>
+        <li><strong>Hochskalierung:</strong> „Aus“ und „Lanczos“. „RTX Video“ ist ausgegraut.</li>
+        <li><strong>AMD FRC:</strong> ausgegraut, auch mit einer AMD-Karte.</li>
+        <li><strong>Schärfe, Farbstufen glätten, Bildstil:</strong> wie unter Windows.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="screen">
+    <img class="shot" src="img/linux-touchpad.png" alt="Einstellungen, Steuerung, Seite Controller unter Linux, nach unten geblättert: Totzone der Sticks, Vibration, Adaptive Trigger, darunter der Abschnitt Touchpad des Controllers mit dem Knopf Vom Desktop fernhalten" width="1100" height="720">
+    <div>
+      <h3>Touchpad des DualSense vom Desktop fernhalten</h3>
+      <ul>
+        <li><strong>Das Problem:</strong> Über Bluetooth benutzt Linux das Touchpad des DualSense zusätzlich als Maus. Ein Druck darauf, in vielen Spielen die Karte, klickt dann auf den Desktop.</li>
+        <li><strong>Der Knopf:</strong> Einstellungen &gt; Steuerung &gt; Controller, ganz unten „Vom Desktop fernhalten“. Linux fragt nach deinem Passwort, weil VeloPlay dafür eine Regel im System einträgt.</li>
+        <li><strong>Danach:</strong> den Controller einmal neu verbinden. Im Spiel funktioniert das Touchpad weiter, der Desktop benutzt es nicht mehr.</li>
+        <li><strong>Nur unter Linux:</strong> Unter Windows gibt es das Problem nicht und den Knopf auch nicht.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Was ausprobiert ist</strong>
+    <span>Am 25.11.2026 an einem Laptop des Autors (Intel i7-1355U, Grafik im Prozessor, Ubuntu mit Wayland, DualSense über Bluetooth): Start, Anmeldung bei Sony im Browser, Koppeln über Sony ohne PIN, Bild und Ton in 720p über die Server von Sony aus einem anderen Netz, Installieren. Dort nicht benutzt: Aufnahme, Capture-Card, Mikrofon, Discord, adaptive Trigger und das Update aus dem Programm. Die Haptik ist ungeprüft; das Tongerät des Controllers bot dort nur einen Kanal an. Wie gut die Zwischenbilder auf Grafik im Prozessor laufen, ist nicht gemessen. Auf anderen Rechnern, anderen Desktops und mit Grafik von NVIDIA oder AMD ist die Linux-Fassung noch nie gelaufen.</span>
+  </div>
+  <details><summary>Technik im Detail</summary>
+    <ul>
+      <li><strong>Fenster und Eingabe:</strong> SDL3, ausprobiert unter Wayland. Controller wie unter Windows über SDL3.</li>
+      <li><strong>Bild:</strong> FFmpeg entpackt auf dem Prozessor, gezeichnet wird mit OpenGL 3.3. Umrechnen der Farben, Zwischenbilder, Glätten, Bildstile, Lanczos und Schärfen sind dieselben Verfahren wie unter Windows, neu geschrieben für OpenGL.</li>
+      <li><strong>Ton und Mikrofon:</strong> SDL3, darunter PipeWire, PulseAudio oder ALSA.</li>
+      <li><strong>Aufnahme:</strong> FFmpeg schreibt MP4 mit H.264 (openh264) und AAC. Die Datei „….frames.txt“ mit echten und berechneten Bildern gibt es auch hier, unter <code>~/.config/veloplay/recordings</code>.</li>
+      <li><strong>Capture-Cards:</strong> über V4L2, bevorzugt bis 1080p, dann die meisten Bilder pro Sekunde, dann unkomprimiert.</li>
+      <li><strong>Schlüssel:</strong> mit AES-256-GCM verschlüsselt. Der Hauptschlüssel liegt im Schlüsselbund des Desktops (Secret Service), der ihn an deine Anmeldung bindet, wie DPAPI unter Windows. Eine Schlüsseldatei neben den Einstellungen würde nichts schützen, deshalb gibt es ohne Schlüsselbund keine gespeicherte Kopplung.</li>
+      <li><strong>Touchpad:</strong> Der Knopf schreibt über <code>pkexec</code> eine udev-Regel nach <code>/etc/udev/rules.d/72-veloplay-controller-touchpad.rules</code>. Sie sagt dem Desktop, das Touchpad des Controllers nicht als Maus zu nehmen.</li>
+      <li><strong>Updates:</strong> Abfrage und Download über curl, sonst wie unter Windows. Ohne Fenster installiert <code>veloplay-cli update-folder &lt;Ordner&gt;</code> die neueste Version in einen Ordner.</li>
+      <li>Code: <code>src/linux</code>.</li>
+    </ul>
+  </details>
+</section>
+
 <section id="aufbau">
   <h2>Der Aufbau</h2>
   <p>Die Oberfläche kennt den Rest nur über zwei Dinge: ein Datenpaket, das sie jedes Bild neu liest (<code>UiModel</code>), und eine Liste von Aktionen, die sie auslösen darf (<code>IUiActions</code>). Dahinter sitzt der <code>AppController</code>, der alle Dienste steuert. Deshalb lässt sich jeder Bildschirm ohne Windows und ohne Konsole rendern und prüfen.</p>
   <figure class="diagram" id="aufbau-bild">
-<svg class="dg" viewBox="0 0 980 604" role="img" aria-label="Aufbau von VeloPlay: Die Oberfläche spricht nur mit dem AppController. Der AppController steuert acht Dienste. Jeder Dienst hat genau ein Gegenüber außerhalb des Programms: die PS5 im Heimnetz, Bildschirm und Lautsprecher, den Controller, GitHub Releases, Skripte auf dem PC und die Datei config.json.">
+<svg class="dg" viewBox="0 0 980 660" role="img" aria-label="Aufbau von VeloPlay: Die Oberfläche spricht nur mit dem AppController. Der AppController steuert neun Dienste. Jeder Dienst hat genau ein Gegenüber außerhalb des Programms: die PS5 im Heimnetz, Bildschirm und Lautsprecher, den Controller, GitHub Releases, Skripte auf dem PC, die Datei config.json und die Server von Sony.">
 <defs><marker id="dg-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="dg-head" d="M0 0L10 5L0 10z"/></marker></defs>
 <text class="dg-h" x="93.0" y="36" text-anchor="middle">OBERFLÄCHE</text>
 <text class="dg-h" x="310.0" y="36" text-anchor="middle">STEUERUNG</text>
 <text class="dg-h" x="525.0" y="36" text-anchor="middle">DIENSTE</text>
 <text class="dg-h" x="857.0" y="36" text-anchor="middle">AUSSERHALB DES PROGRAMMS</text>
-<rect class="dg-hub" x="250" y="60" width="120" height="524" rx="9"/>
-<text class="dg-t" x="310.0" y="320.0" text-anchor="middle">AppController</text>
-<text class="dg-s" x="310.0" y="338.0" text-anchor="middle">steuert alle Dienste</text>
-<rect class="dg-box" x="16" y="256.0" width="154" height="132" rx="9"/>
-<text class="dg-t" x="93.0" y="300.0" text-anchor="middle">UiManager</text>
-<text class="dg-s" x="93.0" y="320.0" text-anchor="middle">Übersicht, Kopplung,</text>
-<text class="dg-s" x="93.0" y="336.0" text-anchor="middle">Einstellungen,</text>
-<text class="dg-s" x="93.0" y="352.0" text-anchor="middle">Anzeige im Spiel</text>
-<line class="dg-line" x1="174" y1="294.0" x2="246" y2="294.0" marker-end="url(#dg-arrow)"/>
-<text class="dg-l" x="210.0" y="286.0" text-anchor="middle">Aktionen</text>
-<line class="dg-line" x1="246" y1="350.0" x2="174" y2="350.0" marker-end="url(#dg-arrow)"/>
-<text class="dg-l" x="210.0" y="368.0" text-anchor="middle">UiModel</text>
+<rect class="dg-hub" x="250" y="60" width="120" height="580" rx="9"/>
+<text class="dg-t" x="310.0" y="348.0" text-anchor="middle">AppController</text>
+<text class="dg-s" x="310.0" y="366.0" text-anchor="middle">steuert alle Dienste</text>
+<rect class="dg-box" x="16" y="284.0" width="154" height="132" rx="9"/>
+<text class="dg-t" x="93.0" y="328.0" text-anchor="middle">UiManager</text>
+<text class="dg-s" x="93.0" y="348.0" text-anchor="middle">Übersicht, Kopplung,</text>
+<text class="dg-s" x="93.0" y="364.0" text-anchor="middle">Einstellungen,</text>
+<text class="dg-s" x="93.0" y="380.0" text-anchor="middle">Anzeige im Spiel</text>
+<line class="dg-line" x1="174" y1="322.0" x2="246" y2="322.0" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="210.0" y="314.0" text-anchor="middle">Aktionen</text>
+<line class="dg-line" x1="246" y1="378.0" x2="174" y2="378.0" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="210.0" y="396.0" text-anchor="middle">UiModel</text>
 <rect class="dg-box" x="430" y="60" width="190" height="44" rx="9"/>
 <text class="dg-t" x="525.0" y="87" text-anchor="middle">Suche und Aufwecken</text>
 <line class="dg-line" x1="374" y1="82.0" x2="426" y2="82.0" marker-end="url(#dg-arrow)"/>
@@ -770,10 +1015,15 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <rect class="dg-box" x="430" y="540" width="190" height="44" rx="9"/>
 <text class="dg-t" x="525.0" y="567" text-anchor="middle">Einstellungen</text>
 <line class="dg-line" x1="374" y1="562.0" x2="426" y2="562.0" marker-end="url(#dg-arrow)"/>
+<rect class="dg-box" x="430" y="596" width="190" height="44" rx="9"/>
+<text class="dg-t" x="525.0" y="616" text-anchor="middle">Konto bei Sony</text>
+<text class="dg-s" x="525.0" y="632" text-anchor="middle">Anmeldung, Konsolenliste</text>
+<line class="dg-line" x1="374" y1="618.0" x2="426" y2="618.0" marker-end="url(#dg-arrow)"/>
 <line class="dg-line" x1="525.0" y1="275" x2="525.0" y2="296" marker-end="url(#dg-arrow)"/>
 <text class="dg-l" x="535.0" y="290" text-anchor="start">Bild- und Tonpakete</text>
 <rect class="dg-out" x="750" y="60" width="214" height="212" rx="9"/>
-<text class="dg-t" x="857.0" y="171.0" text-anchor="middle">PS5 im Heimnetz</text>
+<text class="dg-t" x="857.0" y="165.0" text-anchor="middle">PS5 im Heimnetz</text>
+<text class="dg-s" x="857.0" y="183.0" text-anchor="middle">Sitzung auch über das Internet</text>
 <rect class="dg-out" x="750" y="300" width="214" height="44" rx="9"/>
 <text class="dg-t2" x="857.0" y="319" text-anchor="middle">Bildschirm, Lautsprecher,</text>
 <text class="dg-t2" x="857.0" y="335" text-anchor="middle">Haptik des Controllers</text>
@@ -785,6 +1035,8 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <text class="dg-t" x="857.0" y="511" text-anchor="middle">Skripte auf dem PC</text>
 <rect class="dg-out" x="750" y="540" width="214" height="44" rx="9"/>
 <text class="dg-t" x="857.0" y="567" text-anchor="middle">config.json</text>
+<rect class="dg-out" x="750" y="596" width="214" height="44" rx="9"/>
+<text class="dg-t" x="857.0" y="623" text-anchor="middle">Server von Sony</text>
 <line class="dg-line" x1="624" y1="82.0" x2="746" y2="82.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
 <text class="dg-l" x="685.0" y="75.0" text-anchor="middle">UDP 9302</text>
 <line class="dg-line" x1="624" y1="138.0" x2="746" y2="138.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
@@ -803,8 +1055,10 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
 <text class="dg-l" x="685.0" y="499.0" text-anchor="middle">UDP, nur lokal</text>
 <line class="dg-line" x1="624" y1="562.0" x2="746" y2="562.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
 <text class="dg-l" x="685.0" y="555.0" text-anchor="middle">liest, schreibt</text>
+<line class="dg-line" x1="624" y1="618.0" x2="746" y2="618.0" marker-start="url(#dg-arrow)" marker-end="url(#dg-arrow)"/>
+<text class="dg-l" x="685.0" y="611.0" text-anchor="middle">HTTPS</text>
 </svg>
-    <figcaption>Von links nach rechts: Die Oberfläche spricht nur mit dem AppController, der AppController steuert die Dienste, und jeder Dienst hat genau ein Gegenüber außerhalb des Programms. Bild und Ton bekommt seine Pakete direkt von der Sitzung. Ein Klick auf das Schaubild zeigt es groß.</figcaption>
+    <figcaption>Von links nach rechts: Die Oberfläche spricht nur mit dem AppController, der AppController steuert die Dienste, und jeder Dienst hat genau ein Gegenüber außerhalb des Programms. Bild und Ton bekommt seine Pakete direkt von der Sitzung. Die unterste Zeile gibt es nur, wenn du bei PlayStation angemeldet bist: Darüber kommen die Liste deiner Konsolen und das Koppeln ohne PIN, und von unterwegs bringen die Server von Sony PC und PS5 zusammen. Unter Windows und Linux ist der Aufbau derselbe. Ein Klick auf das Schaubild zeigt es groß.</figcaption>
   </figure>
   <div class="scroll"><table>
     <thead><tr><th>Teil</th><th>Enthält</th><th>Läuft auf</th></tr></thead>
@@ -813,9 +1067,10 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td><code>veloplay_ui</code></td><td>Alle Bildschirme, Texte, eigene Bedienelemente</td><td>überall, wo Dear ImGui läuft</td></tr>
       <tr><td><code>veloplay_platform</code></td><td>Bildausgabe mit Direct3D 11, Tonausgabe mit WASAPI</td><td>Windows 10 und 11</td></tr>
       <tr><td><code>VeloPlay.exe</code></td><td>Fenster, SDL3 für Controller, DPAPI, WinHTTP</td><td>Windows 10 und 11</td></tr>
+      <tr><td><code>VeloPlay</code> für Linux (seit 1.17.0)</td><td>Fenster, Ton, Mikrofon und Controller über SDL3, Bild mit OpenGL 3.3 samt Zwischenbildern, Aufnahme mit FFmpeg, Capture-Cards über V4L2, Schlüsselbund des Desktops, curl. Code in <code>src/linux</code>.</td><td>Linux, x86-64</td></tr>
       <tr><td>FFmpeg, Opus</td><td>Entpacken von Bild und Ton. Liegen als eigene Dateien neben dem Programm.</td><td>Windows, Linux, macOS</td></tr>
-      <tr><td><code>libchiaki</code></td><td>Sitzungsaufbau, Transport, Fehlerkorrektur und Verschlüsselung des Streams. Aus chiaki-ng, fest auf einen Stand gesetzt, ohne den Teil für Verbindungen über das Internet.</td><td>Windows, Linux, macOS</td></tr>
-      <tr><td><code>veloplay-cli.exe</code></td><td>Suche, Messung, Aufwecken, Kopplung, Teststream mit Videodatei, Update-Abfrage im Terminal</td><td>Windows, Linux, macOS</td></tr>
+      <tr><td><code>libchiaki</code></td><td>Sitzungsaufbau, Transport, Fehlerkorrektur und Verschlüsselung des Streams. Aus chiaki-ng, fest auf einen Stand gesetzt. Seit 1.14.0 mit dem Teil für Verbindungen über die Server von Sony.</td><td>Windows, Linux, macOS</td></tr>
+      <tr><td><code>veloplay-cli</code></td><td>Suche, Messung, Aufwecken, Kopplung, Teststream mit Videodatei und Update-Abfrage im Terminal. <code>update-folder</code> installiert die neueste Version in einen Ordner (Windows und Linux).</td><td>Windows, Linux, macOS</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -838,6 +1093,9 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Einstellungen</td><td>Laden, prüfen, speichern, Schlüssel schützen</td><td><code>ConfigStore::load()</code>, <code>save()</code>, <code>sanitize()</code></td><td><code>src/app/Config*</code></td></tr>
       <tr><td>Zustände</td><td>Festlegen, was wann erlaubt ist</td><td><code>AppStateMachine::handle()</code></td><td><code>src/app/AppState*</code></td></tr>
       <tr><td>Darstellung</td><td>Fenster und Grafikausgabe</td><td><code>D3D11Device::create()</code>, <code>present()</code></td><td><code>src/render</code>, <code>src/app/Application*</code></td></tr>
+      <tr><td>Linux-Fassung</td><td>Fenster, Bild, Zwischenbilder, Ton, Aufnahme, Capture-Card, Schlüsselbund und Installieren unter Linux</td><td><code>LinuxApplication</code>, <code>GlVideoRenderer</code>, <code>GlFrameGenerator</code>, <code>SdlAudio</code>, <code>FfmpegRecorder</code>, <code>V4l2Capture</code></td><td><code>src/linux</code></td></tr>
+      <tr><td>Hardware-Erkennung</td><td>Den PC einordnen und passende Bildeinstellungen vorschlagen</td><td><code>tierOf()</code>, <code>recommendedSettings()</code>, <code>applyAdvice()</code></td><td><code>src/app/Hardware*</code></td></tr>
+      <tr><td>Konto bei Sony</td><td>Anmeldung, Liste der Konsolen des Kontos, Koppeln ohne PIN, Erneuern der Anmeldung</td><td><code>signInForRemote()</code>, <code>refreshPsnTokens()</code>, <code>AppController::pairThroughSony()</code></td><td><code>src/protocol/PsnAccount*</code>, <code>src/app/AppController*</code></td></tr>
     </tbody>
   </table></div>
 
@@ -845,6 +1103,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <p>Erkannt wird alles, was SDL3 als Gamepad kennt. Sind mehrere angeschlossen, gewinnt ein DualSense vor einem DualShock 4 vor einem Xbox-Controller, und Kabel vor Funk. Der einmal gewählte Controller bleibt aktiv, auch wenn später ein besserer dazukommt. Mit Steuerkreuz und Kreuz-Taste lässt sich die Oberfläche bedienen, Kreis schließt Dialoge.</p>
   <p>Während einer Verbindung gehen Tasten, Sticks, Trigger, Touchpad und Bewegungssensor zur PS5, alle zwei Millisekunden frisch vom Controller gelesen, unabhängig davon, wie schnell das Bild gezeichnet wird. Zurück kommen drei Dinge: Vibration, der Widerstand der adaptiven Trigger und die Haptik des DualSense. Vibration und Trigger lassen sich in den Einstellungen einzeln abschalten. Beim Trennen gibt VeloPlay die Trigger wieder frei und stoppt die Motoren.</p>
   <p>Am USB-Kabel gibt es alles drei. Für die Haptik muss das Tongerät „Wireless Controller“ in den Windows-Soundeinstellungen auf Quadrofonie stehen; steht es auf Stereo, schreibt VeloPlay das ins Protokoll und nimmt die Vibrationsmotoren. Über Bluetooth gibt es Trigger und Vibration.</p>
+  <p>Unter Linux liest VeloPlay den Controller genauso. Die adaptiven Trigger brauchen dort Zugriff auf <code>/dev/hidraw*</code>. Trigger und Haptik sind unter Linux noch nicht ausprobiert.</p>
 
   <h3>Fernsteuerung für Skripte</h3>
   <p>Standardmäßig aus. Eingeschaltet nimmt VeloPlay auf <code>127.0.0.1:9876</code> Befehle als JSON per UDP an: <code>ping</code>, <code>status</code>, <code>press</code>, <code>set_state</code>, <code>release_all</code>, <code>action</code>. Während einer Verbindung landen gesendete Tasten bei der PS5, und die Aktionen <code>sleep</code> und <code>disconnect</code> beenden sie. Der echte Controller hat Vorrang: Ein Skript kann Tasten dazudrücken, aber keine loslassen, die du hältst. Alles, was ein Skript setzt, läuft von selbst ab. UDP statt WebSocket, weil eine Webseite im Browser kein UDP senden kann.</p>
@@ -856,7 +1115,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <ol>
     <li><strong>Nachsehen.</strong> Beim Start fragt VeloPlay bei GitHub nach der neuesten Version und vergleicht die Nummern.</li>
     <li><strong>Fragen.</strong> Gibt es eine neuere, erscheint der Hinweis in der Übersicht. Bis du klickst, passiert nichts weiter.</li>
-    <li><strong>Laden.</strong> Die Datei <code>VeloPlay-windows-x64.zip</code> kommt über HTTPS von der Veröffentlichungsseite des Projekts.</li>
+    <li><strong>Laden.</strong> Die Datei <code>VeloPlay-windows-x64.zip</code>, unter Linux <code>VeloPlay-linux-x64.zip</code>, kommt über HTTPS von der Veröffentlichungsseite des Projekts.</li>
     <li><strong>Prüfen.</strong> VeloPlay berechnet die SHA-256-Prüfsumme und vergleicht sie mit der, die GitHub zur Datei veröffentlicht. Passt sie nicht, wird die Datei verworfen.</li>
     <li><strong>Entpacken.</strong> In einen Zwischenordner. Archive mit Pfaden, die aus dem Ordner herausführen, werden abgelehnt.</li>
     <li><strong>Tauschen.</strong> Jede alte Datei wird in <code>Name.old</code> umbenannt, die neue nimmt ihren Platz ein. Geht dabei etwas schief, wird alles zurückgestellt.</li>
@@ -864,11 +1123,12 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   </ol>
   <details><summary>Technik im Detail</summary>
     <ul>
-      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP. Mitgeschickt wird nur die Programmkennung <code>VeloPlay/1.10.2</code>.</li>
+      <li>Abfrage: <code>https://api.github.com/repos/FynnXland/VeloPlay/releases/latest</code> über WinHTTP, unter Linux über curl. Mitgeschickt wird nur die Programmkennung, etwa <code>VeloPlay/1.17.0</code>.</li>
       <li>Download-Adressen, die nicht mit <code>https://github.com/FynnXland/VeloPlay/releases/download/</code> beginnen, werden nicht benutzt.</li>
       <li>Windows erlaubt nicht, ein laufendes Programm zu überschreiben, wohl aber, es umzubenennen. Darauf beruht der Tausch.</li>
       <li>Eigene Dateien im Ordner, die nicht zum Programm gehören, bleiben unberührt.</li>
-      <li>Abschalten: Einstellungen > Erweitert > Updates. Dort gibt es auch „Jetzt suchen“.</li>
+      <li>Abschalten: Einstellungen &gt; Erweitert &gt; Allgemein &gt; Updates. Dort gibt es auch „Jetzt suchen“.</li>
+      <li>Unter Linux läuft dasselbe mit der Datei für Linux. Ein echtes Update gab es dort noch nicht: 1.17.0 ist die erste Version für Linux, das erste Update kommt mit der Version danach. Ohne Fenster geht es mit <code>veloplay-cli update-folder &lt;Ordner&gt;</code>.</li>
     </ul>
   </details>
   <div class="note">
@@ -900,16 +1160,19 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
     </ul>
   </details>
   <h3>Von unterwegs</h3>
-  <p><strong>Über die Server von Sony (seit 1.14.0, Beta):</strong> So macht es auch Sonys eigene App. Du meldest dich einmal unter Einstellungen &gt; Erweitert &gt; „Von unterwegs spielen“ bei PlayStation an. Findet VeloPlay eine gekoppelte PS5 nicht im Netz, die Sony für dein Konto kennt, steht bei ihr „Hier nicht gefunden. Verbinden versucht es über das Internet“, und „Verbinden“ geht über Sony: Die Server bringen PC und PS5 zusammen, danach läuft das Bild direkt. Am Router wird nichts eingestellt. Gekoppelt sein muss die PS5 vorher zu Hause; ob sie sich auf diesem Weg aus dem Ruhemodus holen lässt, ist nicht geprüft. Manche Netze lassen den Weg nicht zu, etwa Firmen-WLAN oder der Hotspot eines Handys. An einer echten PS5 ist das noch nicht ausprobiert.</p>
+  <p><strong>Über die Server von Sony (seit 1.14.0, Beta):</strong> So macht es auch Sonys eigene App. Du meldest dich einmal unter Einstellungen &gt; Erweitert &gt; Verbindung &gt; „Von unterwegs spielen“ bei PlayStation an. Findet VeloPlay eine PS5 nicht im Netz, die Sony für dein Konto kennt, steht bei ihr „Hier nicht gefunden. Verbinden versucht es über das Internet“, und „Verbinden“ geht über Sony: Die Server bringen PC und PS5 zusammen, danach läuft das Bild direkt. Am Router wird nichts eingestellt. Manche Netze lassen den Weg nicht zu, etwa Firmen-WLAN oder der Hotspot eines Handys.</p>
+  <p><strong>Koppeln von unterwegs (seit 1.17.0, Beta):</strong> Die PS5 muss vorher nicht mehr zu Hause gekoppelt sein. Eine PS5 deines Kontos steht nach der Anmeldung mit „Über Sony koppeln“ in der Liste, ohne PIN. Im Programm steht im Abschnitt „Von unterwegs spielen“ noch „Koppel die PS5 vorher zu Hause“; nötig ist das seit 1.17.0 nicht mehr. Die PS5 muss an sein, Remote Play eingeschaltet.</p>
+  <p><strong>Was ausprobiert ist:</strong> Am 25.11.2026 mit der Linux-Fassung an der echten PS5, von einem Laptop aus einem anderen Netz: Anmelden, Koppeln ohne PIN, Bild und Ton in 720p. Noch nicht ausprobiert: die Windows-Fassung auf diesem Weg, der Hotspot eines Handys, und ob sich die PS5 so aus dem Ruhemodus holen lässt.</p>
   <details><summary>Technik</summary>
     <ul>
       <li>Grundlage ist der Code von chiaki-ng dafür („UDP-Holepunching“): Beide Seiten melden Sony ihre Adressen, die eigene im Internet erfragt VeloPlay bei STUN-Servern, dann schicken sich PC und PS5 gegenseitig Pakete, bis der Router beider Seiten sie durchlässt. Die Suche nach dem Router über UPnP startet VeloPlay nie, es legt also keine Portfreigabe an.</li>
-      <li>Gespeichert wird ein Schlüssel von Sony (Refresh-Token), verschlüsselt mit deinem Windows-Konto wie die Schlüssel der Konsole. VeloPlay erneuert ihn zehn Minuten vor Ablauf. Lehnt Sony ihn ab, meldet VeloPlay dich ab und sagt es; ist Sony nur nicht erreichbar, versucht es VeloPlay eine Minute später wieder.</li>
+      <li>Gespeichert wird ein Schlüssel von Sony (Refresh-Token), verschlüsselt wie die Schlüssel der Konsole: unter Windows mit deinem Windows-Konto, unter Linux über den Schlüsselbund. VeloPlay erneuert ihn zehn Minuten vor Ablauf. Lehnt Sony ihn ab, meldet VeloPlay dich ab und sagt es; ist Sony nur nicht erreichbar, versucht es VeloPlay eine Minute später wieder.</li>
       <li>Eine PS5, die in den letzten drei Minuten im Netz gefunden wurde, verbindet VeloPlay immer direkt, auch wenn ihr WLAN gerade kurz weg ist. Der Weg wird einmal beim Verbinden gewählt; ein Neuverbinden im Spiel bleibt dabei.</li>
       <li>Über Sony koppelt sich die PS5 bei jeder Verbindung neu, deshalb dauert der Aufbau länger, oft eine halbe Minute. Das Protokoll lässt Nachrichten der Server, Schlüssel und Adressen weg.</li>
+      <li>Seit 1.17.0 lässt VeloPlay eine Verbindung über Sony, die abgerissen ist und sich nicht beenden lässt, nach höchstens zehn Sekunden los und verbindet neu. Vorher konnte das Fenster dabei minutenlang stehen.</li>
     </ul>
   </details>
-  <img class="shot" src="img/unterwegs.png" alt="Einstellungen, Reiter Erweitert: Abschnitt Von unterwegs spielen mit Beta-Pille, angemeldet, Sony kennt die PS5 Wohnzimmer, Knopf Abmelden" width="1100" height="720">
+  <img class="shot" src="img/unterwegs.png" alt="Einstellungen, Erweitert, Seite Verbindung: Abschnitt Von unterwegs spielen mit Beta-Pille, angemeldet, Sony kennt die PS5 Wohnzimmer, Schalter Zu Hause über Sony ausprobieren, Knopf Abmelden, darunter Zusätzliche Adressen" width="1100" height="720">
   <p><strong>Über ein VPN:</strong> Seit 1.13.0 geht das über ein VPN ins Heimnetz, etwa WireGuard der FRITZ!Box. Der Laptop muss einmal zu Hause gekoppelt werden, die PS5 braucht eine feste Adresse. VeloPlay merkt, wenn die PS5 über ein VPN oder ein anderes Netz erreicht wird, fängt dann mit 720p und 6 Mbit/s an und merkt sich für unterwegs eine eigene Datenrate. An einer echten PS5 ist das noch nicht ausprobiert.</p>
   <details><summary>Technik</summary>
     <ul>
@@ -945,15 +1208,16 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Was</th><th>Wo</th><th>Schutz</th></tr></thead>
     <tbody>
-      <tr><td>Einstellungen, gekoppelte Konsolen</td><td><code>%APPDATA%\VeloPlay\config.json</code></td><td>Lesbarer Text ohne Geheimnisse</td></tr>
-      <tr><td>Schlüssel der Konsole</td><td>in derselben Datei</td><td>Windows DPAPI: nur dein Windows-Konto auf diesem PC kann sie lesen</td></tr>
-      <tr><td>Protokolle</td><td><code>%APPDATA%\VeloPlay\veloplay.log</code> für den laufenden Start, <code>veloplay.1.log</code> bis <code>veloplay.3.log</code> für die drei Starts davor</td><td>Enthalten keine Schlüssel. Die Schritte des Verbindungsaufbaus stehen drin, derzeit auch Rohdaten daraus. Für Fehlerberichte deshalb die betroffenen Zeilen kopieren, nicht die ganze Datei. Nach einem Hänger und Neustart ist <code>veloplay.1.log</code> die Datei dafür.</td></tr>
+      <tr><td>Einstellungen, gekoppelte Konsolen</td><td><code>%APPDATA%\VeloPlay\config.json</code>, unter Linux <code>~/.config/veloplay/config.json</code></td><td>Lesbarer Text ohne Geheimnisse</td></tr>
+      <tr><td>Schlüssel der Konsole</td><td>in derselben Datei</td><td>Windows DPAPI: nur dein Windows-Konto auf diesem PC kann sie lesen. Unter Linux verschlüsselt mit einem Schlüssel aus dem Schlüsselbund des Desktops; ohne Schlüsselbund wird keine Kopplung gespeichert.</td></tr>
+      <tr><td>Anmeldung bei PlayStation für unterwegs</td><td>in derselben Datei, nur wenn du dich dort anmeldest</td><td>Ein Schlüssel von Sony, geschützt wie die Schlüssel der Konsole. Dein Passwort sieht und speichert VeloPlay nicht. „Abmelden“ löscht ihn.</td></tr>
+      <tr><td>Protokolle</td><td><code>%APPDATA%\VeloPlay\veloplay.log</code> für den laufenden Start, <code>veloplay.1.log</code> bis <code>veloplay.3.log</code> für die drei Starts davor. Unter Linux im Ordner <code>~/.config/veloplay</code>.</td><td>Enthalten keine Schlüssel. Die Schritte des Verbindungsaufbaus stehen drin, derzeit auch Rohdaten daraus. Für Fehlerberichte deshalb die betroffenen Zeilen kopieren, nicht die ganze Datei. Nach einem Hänger und Neustart ist <code>veloplay.1.log</code> die Datei dafür.</td></tr>
       <tr><td>Anmelde-Code der PS5</td><td>nirgends</td><td>Geht nur an die laufende Sitzung</td></tr>
       <tr><td>Heruntergeladenes Update</td><td><code>%APPDATA%\VeloPlay\update</code></td><td>Wird nach dem Einrichten gelöscht</td></tr>
     </tbody>
   </table></div>
   <ul>
-    <li>VeloPlay spricht mit deiner PS5 im Heimnetz und, für Updates, mit GitHub. Sonst mit niemandem. Es gibt keine Telemetrie.</li>
+    <li>VeloPlay spricht mit deiner PS5 und, für Updates, mit GitHub. Mit Sony spricht es nur, wenn du dich bei PlayStation anmeldest: einmal für die Account-ID, und für „Von unterwegs spielen“ und das Koppeln über Sony, solange du dort angemeldet bist. Auf diesem Weg erfragt es auch seine eigene Adresse im Internet bei STUN-Servern. Mit Discord spricht es nur auf demselben PC. Es gibt keine Telemetrie.</li>
     <li>Die Fernsteuerung ist nur vom selben PC aus erreichbar und standardmäßig aus. Ein Kennwort lässt sich setzen.</li>
     <li>Antworten aus dem Netz werden vor der Verarbeitung auf Länge und Form geprüft.</li>
     <li>Die Update-Dateien sind nicht mit einem eigenen Zertifikat signiert. Die Sicherheit beruht auf HTTPS, der festen Adresse und der Prüfsumme.</li>
@@ -965,7 +1229,7 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
   <div class="scroll"><table>
     <thead><tr><th>Bereich</th><th>Wie geprüft</th><th>Stand</th></tr></thead>
     <tbody>
-      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>345 automatische Tests unter Linux und 379 unter Windows, davon sieben nur auf einer echten Grafikkarte</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Logik von Protokoll, Messung, Updater, Einstellungen, Eingabe</td><td>373 automatische Tests für den Kern unter Linux, 446 zusammen mit den Teilen der Linux-Fassung. Unter Windows waren es mit 1.16.0 379, davon sieben nur auf einer echten Grafikkarte; die Zahl für 1.17.0 ist hier noch nicht nachgetragen.</td><td class="state ok">bestanden</td></tr>
       <tr><td>Kopplungsanfrage</td><td>Byte für Byte gegen chiaki-ng verglichen</td><td class="state ok">identisch</td></tr>
       <tr><td>Suche, Aufwecken, Kopplung, Messung von Anfang bis Ende</td><td>Gegen eine nachgebaute PS5 auf demselben Rechner</td><td class="state ok">bestanden</td></tr>
       <tr><td>Ablauf einer Verbindung im Programm</td><td>Mit einer nachgestellten Sitzung: erst aufwecken, wiederholen, neu verbinden, aufgeben, Anmelde-Code, Ruhemodus, Abbruch</td><td class="state ok">bestanden</td></tr>
@@ -990,11 +1254,12 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Maus und Tastatur</td><td>Die Umrechnung mit eingespeister Zeit: Tasten zu Knöpfen und Stick, Mausgeschwindigkeit zu Stick-Ausschlag, auch mit einer Maus, die nur 125-mal pro Sekunde meldet. Dazu eine nachgestellte Sitzung ohne Controller. Das Abfangen von Maus und Tastatur im Fenster läuft nur unter Windows. Rückmeldung vom 22.11.2026 an der echten Konsole: Umsehen mit der Maus und Laufen mit W A S D funktionieren. Die Standardtasten gefielen nicht; seit 0.18.0 gibt es dafür zwei Vorlagen, die noch niemand gespielt hat.</td><td class="state ok">funktioniert, Vorlagen neu</td></tr>
       <tr><td>Bild entpacken auf der Grafikkarte (D3D11VA)</td><td>Am 21.11.2026 an einer RTX 4070: Das Protokoll meldet D3D11VA mit 0,2 bis 0,5 ms pro Bild, kein Bild verworfen oder kaputt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Tonausgabe, Haptik und Trigger am echten Gerät</td><td>Am 21.11.2026: Der Ton läuft, das vierkanalige Tongerät des DualSense am Kabel wird geöffnet. Am 22.11.2026: Der Ton läuft auch über Kopfhörer, die Trigger funktionieren. Die Haptik ist zu spüren.</td><td class="state ok">funktioniert</td></tr>
-      <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Das Anmeldefenster selbst und ein echtes Konto waren noch nicht beteiligt.</td><td class="state no">Logik bestanden, echte Anmeldung offen</td></tr>
+      <tr><td>Account-ID über die Anmeldung</td><td>Die Anfragen an Sony und das Auslesen der Antworten sind gegen nachgestellte Antworten getestet. Rückmeldung vom 22.11.2026 am echten Konto unter Windows: Das Fenster schloss sich von selbst, die Account-ID stand im Feld. Der Weg über den eigenen Browser ist für die Account-ID nicht ausprobiert; für „Von unterwegs spielen“ hat er am 25.11.2026 unter Linux geklappt.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Fotos</td><td>Das Packen als PNG und die Dateinamen sind unter Linux getestet, auch dass keine Datei überschrieben wird. Das Abgreifen des Bildes ist unter Windows auf dem Software-Renderer getestet, für beide Formate, die Windows für das Fenster benutzt. Im Spiel noch nicht ausprobiert.</td><td class="state soon">im Test bestanden, im Spiel offen</td></tr>
-      <tr><td>Installieren und Entfernen</td><td>Welche Dateien kopiert werden, ist unter Linux getestet, auch mit fremden Dateien und Ordnern daneben, die nicht mitkommen dürfen. Bei jedem Build installiert ein Windows-Rechner von GitHub das Programm, prüft Dateien, Startmenü und den Eintrag bei den Apps, installiert ein zweites Mal, entfernt es wieder und prüft, dass alles weg ist und eine entpackte Kopie sich nicht selbst löscht. Am 22.11.2026: alle 18 Prüfungen bestanden. Am PC des Autors noch nicht ausprobiert.</td><td class="state soon">auf Windows geprüft, beim Autor offen</td></tr>
+      <tr><td>Installieren und Entfernen</td><td>Welche Dateien kopiert werden, ist unter Linux getestet, auch mit fremden Dateien und Ordnern daneben, die nicht mitkommen dürfen. Bei jedem Build installiert ein Windows-Rechner von GitHub das Programm, prüft Dateien, Startmenü und den Eintrag bei den Apps, installiert ein zweites Mal, entfernt es wieder und prüft, dass alles weg ist und eine entpackte Kopie sich nicht selbst löscht. Am 22.11.2026: alle 18 Prüfungen bestanden. Am PC des Autors noch nicht ausprobiert. Unter Linux: Ein Test installiert in einen Testordner und prüft Programm, Menüeintrag und Symbol, den Eintrag nach einem Update und das Entfernen. Am 25.11.2026 am Laptop des Autors unter Linux installiert.</td><td class="state soon">geprüft, unter Windows beim Autor offen</td></tr>
       <tr><td>Updater</td><td>Mit nachgestellten Veröffentlichungen: neuere, ältere, falsche Prüfsumme, manipuliertes Archiv, abgebrochener Download</td><td class="state ok">bestanden</td></tr>
       <tr><td>Windows-Programm startet</td><td>Wird nach jedem Build gestartet und auf Grafik, Suche und Update-Abfrage geprüft</td><td class="state ok">läuft</td></tr>
+      <tr><td>Linux-Programm startet</td><td>Wird nach jedem Build auf dem Linux-Rechner von GitHub mit Fenster gestartet und auf Grafik, Suche und Update-Abfrage geprüft. Dieselbe Datei wird danach auf Debian 12, Ubuntu 24.04, Fedora 41, Arch und openSUSE gestartet, dort ohne Fenster: Das Programm muss sich melden und bei GitHub nach Updates fragen können. Das fängt zu alte Systembibliotheken und fehlende Zertifikate ab.</td><td class="state ok">läuft</td></tr>
       <tr><td>Aussehen der Oberfläche</td><td>Jeder Bildschirm wird in beiden Sprachen als Bild gerendert und angesehen. Seit 0.18.0 prüft das Werkzeug dabei selbst jede Fläche und jeden Text darauf, ob ein Rand etwas abschneidet, auch bei Knöpfen, deren Hintergrund erst unter dem Mauszeiger sichtbar wird. Es fand den Knopf „Konsole hinzufügen“, dem links die runden Ecken fehlten, und eine hart abgeschnittene Zeile am Ende der Einstellungen. Ein Fund lässt den Build scheitern. Seit 1.0.0 läuft das auch im kleinsten Fenster (820 x 560), und ein Menü, das über das Fenster hinausragt, zählt ebenfalls als Fund.</td><td class="state ok">geprüft</td></tr>
       <tr><td>Suche an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors: Die Konsole wird per Rundruf gefunden. Beim ersten Versuch hing sie im Gast-WLAN der FRITZ!Box, das vom Heimnetz getrennt ist; dort kann keine Suche sie erreichen.</td><td class="state ok">gefunden</td></tr>
       <tr><td>Koppeln, Verbinden und Steuern an einer echten PS5</td><td>Am 20.11.2026 im Heimnetz des Autors mit Version 0.4.0: Koppeln und Verbinden klappen, der Controller steuert die Konsole.</td><td class="state ok">funktioniert</td></tr>
@@ -1005,13 +1270,21 @@ footer { color: var(--faint); font-size: 0.88rem; display: flex; flex-direction:
       <tr><td>Aufwecken aus dem Ruhemodus</td><td>Rückmeldung vom 21.11.2026: funktioniert an der echten PS5.</td><td class="state ok">funktioniert</td></tr>
       <tr><td>Eigene Fensterleiste, Vollbild, Taskleiste am Rand</td><td>Bei jedem Build startet das Programm auf einem Windows-Rechner von GitHub und wird fotografiert: als Fenster, vergrößert und im Vollbild, dazu mit dem Mauszeiger am unteren Rand. Am 21.11.2026 auf den Fotos: keine Titelleiste von Windows, vergrößert genau über der Taskleiste, im Vollbild über allem, und die Taskleiste kommt hervor und verschwindet wieder; seit 1.9.0 liegt sie dabei über dem unveränderten Fenster. Verschieben, Größe ändern und Andocken sind nicht fotografiert. Rückmeldung vom 22.11.2026: Start im Vollbild und die Leiste mit der Uhrzeit laufen am PC des Autors.</td><td class="state ok">funktioniert, Verschieben und Andocken offen</td></tr>
       <tr><td>Controller-Test und Bedienung mit dem Controller</td><td>Die drei Trigger-Effekte sind Byte für Byte gegen die veröffentlichte Beschreibung geprüft. Die Bedienung mit dem Steuerkreuz ist im Vorschau-Werkzeug mit nachgestellten Tastendrücken ausprobiert: Die Markierung wandert über Startseite und Einstellungen. Rückmeldung vom 22.11.2026 am echten Controller: Test, Trigger-Effekte und die Bedienung der Oberfläche funktionieren einwandfrei.</td><td class="state ok">funktioniert</td></tr>
-      <tr><td>Mikrofon</td><td>Das Packen des Tons ist geprüft: Laute, leise und stille Blöcke ergeben alle genau 40 Bytes, und ein Dekoder bekommt den Ton zurück. Wann aufgenommen und gesendet wird, ist mit einer nachgestellten Sitzung und einem nachgestellten Mikrofon getestet. Die Aufnahme selbst läuft nur unter Windows; ob die anderen in einer Party dich hören, hat noch niemand ausprobiert.</td><td class="state soon">Logik bestanden, an der PS5 offen</td></tr>
+      <tr><td>Mikrofon</td><td>Unter Linux nimmt ein Test Blöcke in der Form auf, die die PS5 verlangt; an einem echten Mikrofon ist es dort nicht ausprobiert. Das Packen des Tons ist geprüft: Laute, leise und stille Blöcke ergeben alle genau 40 Bytes, und ein Dekoder bekommt den Ton zurück. Wann aufgenommen und gesendet wird, ist mit einer nachgestellten Sitzung und einem nachgestellten Mikrofon getestet. Die Aufnahme selbst läuft nur unter Windows; ob die anderen in einer Party dich hören, hat noch niemand ausprobiert.</td><td class="state soon">Logik bestanden, an der PS5 offen</td></tr>
       <tr><td>Haptik am echten Controller</td><td>Rückmeldung vom 22.11.2026: Das feine Rütteln ist im Controller zu spüren.</td><td class="state ok">funktioniert</td></tr>
-      <tr><td>Andere Grafikkarten und Controller</td><td>Bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert</td><td class="state no">offen</td></tr>
-      <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Seit dem 21.11.2026 mehrfach benutzt: Das Programm hat sich über den eingebauten Updater von 0.10.0 bis 0.13.0 gebracht. Eine neue Version erscheint dort 10 bis 30 Minuten nach der Veröffentlichung.</td><td class="state ok">funktioniert</td></tr>
+      <tr><td>Andere Grafikkarten und Controller</td><td>Unter Windows bisher nur mit einer RTX 4070 und einem DualSense am Kabel ausprobiert. Seit dem 25.11.2026 dazu unter Linux ein Laptop mit Intel-Grafik im Prozessor und einem DualSense über Bluetooth: Bild und Ton liefen, Trigger und Haptik sind dort ungeprüft. Karten von AMD, andere Controller: niemand.</td><td class="state no">weitgehend offen</td></tr>
+      <tr><td>Updater gegen eine echte Veröffentlichung</td><td>Seit dem 21.11.2026 mehrfach benutzt: Das Programm hat sich über den eingebauten Updater von 0.10.0 bis 0.13.0 gebracht. Eine neue Version erscheint dort 10 bis 30 Minuten nach der Veröffentlichung. Unter Linux gab es noch kein echtes Update: 1.17.0 ist dort die erste Version.</td><td class="state ok">funktioniert unter Windows, unter Linux offen</td></tr>
       <tr><td>Reserve gegen Einbrüche, Ton im Takt, Bildstile (1.10.0)</td><td>Die Reserve ist an einem nachgestellten Abend geprüft (Bilder pünktlich und mit 7 ms Verspätung bei jedem zehnten): keine bis vier Aussetzer statt bis zu 117 von 600. Der Ton findet in einem Test nach einem Stoß von 200 ms zurück zu seiner Reserve und folgt einer geänderten Reserve ohne Lücke. Die Bildstile sind auf dem Software-Renderer von Windows geprüft (aus lässt das Bild unverändert, Schwarz und Weiß bleiben). Im echten Spiel ist nichts davon gesehen.</td><td class="state soon">im Spiel offen</td></tr>
       <tr><td>Taskleiste, Fensterleiste und Discord in 1.9.0</td><td>Fotografiert ist die Taskleiste über der Übersicht im Vollbild: Sie liegt über dem unveränderten Fenster und ist danach wieder weg. Im laufenden Stream ist das nicht fotografiert, ebenso wenig die Leiste, die oben über das Bild gleitet (die gibt es nur als Vorschaubild). Dass Discord „Spielt“ mit dem Namen des Spiels zeigt, steht so in Discords Dokumentation; an einem echten Discord ist es nicht ausprobiert. Lehnt Discord die Anzeige ab, steht „Discord refused the activity“ im Protokoll.</td><td class="state soon">im Spiel offen</td></tr>
       <tr><td>Neuaufbau nach einem Neustart des Grafiktreibers (1.8.0)</td><td>Ein Test baut Gerät, Bildausgabe und Fenster-Anbindung dreimal hintereinander auf derselben Karte neu auf (auf dem Runner die RTX 4070), einer prüft, dass der Dekoder neu anfängt und keine alten Bilder durchlässt. Auf einem Windows-Rechner von GitHub geht das Programm denselben Weg sechs Sekunden nach dem Start und wird danach fotografiert. Einen echten Absturz des Treibers kann dort niemand auslösen.</td><td class="state soon">echter Fall offen</td></tr>
+      <tr><td>Linux-Fassung am echten Gerät (1.17.0)</td><td>Am 25.11.2026 an einem Laptop des Autors (Intel i7-1355U, Grafik im Prozessor, Ubuntu mit Wayland, DualSense über Bluetooth): Start, Anmeldung bei Sony im Browser, Koppeln über Sony ohne PIN, Bild und Ton in 720p über die Server von Sony aus einem anderen Netz, Installieren. Urteil: „funktioniert gut“. Dort nicht ausprobiert: Aufnahme, Capture-Card, Mikrofon, Discord, adaptive Trigger, Haptik (das Tongerät des Controllers bot nur einen Kanal an), das Update aus dem Programm und wie gut die Zwischenbilder auf Grafik im Prozessor laufen. Andere Rechner, andere Desktops, Grafik von NVIDIA oder AMD unter Linux: niemand.</td><td class="state soon">an einem Laptop ausprobiert, vieles offen</td></tr>
+      <tr><td>Linux-Fassung in automatischen Tests (1.17.0)</td><td>Auf dem Software-Renderer von Mesa: Farben umrechnen, vergrößern und schärfen, Farbstufen glätten, Bildstile, und die Zwischenbilder an denselben Szenen wie unter Windows (verschobenes Muster, Schnitt, stehende Anzeige, durchlaufende Leiter, Seitenwechsel im Menü, Farbe ohne Unterschied in der Helligkeit). Dazu ohne echte Geräte: Ton und Mikrofon, eine Videodatei, die sich abspielen lässt, mit und ohne Ton, die Formatwahl und Farbumrechnung für Capture-Cards, der Schlüsselbund, Installieren und Entfernen in einem Testordner, HTTPS mit Prüfung des Zertifikats, Discord gegen ein nachgestelltes. Ein Software-Renderer sagt nichts über die Geschwindigkeit auf echter Grafik.</td><td class="state ok">bestanden</td></tr>
+      <tr><td>Koppeln über Sony ohne PIN (1.17.0, Beta)</td><td>Mit einer nachgestellten Sitzung: koppelt ohne PIN und verbindet danach, bietet den Weg neben der PIN an, wenn die Konsole im eigenen Netz steht, und sagt es, wenn die Konsole nicht koppelt. Am 25.11.2026 mit der Linux-Fassung an der echten PS5 aus einem anderen Netz: hat geklappt. Mit der Windows-Fassung nicht ausprobiert.</td><td class="state ok">unter Linux bestätigt, unter Windows offen</td></tr>
+      <tr><td>Von unterwegs über die Server von Sony (seit 1.14.0, Beta)</td><td>Mit Attrappen getestet: wann der Weg über Sony gewählt wird, das Erneuern der Anmeldung, das Abmelden, wenn Sony sie nicht mehr annimmt, und dass eine PS5, die zu Hause nur kurz weg war, direkt verbunden bleibt. Am 25.11.2026 mit der Linux-Fassung an der echten PS5: Bild und Ton in 720p aus einem anderen Netz. Nicht ausprobiert: die Windows-Fassung, der Hotspot eines Handys, eine PS5 im Ruhemodus.</td><td class="state soon">unter Linux bestätigt, Rest offen</td></tr>
+      <tr><td>Von unterwegs über ein VPN (seit 1.13.0)</td><td>Mit Attrappen getestet: Eine Konsole, die nur über ihre gespeicherte Adresse erreichbar ist, wird geweckt und verbunden; zu Hause und unterwegs werden unterschieden und bekommen je eine eigene Datenrate. Über ein echtes VPN nie ausprobiert.</td><td class="state no">Logik bestanden, echter Weg offen</td></tr>
+      <tr><td>Abgerissene Verbindung über Sony (1.17.0)</td><td>Der Fehler ist am Laptop gesehen: Das Fenster stand minutenlang. Ein Test stellt eine Sitzung nach, die sich nie beendet, und prüft, dass VeloPlay sie loslässt und das Fenster weiterläuft. Am echten Abriss ist die Abhilfe noch nicht gesehen.</td><td class="state soon">im Test bestanden, echter Fall offen</td></tr>
+      <tr><td>Hardware-Erkennung beim ersten Start (1.17.0)</td><td>Mit erfundenen Rechnern getestet: Der PC des Autors und ein unbekannter bekommen die Voreinstellungen, ein Laptop mit Iris Xe und einer mit Grafik von AMD im Prozessor werden aus den Angaben von Linux richtig gelesen, bei zwei Grafikkarten zählt die, die zeichnet, ohne Grafiktreiber und mit schwachem Prozessor bleibt alles Teure aus. Gewählt wird nur beim ersten Start und nie für eine Einstellungsdatei von früher. Die Grenzen zwischen den Stufen sind geschätzt; gemessen ist nur die RTX 4070. Ob die Wahl auf einem echten Laptop passt, ist nicht zurückgemeldet.</td><td class="state soon">im Test bestanden, Schwellen geschätzt</td></tr>
+      <tr><td>Verbinden zeigt den Weg (1.17.0)</td><td>Getestet ist, dass VeloPlay aus den Meldungen der Bibliothek den richtigen Schritt liest. Der Bildschirm ist im Vorschau-Werkzeug gerendert und angesehen, zu Hause und über Sony. Ob die Stationen an der echten PS5 im richtigen Moment aufleuchten, ist nicht zurückgemeldet.</td><td class="state soon">im Test bestanden, an der PS5 offen</td></tr>
       <tr><td>RTX Video Super Resolution</td><td>Die Tests laufen nur auf einer echten NVIDIA-Karte: Der Treiber nimmt das Bild an und gibt eines zurück, das dasselbe zeigt. Der Vergleich mit und ohne NVIDIAs Schalter belegt auf der RTX 4070, dass das Netz das Bild verändert, auch bei gleicher Größe. Ob es besser aussieht, kann kein Test sagen; dafür gibt es <kbd>F8</kbd> im Spiel. Erster Eindruck am 21.11.2026 auf einem 1080p-Bildschirm: kaum ein sichtbarer Unterschied.</td><td class="state no">wenig sichtbar</td></tr>
     </tbody>
   </table></div>

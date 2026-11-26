@@ -51,6 +51,9 @@ public:
         std::function<void()> restart;
         /// Asks the window for a copy of the picture on screen. Without it there are no screenshots.
         std::function<void()> takeScreenshot;
+        /// Linux: the rule that keeps the controller's touchpad away from the desktop, and how it stands.
+        std::function<void()> keepControllerTouchpadFromDesktop;
+        std::function<UiModel::ControllerTouchpadView()> controllerTouchpad;
         /// Where screenshots go, and how the folder is shown.
         std::filesystem::path picturesFolder;
         std::function<void(const std::filesystem::path&)> openFolder;
@@ -106,6 +109,8 @@ public:
         /// A connected session that delivers no picture for this long is
         /// started again at half the bitrate.
         std::chrono::milliseconds stallTimeout{6'000};
+        /// A session asked to stop that has not ended after this long is let go of anyway.
+        std::chrono::milliseconds stopTimeout{10'000};
         /// How often the controller is read and handed to the console while a
         /// session runs, on a thread of its own. Zero: once per update(), on
         /// the caller's thread. A button press should not have to wait for
@@ -154,6 +159,9 @@ public:
     void captureKey() override;
     void windowAction(WindowAction action) override;
     void testVibration() override;
+    void keepControllerTouchpadFromDesktop() override {
+        if (options_.keepControllerTouchpadFromDesktop) options_.keepControllerTouchpadFromDesktop();
+    }
     void testTriggers(int effect) override;
     void endKeyCapture() override;
     void captureWheel(int target) override;
@@ -213,8 +221,17 @@ public:
     void startRemoteLogin() override;
     void signOutRemote() override;
     void tryRemoteAtHome(bool on) override;
+    void pairThroughSony(std::string_view sonyId) override;
     void submitAccountRedirect(std::string_view url) override;
     void dismissAccountLookup() override;
+    void applyHardwareSettings() override;
+    void dismissHardwareNote() override;
+
+    /// The machine as the shell sees it (Hardware.hpp). Call once, when the graphics are up; before or after
+    /// start(). On the first start the picture settings are chosen for it; on other hardware than the
+    /// settings were chosen for, the screens ask whether to choose anew. Not again after a lost graphics
+    /// device: for a moment that may be the software renderer.
+    void setHardware(const HardwareInfo& info);
 
     /// The sign-in page was closed without a result.
     void accountLoginClosed();
@@ -235,8 +252,10 @@ private:
         std::string hostId;
         std::string name;
         std::unique_ptr<session::ISession> session; // empty between attempts
+        std::optional<Clock::time_point> stopAskedAt; // the session was asked to stop and has not ended yet
         bool afterWake = false;      // console was just woken and may still be starting
         bool connected = false;      // the current attempt reached the stream
+        int connectStage = 0;        // how far the current attempt has come (session::ConnectStage)
         bool everConnected = false;
         bool userStopped = false;
         bool loginPinRequested = false;
@@ -271,6 +290,11 @@ private:
         bool capture = false;          // a capture card, not a console: no input, no reconnecting, nothing to learn
         bool waitingForRelease = false; // the console still holds the place of our session before
         Clock::time_point releaseDeadline{}; // until when that is waited for; zero = not waiting
+        // Pairing through Sony's servers without a PIN: a session of its own that ends once the console paired.
+        // hostId is "sony:<id>" until then; afterwards it becomes the stored console and is connected to.
+        bool pairingThroughSony = false;
+        std::array<std::uint8_t, 32> sonyId{};
+        bool paired = false; // the keys came and are stored
     };
 
     void addNotice(Notice::Kind kind, Notice::Topic topic, std::string detail, std::string technical = {});
@@ -365,6 +389,12 @@ private:
     [[nodiscard]] std::int64_t unixNow() const;
     [[nodiscard]] bool psnUsable() const;
     [[nodiscard]] const session::PsnConsole* psnConsoleFor(const RegisteredConsole& console) const;
+    /// Pairing through Sony's servers: keeps what the console handed over as a paired console.
+    void storeSonyPairing(const protocol::RegisteredHost& host);
+    /// The pairing session ended. Connects to the console it paired, or says why not.
+    void finishPairingThroughSony(session::QuitReason reason, const std::string& detail, Clock::time_point now);
+    /// Whether a console paired here stands for this one of Sony's list.
+    [[nodiscard]] bool pairedHere(const session::PsnConsole& remote) const;
     [[nodiscard]] bool foundAtHome(std::string_view hostId) const;
     /// Whether connecting to this console goes through Sony's servers: signed in, listed with Remote Play on,
     /// and not seen here lately. Decided once per connect; reconnects of the session keep the way.
@@ -404,6 +434,10 @@ private:
     // it on. pumpSession_ is the session it may talk to; it is cleared under
     // the mutex before that session goes away.
     void pumpInput(std::stop_token stop);
+    /// Asks the session to stop and notes when, so a session that never ends is let go of (Options::stopTimeout).
+    void askSessionToStop(Clock::time_point now);
+    /// Lets go of the session object: at once on the home network, on a thread of its own through Sony's servers.
+    void retireSession();
     void attachPump(session::ISession* session);
     std::mutex pumpMutex_;
     session::ISession* pumpSession_ = nullptr;
@@ -421,6 +455,15 @@ private:
 
     bool configDirty_ = false;
     Clock::time_point saveAfter_{};
+
+    // The machine and what suits it. Looked at once both the settings are loaded and the shell described it.
+    void lookAtHardware();
+    std::optional<HardwareInfo> hardware_;
+    HardwareAdvice advice_;
+    UiModel::HardwareView::Note hardwareNote_ = UiModel::HardwareView::Note::None;
+    std::string previousGpu_;
+    bool started_ = false;
+    bool loadFailed_ = false; // the settings file could not be read: the hardware alone must not save over it
 };
 
 } // namespace veloplay

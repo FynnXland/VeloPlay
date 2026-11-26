@@ -9,6 +9,7 @@
 #include "app/AppState.hpp"
 #include "app/Config.hpp"
 #include "app/ConsoleList.hpp"
+#include "app/Hardware.hpp"
 #include "app/LinkHistory.hpp"
 #include "app/StreamAlerts.hpp"
 #include "app/StreamStats.hpp"
@@ -72,6 +73,7 @@ struct Notice {
         PsnFailed,              // through Sony's servers: refused, or the sign-in ran out
         SleepFailed,            // rest mode request could not be sent
         BitrateLowered,         // no picture at the set rate; `detail` is the new rate in Mbit/s
+        PsnPairFailed,          // pairing through Sony's servers: the console did not take this PC
     };
     Kind kind = Kind::Error;
     Topic topic = Topic::WakeTimedOut;
@@ -113,6 +115,13 @@ struct SessionView {
     bool capture = false;
     /// The console is reached from away (through a VPN or another network), not in the home network.
     bool away = false;
+    /// It is paired through Sony's servers first, without a PIN; connecting follows by itself.
+    bool pairingThroughSony = false;
+    /// The way goes through Sony's servers (pairing or connecting from away); the connecting screen shows them.
+    bool throughSony = false;
+    /// How far the current attempt has come (session::ConnectStage as a number: 0 leaving this PC, 1 at Sony's
+    /// servers, 2 through the routers, 3 the console answers, 4 let in, 5 measuring the link).
+    int connectStage = 0;
 };
 
 /// A video source on this PC, such as a capture card (or a webcam, which Windows lists the same way).
@@ -205,6 +214,16 @@ struct UiModel {
         LinkSummary summary;
     };
     LinkView link;
+
+    /// Linux over Bluetooth: the desktop also takes the DualSense's touchpad as a mouse, so a press on it (the map
+    /// in many games) clicks on the desktop. A rule of the system can keep it away from the desktop.
+    struct ControllerTouchpadView {
+        bool offered = false; // this system can have the rule
+        bool kept = false;    // the rule is there
+        bool working = false; // asking for the password and writing it
+        std::string error;
+    };
+    ControllerTouchpadView controllerTouchpad;
     std::vector<Notice> notices;
 
     ConnectionTest connectionTest;
@@ -274,6 +293,23 @@ struct UiModel {
     GpuVendor gpuVendor = GpuVendor::Other;
     bool reducedMotion = false;
 
+    /// What this build can do on this system. The shell sets it; the defaults are the Windows client's.
+    PlatformCaps platform;
+
+    /// The machine and the picture settings that suit it (Hardware.hpp). Filled by the controller.
+    struct HardwareView {
+        bool known = false; // the shell described the machine
+        HardwareInfo info;
+        HardwareAdvice advice;
+        /// FirstStart: the settings were just chosen, say so once. Changed: the settings were chosen for other
+        /// hardware; ask whether to choose anew.
+        enum class Note { None, FirstStart, Changed };
+        Note note = Note::None;
+        std::string previousGpu; // with Changed: the graphics they were chosen for; empty if unknown
+        bool autoChosen = false; // the picture settings are VeloPlay's choice and were not changed since
+    };
+    HardwareView hardware;
+
     /// Edited in place by the settings screens; they call configChanged() after.
     AppConfig* config = nullptr;
 };
@@ -306,6 +342,8 @@ public:
     virtual void windowAction(WindowAction action) = 0;
     /// Lets the active controller vibrate for a moment, to try it out. Not during a session.
     virtual void testVibration() = 0;
+    /// Writes the rule that keeps the controller's touchpad away from the desktop (asks for the password).
+    virtual void keepControllerTouchpadFromDesktop() {}
     /// Puts a test effect on both adaptive triggers: 0 releases them, 1
     /// resistance over the whole travel, 2 a point to push through, 3 shaking.
     /// Not during a session; the console decides then.
@@ -365,6 +403,14 @@ public:
     /// Try the way through Sony's servers at home: until the program closes, connecting goes that way
     /// even to a console found in this network.
     virtual void tryRemoteAtHome(bool on) = 0;
+    /// Pairs with a console of the signed-in account through Sony's servers, without a PIN, and connects.
+    /// `sonyId` is ConsoleEntry::sonyId.
+    virtual void pairThroughSony(std::string_view sonyId) = 0;
+    /// Puts in place the picture settings VeloPlay chooses for this machine: on the note about other
+    /// hardware, and to reset them under Advanced. Pairings and every other setting stay.
+    virtual void applyHardwareSettings() = 0;
+    /// The note about the hardware was seen. With other hardware the settings stay as they are.
+    virtual void dismissHardwareNote() = 0;
 };
 
 } // namespace veloplay

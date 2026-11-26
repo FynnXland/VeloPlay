@@ -18,7 +18,7 @@ int rounded(double kbps) { return static_cast<int>(kbps / 500.0 + 0.5) * 500; }
 
 } // namespace
 
-StreamSettings automaticStream(const LinkMemory& memory, bool away) {
+StreamSettings automaticStream(const LinkMemory& memory, bool away, bool upTo720p) {
     StreamSettings stream;
     stream.fps = 60;
     stream.codec = VideoCodec::Hevc;
@@ -26,7 +26,7 @@ StreamSettings automaticStream(const LinkMemory& memory, bool away) {
     const int start = away ? kAwayStartBitrateKbps : kAutoStartBitrateKbps;
     stream.bitrateKbps = std::clamp(memory.bitrateKbps > 0 ? memory.bitrateKbps : start,
                                     kMinBitrateKbps, kAutoMaxBitrateKbps);
-    const bool fullHd = stream.bitrateKbps >= kFullHdFromKbps && !memory.lowResolution;
+    const bool fullHd = stream.bitrateKbps >= kFullHdFromKbps && !memory.lowResolution && !upTo720p;
     stream.width = fullHd ? 1920 : 1280;
     stream.height = fullHd ? 1080 : 720;
     return stream;

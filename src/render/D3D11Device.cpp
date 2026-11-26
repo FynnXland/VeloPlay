@@ -65,7 +65,9 @@ bool D3D11Device::create(HWND window, std::string& error) {
         adapter->GetDesc1(&desc);
         adapterName_ = toUtf8(desc.Description);
         adapterVendor_ = desc.VendorId;
+        dedicatedVideoMemory_ = static_cast<unsigned long long>(desc.DedicatedVideoMemory);
     }
+    softwareRenderer_ = false;
 
     // VIDEO_SUPPORT is required later for hardware video decoding (D3D11VA).
     UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
@@ -87,6 +89,8 @@ bool D3D11Device::create(HWND window, std::string& error) {
         hr = createDevice(nullptr, D3D_DRIVER_TYPE_WARP, D3D11_CREATE_DEVICE_BGRA_SUPPORT);
         adapterName_ = "Microsoft Basic Render Driver";
         adapterVendor_ = 0;
+        dedicatedVideoMemory_ = 0;
+        softwareRenderer_ = true;
     }
     if (FAILED(hr)) {
         error = hresult("D3D11CreateDevice", hr);
@@ -179,6 +183,8 @@ void D3D11Device::destroy() {
     device_.Reset();
     adapterName_.clear();
     adapterVendor_ = 0;
+    dedicatedVideoMemory_ = 0;
+    softwareRenderer_ = false;
     tearingSupported_ = false;
     swapChainFlags_ = 0;
     width_ = 0;

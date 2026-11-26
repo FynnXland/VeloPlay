@@ -124,7 +124,7 @@ AppController::~AppController() {
     if (session_ && session_->session) {
         attachPump(nullptr);
         logLinkSummary(Clock::now());
-        session_->session.reset(); // waits for the session thread
+        retireSession(); // waits for the session thread, or hands it to a thread of its own
         if (options_.mediaSink) options_.mediaSink->end();
         controllers_.rumble(0, 0, milliseconds{0});
         controllers_.clearTriggerEffects();
@@ -150,8 +150,11 @@ void AppController::start() {
         } else {
             spdlog::error("Loading settings failed: {}", loaded.error().message);
             addNotice(Notice::Kind::Error, Notice::Topic::ConfigLoadFailed, loaded.error().message);
+            loadFailed_ = true;
         }
     }
+    started_ = true;
+    if (hardware_) lookAtHardware();
 
     const auto started = discovery_.start();
     discoveryRunning_ = started.ok();
@@ -218,6 +221,7 @@ void AppController::update() {
 }
 
 void AppController::fillModel(UiModel& model) {
+    model.controllerTouchpad = options_.controllerTouchpad ? options_.controllerTouchpad() : UiModel::ControllerTouchpadView{};
     model.state = stateMachine_.state();
     model.consoles = buildConsoleList(config_.consoles, discovered_);
     for (ConsoleEntry& entry : model.consoles) {
@@ -226,6 +230,26 @@ void AppController::fillModel(UiModel& model) {
             for (const RegisteredConsole& console : config_.consoles) {
                 if (console.hostId == entry.hostId) entry.viaInternet = goesThroughSony(console, Clock::now());
             }
+        }
+    }
+    // Consoles of the signed-in account that are not paired here can be, through Sony's servers and without a PIN.
+    // One found here already has its row (pairing with PIN); it gets the second way. Others get a row of their own.
+    if (psnUsable()) {
+        for (const session::PsnConsole& remote : psnConsoles_) {
+            if (!remote.remotePlay || pairedHere(remote)) continue;
+            const std::string id = toHex(remote.id);
+            const auto found = std::find_if(model.consoles.begin(), model.consoles.end(), [&](const ConsoleEntry& entry) {
+                return !entry.registered && equalsIgnoreCase(entry.name, remote.name);
+            });
+            if (found != model.consoles.end()) {
+                found->sonyId = id;
+                continue;
+            }
+            ConsoleEntry entry;
+            entry.hostId = "sony:" + id;
+            entry.name = remote.name.empty() ? std::string("PS5") : remote.name;
+            entry.sonyId = id;
+            model.consoles.push_back(std::move(entry));
         }
     }
     model.link.consoleName = linkConsole_;
@@ -294,6 +318,9 @@ void AppController::fillModel(UiModel& model) {
         model.session.waitingForRelease = session_->waitingForRelease;
         model.session.capture = session_->capture;
         model.session.away = session_->away;
+        model.session.pairingThroughSony = session_->pairingThroughSony;
+        model.session.throughSony = session_->pairingThroughSony || session_->viaPsn;
+        model.session.connectStage = session_->connectStage;
         if (session_->session && session_->connected) {
             const session::SessionStats stats = session_->session->stats(now);
             model.session.videoFrames = stats.videoFrames;
@@ -316,6 +343,12 @@ void AppController::fillModel(UiModel& model) {
 
     if (options_.captureDevices && options_.captureFactory) model.captureDevices = options_.captureDevices();
     model.discordAvailable = static_cast<bool>(options_.discordPipe);
+    model.hardware.known = hardware_.has_value();
+    model.hardware.info = hardware_.value_or(HardwareInfo{});
+    model.hardware.advice = advice_;
+    model.hardware.note = hardwareNote_;
+    model.hardware.previousGpu = previousGpu_;
+    model.hardware.autoChosen = config_.hardware.autoChosen;
     model.wheel = UiModel::WheelView{};
     model.wheel.devices = controllers_.joysticks();
     model.wheel.capturing = wheelCapture_.active() ? static_cast<int>(wheelCapture_.target()) : -1;
@@ -355,6 +388,26 @@ void AppController::fillModel(UiModel& model) {
                                                                        : std::string_view(config_.consoles.front().hostId),
                                             session_ && session_->away);
     model.requestedStream.hdr = false;
+}
+
+void AppController::askSessionToStop(Clock::time_point now) {
+    if (!session_ || !session_->session) return;
+    if (!session_->stopAskedAt) session_->stopAskedAt = now;
+    session_->session->stop();
+}
+
+void AppController::retireSession() {
+    if (!session_ || !session_->session) return;
+    std::unique_ptr<session::ISession> session = std::move(session_->session);
+    session_->stopAskedAt.reset();
+    if (!session->slowToEnd()) {
+        session.reset(); // waits for the session's threads; on the home network that is a moment
+        return;
+    }
+    // Through Sony's servers a broken link can keep the library's threads busy for minutes (the first laptop's
+    // window stood still that long). The session ends on a thread of its own and hands nothing on meanwhile.
+    session->detachSink();
+    std::thread([session = std::move(session)]() mutable { session.reset(); }).detach();
 }
 
 void AppController::attachPump(session::ISession* session) {
@@ -538,7 +591,7 @@ void AppController::disconnect() {
 
     session_->userStopped = true;
     if (session_->session) {
-        session_->session->stop(); // the Quit event finishes the job in updateSession()
+        askSessionToStop(Clock::now()); // the Quit event finishes the job in updateSession()
     } else {
         stateMachine_.handle(AppEvent::Disconnected);
         attachPump(nullptr);
@@ -618,10 +671,33 @@ void AppController::applyStreamSettings() {
     // A rate lowered after a stall belonged to the old settings.
     session_->bitrateKbps = 0;
     session_->stalls = 0;
-    session_->session->stop(); // the Quit event starts the next attempt in handleQuit()
+    askSessionToStop(Clock::now()); // the Quit event starts the next attempt in handleQuit()
 }
 
 bool AppController::startAttempt() {
+    if (session_->pairingThroughSony) {
+        // No keys yet and no stream: the console pairs on the way through Sony's servers and the session ends.
+        const auto account = protocol::PsnAccountId::parse(config_.psn.accountId);
+        if (!options_.sessionFactory || !psnUsable() || !account) return false;
+        session::SessionConfig pairing;
+        pairing.psn = session::SessionConfig::Psn{config_.psn.tokens.access, session_->sonyId, account->bytes, true};
+        pairing.stream = streamSettingsForAttempt();
+        pairing.name = session_->name;
+        session_->away = true;
+        auto created = options_.sessionFactory();
+        if (!created) return false;
+        spdlog::info("Pairing with {} through Sony's servers, without a PIN", session_->name);
+        const auto started = created->start(pairing, nullptr);
+        if (!started) {
+            spdlog::error("Pairing through Sony's servers could not be started: {}", started.error().message);
+            return false;
+        }
+        session_->session = std::move(created);
+        session_->connectStage = 0;
+        session_->connected = false;
+        session_->retryAt.reset();
+        return true;
+    }
     const auto console = std::find_if(config_.consoles.begin(), config_.consoles.end(),
                                       [&](const RegisteredConsole& c) { return c.hostId == session_->hostId; });
     if (console == config_.consoles.end() || !console->credentialsValid || !options_.sessionFactory) return false;
@@ -676,6 +752,7 @@ bool AppController::startAttempt() {
     }
     attachPump(nullptr); // nothing of ours may still talk to a session this one replaces
     session_->session = std::move(created);
+    session_->connectStage = 0;
     session_->connected = false;
     session_->loginPinRequested = false;
     session_->loginPinWrong = false;
@@ -691,6 +768,13 @@ void AppController::updateSession(Clock::time_point now) {
         sampleLink(nullptr, now);
     }
 
+    // Asked to stop and still running: the library did not get out of a broken link. Waiting longer helps nothing;
+    // the session is let go of as if it had ended, and what was to follow (a new attempt, the end) follows.
+    if (session_->session && session_->stopAskedAt && now - *session_->stopAskedAt >= options_.stopTimeout) {
+        spdlog::warn("The session did not end {} ms after it was asked to; letting go of it", options_.stopTimeout.count());
+        handleQuit(session::QuitReason::Stopped, "did not end in time", now);
+        return;
+    }
     if (session_->retryAt && now >= *session_->retryAt) {
         session_->retryAt.reset();
         if (!startAttempt()) {
@@ -733,7 +817,7 @@ void AppController::updateSession(Clock::time_point now) {
             ++session_->stalls;
             session_->lastStall = now;
             session_->bitrateKbps = std::max(kMinBitrateKbps, current / 2);
-            session_->session->stop();
+            askSessionToStop(now);
         }
     }
 
@@ -798,6 +882,12 @@ void AppController::updateSession(Clock::time_point now) {
                 controllers_.setEffectStrength(haptics, triggers);
                 break;
             }
+            case session::SessionEvent::Type::Stage:
+                session_->connectStage = static_cast<int>(event.stage);
+                break;
+            case session::SessionEvent::Type::Registered:
+                if (session_->pairingThroughSony) storeSonyPairing(event.registered);
+                break;
             case session::SessionEvent::Type::Quit:
                 handleQuit(event.reason, event.detail, now);
                 return; // the session object is gone
@@ -808,13 +898,17 @@ void AppController::updateSession(Clock::time_point now) {
 void AppController::handleQuit(session::QuitReason reason, const std::string& detail, Clock::time_point now) {
     spdlog::info("Session ended: {} ({})", session::toString(reason), detail);
     attachPump(nullptr);
+    if (session_->pairingThroughSony) {
+        finishPairingThroughSony(reason, detail, now);
+        return;
+    }
     logLinkSummary(now);
     rememberLink(now);
     if (session_->connected) {
         lastEndedHostId_ = session_->hostId;
         lastEndedAt_ = now;
     }
-    session_->session.reset(); // joins the session thread
+    retireSession(); // joins the session thread, or hands it to a thread of its own
     if (options_.mediaSink) options_.mediaSink->end();
     if (session_->connected) {
         // Leave the controller the way we found it.
@@ -1042,7 +1136,9 @@ void AppController::sampleLink(const session::SessionStats* stats, Clock::time_p
 }
 
 void AppController::failSession(session::QuitReason reason, const std::string& detail) {
-    addNotice(Notice::Kind::Error, noticeTopicFor(reason, session_->everConnected), session_->name, detail);
+    Notice::Topic topic = noticeTopicFor(reason, session_->everConnected);
+    if (session_->pairingThroughSony && reason == session::QuitReason::PsnRegistFailed) topic = Notice::Topic::PsnPairFailed;
+    addNotice(Notice::Kind::Error, topic, session_->name, detail);
     const AppState state = stateMachine_.state();
     if (state == AppState::Streaming) stateMachine_.handle(AppEvent::ConnectionLost);
     if (state == AppState::Connecting) stateMachine_.handle(AppEvent::ConnectionFailed);
@@ -1138,6 +1234,14 @@ void AppController::selectProfile(std::string_view profileId) {
 
 void AppController::configChanged() {
     sanitize(config_);
+    // Picture settings changed by hand are the user's from now on. Other settings change through here as
+    // well (a pairing, the language), so it is the picture settings that are compared, not the call.
+    // Only against the advice for the machine they were chosen for: on other hardware that question is still open.
+    if (config_.hardware.autoChosen && hardware_ && config_.hardware.chosenFor == hardwareFingerprint(*hardware_) &&
+        !followsAdvice(config_, advice_)) {
+        config_.hardware.autoChosen = false;
+        spdlog::info("Hardware: the picture settings were changed by hand and stay as they are");
+    }
     applySettings();
     configDirty_ = true;
     saveAfter_ = Clock::now() + kSaveDelay;
@@ -1597,11 +1701,111 @@ bool AppController::goesThroughSony(const RegisteredConsole& console, Clock::tim
 // Sony's list knows a console by its name and an id of its own, not by the id it answers searches with. The
 // name matches when nobody renamed it since pairing; with one console on each side there is nothing to mix up.
 const session::PsnConsole* AppController::psnConsoleFor(const RegisteredConsole& console) const {
+    // Paired through Sony's servers: their id was kept, and it stays when the console is renamed.
+    if (!console.psnId.empty()) {
+        for (const session::PsnConsole& remote : psnConsoles_) {
+            if (equalsIgnoreCase(toHex(remote.id), console.psnId)) return &remote;
+        }
+    }
     for (const session::PsnConsole& remote : psnConsoles_) {
         if (equalsIgnoreCase(remote.name, console.name)) return &remote;
     }
     if (psnConsoles_.size() == 1 && config_.consoles.size() == 1) return &psnConsoles_.front();
     return nullptr;
+}
+
+bool AppController::pairedHere(const session::PsnConsole& remote) const {
+    return std::any_of(config_.consoles.begin(), config_.consoles.end(),
+                       [&](const RegisteredConsole& console) { return psnConsoleFor(console) == &remote; });
+}
+
+void AppController::pairThroughSony(std::string_view sonyId) {
+    const auto remote = std::find_if(psnConsoles_.begin(), psnConsoles_.end(), [&](const session::PsnConsole& c) {
+        return equalsIgnoreCase(toHex(c.id), sonyId);
+    });
+    if (remote == psnConsoles_.end() || !remote->remotePlay || !psnUsable()) return;
+
+    if (stateMachine_.state() == AppState::Error) stateMachine_.handle(AppEvent::ErrorAcknowledged);
+    if (stateMachine_.state() != AppState::Idle) return;
+    const std::string name = remote->name.empty() ? std::string("PS5") : remote->name;
+    if (!options_.sessionFactory) {
+        addNotice(Notice::Kind::Error, Notice::Topic::SessionSetupFailed, name, "this build has no session support");
+        return;
+    }
+    if (!stateMachine_.handle(AppEvent::ConnectRequested)) return;
+
+    ActiveSession active;
+    active.hostId = "sony:" + toHex(remote->id);
+    active.name = name;
+    active.viaPsn = true;
+    active.pairingThroughSony = true;
+    active.sonyId = remote->id;
+    attachPump(nullptr);
+    session_ = std::move(active);
+    if (!startAttempt()) failSession(session::QuitReason::SetupFailed, "pairing through Sony's servers could not be started");
+}
+
+// The keys arrive as from a pairing with PIN at home, so the console is stored the same way: by the MAC it also
+// answers the search with (RegisteredConsole::from), which makes it the same row when it is found at home later.
+void AppController::storeSonyPairing(const protocol::RegisteredHost& host) {
+    const bool noId = std::all_of(host.mac.begin(), host.mac.end(), [](std::uint8_t b) { return b == 0; });
+    if (noId || host.registKey.empty()) {
+        spdlog::warn("Pairing through Sony's servers: the console's answer lacks its {}; nothing kept",
+                     noId ? "id" : "key");
+        return;
+    }
+    RegisteredConsole console = RegisteredConsole::from(host, {});
+    if (host.nickname.empty()) console.name = session_->name; // Sony's name for it
+    console.psnId = toHex(session_->sonyId);
+    for (const protocol::DiscoveredHost& found : discovered_) {
+        if (!equalsIgnoreCase(found.info.hostId, console.hostId)) continue;
+        if (!found.info.hostName.empty()) console.name = found.info.hostName;
+        console.lastAddress = net::formatIpv4(found.address);
+    }
+    // Paired before (with PIN, or on another day this way): what was learned about the way to it stays.
+    const auto before = std::find_if(config_.consoles.begin(), config_.consoles.end(),
+                                     [&](const RegisteredConsole& c) { return equalsIgnoreCase(c.hostId, console.hostId); });
+    if (before != config_.consoles.end()) {
+        console.link = before->link;
+        console.awayLink = before->awayLink;
+        if (console.lastAddress.empty()) console.lastAddress = before->lastAddress;
+        config_.consoles.erase(before);
+    }
+    spdlog::info("Paired with {} through Sony's servers", console.name);
+    session_->hostId = console.hostId;
+    session_->name = console.name;
+    session_->paired = true;
+    config_.consoles.push_back(std::move(console));
+    updateDirectTargets();
+    saveNow();
+}
+
+void AppController::finishPairingThroughSony(session::QuitReason reason, const std::string& detail,
+                                             Clock::time_point now) {
+    retireSession();
+    if (session_->userStopped) {
+        // Cancelled. A pairing that came before stays.
+        if (stateMachine_.state() != AppState::Disconnecting) stateMachine_.handle(AppEvent::DisconnectRequested);
+        stateMachine_.handle(AppEvent::Disconnected);
+        session_.reset();
+        return;
+    }
+    if (!session_->paired) {
+        // The library ends a refused or timed-out pairing as "stopped" too; without the keys it failed.
+        const session::QuitReason why = reason == session::QuitReason::Stopped ? session::QuitReason::PsnRegistFailed : reason;
+        spdlog::warn("Pairing through Sony's servers failed: {} ({})", session::toString(why), detail);
+        failSession(why, detail);
+        return;
+    }
+    // Paired and stored: connecting is a session of its own, the way Connect would go now. The pause lets Sony's
+    // servers and the console finish with the pairing session first.
+    session_->pairingThroughSony = false;
+    const auto console = std::find_if(config_.consoles.begin(), config_.consoles.end(),
+                                      [&](const RegisteredConsole& c) { return c.hostId == session_->hostId; });
+    session_->viaPsn = console == config_.consoles.end() || goesThroughSony(*console, now) || !addressOf(*console);
+    session_->attempt = 1;
+    session_->attempts = 1;
+    session_->retryAt = now + options_.retryDelay;
 }
 
 void AppController::startRemoteLogin() {
@@ -1725,9 +1929,10 @@ void AppController::updatePsn(Clock::time_point now) {
         return;
     }
 
-    // The list only matters while a paired console is not found here.
+    // The list matters while a paired console is not found here, and once after signing in: a console that is not
+    // paired yet can be paired through Sony's servers (a laptop set up away from home has none paired at all).
     const bool someoneMissing =
-        options_.alwaysThroughSony || tryRemoteAtHome_ || std::any_of(config_.consoles.begin(), config_.consoles.end(),
+        !psnListed_ || options_.alwaysThroughSony || tryRemoteAtHome_ || std::any_of(config_.consoles.begin(), config_.consoles.end(),
                                                   [&](const RegisteredConsole& c) { return !foundAtHome(c.hostId); });
     if (someoneMissing && !psnList_.valid() && now >= psnNextList_ && now - firstUpdate_ >= options_.psnFirstListAfter) {
         psnNextList_ = now + options_.psnRetry;
@@ -1899,6 +2104,86 @@ void AppController::updateRemoteStatus(Clock::time_point now) {
 
     std::lock_guard lock(remoteMutex_);
     remoteStatusJson_ = status.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+}
+
+void AppController::setHardware(const HardwareInfo& info) {
+    hardware_ = info;
+    advice_ = recommendedSettings(info);
+    // Before start() the settings are not loaded yet; start() looks then.
+    if (started_) lookAtHardware();
+}
+
+void AppController::lookAtHardware() {
+    using Note = UiModel::HardwareView::Note;
+    const HardwareInfo& info = *hardware_;
+    const std::string fingerprint = hardwareFingerprint(info);
+    const char* tiers[] = {"software renderer", "weak integrated graphics", "capable integrated graphics",
+                           "a graphics card of its own"};
+    spdlog::info("Hardware: {} ({}{} MiB of its own), {} with {} threads, {} MiB, screen {}x{} at {:.0f} Hz, {}{}: {}",
+                 info.gpuName.empty() ? "unknown graphics" : info.gpuName, info.integratedGpu ? "integrated, " : "",
+                 info.videoMemoryMb, info.cpuName.empty() ? "unknown processor" : info.cpuName, info.cpuThreads,
+                 info.systemMemoryMb, info.screenWidth, info.screenHeight, info.screenHz,
+                 info.os == HardwareInfo::Os::Linux ? "Linux" : "Windows", info.onBattery ? ", on battery" : "",
+                 tiers[static_cast<int>(advice_.tier)]);
+    HardwareChoiceSettings& choice = config_.hardware;
+    const auto keep = [&] {
+        sanitize(config_);
+        // After a file that could not be read, the defaults are in memory. Nothing but a change by the user
+        // may write them over it; the choice applies for this run all the same.
+        if (loadFailed_) return;
+        configDirty_ = true;
+        saveAfter_ = Clock::now();
+    };
+    if (choice.pending) {
+        // A settings file of its own: nobody chose anything yet. What suits the machine goes in, and the
+        // screens say so once.
+        applyAdvice(config_, advice_);
+        choice.pending = false;
+        choice.autoChosen = true;
+        choice.chosenFor = fingerprint;
+        hardwareNote_ = Note::FirstStart;
+        spdlog::info("Hardware: first start; frame generation {}, upscaling {}, sharpness {:.2f}, deband {}, at most 720p {}",
+                     advice_.graphics.frameGenerationFactor, advice_.graphics.superResolutionLevel,
+                     advice_.graphics.sharpness, advice_.graphics.deband ? "on" : "off",
+                     advice_.streamUpTo720p ? "yes" : "no");
+        keep();
+    } else if (choice.chosenFor.empty()) {
+        // Settings from before this was looked at: they stay. The machine is remembered, so another one later is noticed.
+        choice.chosenFor = fingerprint;
+        keep();
+    } else if (choice.chosenFor != fingerprint) {
+        if (info.softwareRenderer && !fingerprintIsSoftware(choice.chosenFor)) {
+            // A driver that is being updated, a remote desktop: the card is coming back. Nothing to ask.
+            spdlog::info("Hardware: only the software renderer right now; the settings stay those for {}",
+                         fingerprintGpu(choice.chosenFor));
+        } else {
+            hardwareNote_ = Note::Changed;
+            previousGpu_ = fingerprintGpu(choice.chosenFor);
+            spdlog::info("Hardware: the settings were chosen for {}; asking whether to choose for this one",
+                         previousGpu_.empty() ? std::string("the software renderer") : previousGpu_);
+        }
+    }
+}
+
+void AppController::applyHardwareSettings() {
+    if (!hardware_) return;
+    applyAdvice(config_, advice_);
+    config_.hardware.pending = false;
+    config_.hardware.autoChosen = true;
+    config_.hardware.chosenFor = hardwareFingerprint(*hardware_);
+    hardwareNote_ = UiModel::HardwareView::Note::None;
+    spdlog::info("Hardware: picture settings chosen for this machine again");
+    configChanged();
+}
+
+void AppController::dismissHardwareNote() {
+    if (hardwareNote_ == UiModel::HardwareView::Note::Changed && hardware_) {
+        // Kept on purpose: they belong to this machine now, but they are not VeloPlay's choice for it.
+        config_.hardware.chosenFor = hardwareFingerprint(*hardware_);
+        config_.hardware.autoChosen = false;
+        configChanged();
+    }
+    hardwareNote_ = UiModel::HardwareView::Note::None;
 }
 
 void AppController::saveNow() {

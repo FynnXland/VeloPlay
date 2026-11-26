@@ -57,7 +57,9 @@ struct SessionOutcome {
 /// a 30 fps game is recognised by its repeated pictures (CadenceDetector).
 /// HDR stays off until there is a display path for it.
 /// `away`: the console is reached from somewhere else; with nothing learned yet it starts lower.
-[[nodiscard]] StreamSettings automaticStream(const LinkMemory& memory, bool away = false);
+/// `upTo720p`: never more than 720p, for a processor that unpacks the video itself and is slow. What
+/// is learned stays as it is, so switching the limit off brings back what the link allows.
+[[nodiscard]] StreamSettings automaticStream(const LinkMemory& memory, bool away = false, bool upTo720p = false);
 
 /// What to remember after a session. A stream that stood still or lost
 /// pictures lowers the rate and marks where the trouble began. A clean

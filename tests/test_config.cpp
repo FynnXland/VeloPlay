@@ -9,6 +9,7 @@
 #include "FakeProtector.hpp"
 #include "app/AutoStream.hpp"
 #include "app/Config.hpp"
+#include "app/Hardware.hpp"
 #include "app/StreamAlerts.hpp"
 #include "net/Socket.hpp"
 
@@ -392,6 +393,28 @@ TEST(Config, KeepsTheSignInForPlayingFromAwaySealed) {
     EXPECT_EQ(empty->find("\"psn\""), std::string::npos);
 }
 
+TEST(Config, KeepsSonysIdOfAConsolePairedThroughSony) {
+    test::FakeProtector protector;
+    AppConfig config;
+    RegisteredConsole console;
+    console.name = "PS5-042";
+    console.hostId = "001122AABBCC";
+    console.registKey = "7c9e2d41";
+    console.psnId = std::string(64, 'a');
+    config.consoles.push_back(console);
+    const auto text = serializeConfig(config, protector);
+    ASSERT_TRUE(text);
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back);
+    ASSERT_EQ(back->consoles.size(), 1u);
+    EXPECT_EQ(back->consoles[0].psnId, console.psnId);
+    // A console paired with PIN has none, and the file says nothing about it.
+    config.consoles[0].psnId.clear();
+    const auto plain = serializeConfig(config, protector);
+    ASSERT_TRUE(plain);
+    EXPECT_EQ(plain->find("psn_id"), std::string::npos);
+}
+
 TEST(RegisteredConsole, IsBuiltFromRegistrationResult) {
     protocol::RegisteredHost host;
     host.nickname = "PS5-042";
@@ -647,7 +670,7 @@ TEST(Config, MovesKeysNobodyChangedToTheNewStart) {
     before.controller.keyboardMouse.games.push_back(game);
     auto text = serializeConfig(before, protector);
     ASSERT_TRUE(text.ok());
-    const std::string marker = "\"settings_version\": 6";
+    const std::string marker = "\"settings_version\": 7";
     const std::size_t at = text->find(marker);
     ASSERT_NE(at, std::string::npos) << *text;
     std::string old = *text;
@@ -812,4 +835,374 @@ TEST(Config, LeavesTheNetworkBufferToTheProgramUnlessStableWasChosen) {
         ASSERT_TRUE(back);
         EXPECT_EQ(back->network.jitter, mode);
     }
+}
+
+// ---- the hardware and the picture settings that suit it ------------------
+
+namespace {
+
+/// A tree like / with the files describeLinux reads, under a folder of its own.
+class FakeRoot {
+public:
+    explicit FakeRoot(const char* name) : root_(std::filesystem::temp_directory_path() / "veloplay_tests" / name) {
+        std::filesystem::remove_all(root_);
+        std::filesystem::create_directories(root_);
+    }
+    ~FakeRoot() {
+        std::error_code ignored;
+        std::filesystem::remove_all(root_, ignored);
+    }
+    void write(const std::string& relative, const std::string& content) const {
+        const std::filesystem::path path = root_ / relative;
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream(path, std::ios::binary) << content;
+    }
+    void cpu(int threads, const std::string& model) const {
+        std::string text;
+        for (int i = 0; i < threads; ++i) {
+            text += "processor\t: " + std::to_string(i) + "\nvendor_id\t: GenuineIntel\nmodel name\t: " + model +
+                    "\nflags\t\t: fpu vme\n\n";
+        }
+        write("proc/cpuinfo", text);
+    }
+    void memory(std::uint64_t kilobytes) const {
+        write("proc/meminfo", "MemTotal:       " + std::to_string(kilobytes) + " kB\nMemFree:         1000 kB\n");
+    }
+    void card(int index, const char* vendor, bool primary, const std::string& vramBytes = {}) const {
+        const std::string base = "sys/class/drm/card" + std::to_string(index) + "/device/";
+        write(base + "vendor", std::string(vendor) + "\n");
+        write(base + "boot_vga", primary ? "1\n" : "0\n");
+        if (!vramBytes.empty()) write(base + "mem_info_vram_total", vramBytes + "\n");
+        // A screen beside it, named like a card: not one.
+        write("sys/class/drm/card" + std::to_string(index) + "-eDP-1/device/vendor", "0x1234\n");
+    }
+    [[nodiscard]] const std::filesystem::path& path() const { return root_; }
+
+private:
+    std::filesystem::path root_;
+};
+
+HardwareInfo authorsPc(int screenHeight = 1080) {
+    HardwareInfo info = describeAdapter(HardwareInfo::Os::Windows, 0x10DE, "NVIDIA GeForce RTX 4070", 12282ull << 20, false);
+    info.cpuName = "AMD Ryzen 9 7900X 12-Core Processor";
+    info.cpuThreads = 24;
+    info.systemMemoryMb = 32 * 1024;
+    info.screenWidth = screenHeight * 16 / 9;
+    info.screenHeight = screenHeight;
+    info.screenHz = 60.0;
+    return info;
+}
+
+} // namespace
+
+TEST(Hardware, GivesTheAuthorsPcAndAnUnknownOneTheDefaults) {
+    const HardwareInfo pc = authorsPc();
+    EXPECT_EQ(pc.vendor, HardwareInfo::GpuVendor::Nvidia);
+    EXPECT_FALSE(pc.integratedGpu);
+    EXPECT_FALSE(pc.softwareRenderer);
+    EXPECT_EQ(pc.videoMemoryMb, 12282u);
+    const HardwareAdvice advice = recommendedSettings(pc);
+    EXPECT_EQ(advice.tier, GraphicsTier::Dedicated);
+    EXPECT_EQ(advice.graphics, GraphicsSettings{});
+    EXPECT_FALSE(advice.streamUpTo720p);
+
+    // Nothing known is no reason to hold back: zeros and empty names are unknown, not small.
+    EXPECT_EQ(recommendedSettings(HardwareInfo{}).graphics, GraphicsSettings{});
+    EXPECT_EQ(recommendedSettings(HardwareInfo{}).tier, GraphicsTier::Dedicated);
+    HardwareInfo linuxUnknown;
+    linuxUnknown.os = HardwareInfo::Os::Linux;
+    linuxUnknown.hardwareVideoDecoding = false;
+    EXPECT_EQ(recommendedSettings(linuxUnknown).graphics, GraphicsSettings{});
+    EXPECT_FALSE(recommendedSettings(linuxUnknown).streamUpTo720p);
+
+    // RTX Video is never chosen, not even where it would enlarge: it costs 8 to 10 ms per picture on the 4070.
+    EXPECT_EQ(recommendedSettings(authorsPc(1440)).graphics, GraphicsSettings{});
+    HardwareInfo onLinux = authorsPc(1440);
+    onLinux.os = HardwareInfo::Os::Linux;
+    EXPECT_EQ(recommendedSettings(onLinux).graphics, GraphicsSettings{});
+}
+
+TEST(Hardware, TellsWindowsAdaptersApart) {
+    using Os = HardwareInfo::Os;
+    const HardwareInfo uhd = describeAdapter(Os::Windows, 0x8086, "Intel(R) UHD Graphics 620", 128ull << 20, false);
+    EXPECT_TRUE(uhd.integratedGpu);
+    EXPECT_EQ(uhd.gpuName, "Intel UHD Graphics 620");
+    EXPECT_EQ(tierOf(uhd), GraphicsTier::WeakIntegrated);
+    const HardwareAdvice weak = recommendedSettings(uhd);
+    EXPECT_EQ(weak.graphics.frameGenerationFactor, 1);
+    EXPECT_EQ(weak.graphics.superResolutionLevel, 0);
+    EXPECT_FALSE(weak.graphics.deband);
+    EXPECT_FALSE(weak.streamUpTo720p); // the card decodes the video
+
+    const HardwareInfo xe = describeAdapter(Os::Windows, 0x8086, "Intel(R) Iris(R) Xe Graphics", 128ull << 20, false);
+    EXPECT_EQ(tierOf(xe), GraphicsTier::CapableIntegrated);
+    const HardwareInfo apu = describeAdapter(Os::Windows, 0x1002, "AMD Radeon(TM) Graphics", 512ull << 20, false);
+    EXPECT_TRUE(apu.integratedGpu);
+    const HardwareInfo arc = describeAdapter(Os::Windows, 0x8086, "Intel(R) Arc(TM) A770 Graphics", 16ull << 30, false);
+    EXPECT_FALSE(arc.integratedGpu);
+    EXPECT_EQ(tierOf(arc), GraphicsTier::Dedicated);
+    const HardwareInfo rx = describeAdapter(Os::Windows, 0x1002, "AMD Radeon RX 7800 XT", 16ull << 30, false);
+    EXPECT_FALSE(rx.integratedGpu);
+    EXPECT_EQ(rx.vendor, HardwareInfo::GpuVendor::Amd);
+    // The old names: "R7 Graphics" was in the processor, "R7 250" a card.
+    EXPECT_TRUE(describeAdapter(Os::Windows, 0x1002, "AMD Radeon(TM) R7 Graphics", 512ull << 20, false).integratedGpu);
+    EXPECT_FALSE(describeAdapter(Os::Windows, 0x1002, "AMD Radeon R7 250", 2ull << 30, false).integratedGpu);
+
+    // The software renderer, and Windows' adapter without a real driver.
+    const HardwareInfo warp = describeAdapter(Os::Windows, 0, "Microsoft Basic Render Driver", 0, true);
+    EXPECT_TRUE(warp.softwareRenderer);
+    EXPECT_FALSE(warp.hardwareVideoDecoding);
+    EXPECT_EQ(tierOf(warp), GraphicsTier::Software);
+    EXPECT_TRUE(describeAdapter(Os::Windows, 0x1414, "Microsoft Basic Display Adapter", 0, false).softwareRenderer);
+
+    // Integrated graphics with little around them count as weak, whatever the chip.
+    HardwareInfo small = xe;
+    small.systemMemoryMb = 4096;
+    EXPECT_EQ(tierOf(small), GraphicsTier::WeakIntegrated);
+}
+
+TEST(Hardware, MakesDriverNamesReadableAndStable) {
+    EXPECT_EQ(cleanGpuName("Mesa Intel(R) Iris(R) Xe Graphics (TGL GT2)"), "Intel Iris Xe Graphics");
+    EXPECT_EQ(cleanGpuName("NVIDIA GeForce RTX 4070/PCIe/SSE2"), "NVIDIA GeForce RTX 4070");
+    EXPECT_EQ(cleanGpuName("AMD Radeon 780M (radeonsi, phoenix, LLVM 17.0.6, DRM 3.57, 6.8.0-45-generic)"), "AMD Radeon 780M");
+    EXPECT_EQ(cleanGpuName("llvmpipe (LLVM 15.0.7, 256 bits)"), "llvmpipe");
+    EXPECT_EQ(cleanGpuName("  Intel(R)  UHD Graphics 620 "), "Intel UHD Graphics 620");
+
+    // A driver update changes the tail, not the fingerprint; the screen and the battery are no part of it.
+    HardwareInfo a;
+    a.os = HardwareInfo::Os::Linux;
+    a.gpuName = cleanGpuName("AMD Radeon 780M (radeonsi, phoenix, LLVM 17.0.6, DRM 3.57, 6.8.0-45-generic)");
+    HardwareInfo b = a;
+    b.gpuName = cleanGpuName("AMD Radeon 780M (radeonsi, phoenix, LLVM 18.1.3, DRM 3.59, 6.11.0-9-generic)");
+    b.screenWidth = 3840;
+    b.onBattery = true;
+    EXPECT_EQ(hardwareFingerprint(a), hardwareFingerprint(b));
+    EXPECT_EQ(fingerprintGpu(hardwareFingerprint(a)), "AMD Radeon 780M");
+    HardwareInfo onWindows = a;
+    onWindows.os = HardwareInfo::Os::Windows;
+    EXPECT_NE(hardwareFingerprint(a), hardwareFingerprint(onWindows));
+    HardwareInfo software = a;
+    software.softwareRenderer = true;
+    EXPECT_TRUE(fingerprintIsSoftware(hardwareFingerprint(software)));
+    EXPECT_FALSE(fingerprintIsSoftware(hardwareFingerprint(a)));
+    EXPECT_EQ(fingerprintGpu(hardwareFingerprint(software)), "");
+}
+
+TEST(Hardware, ReadsALaptopWithIrisXeFromLinux) {
+    FakeRoot root("hw_iris");
+    root.cpu(8, "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz");
+    root.memory(16'303'004);
+    root.card(0, "0x8086", true);
+    root.write("sys/class/power_supply/BAT0/type", "Battery\n");
+    root.write("sys/class/power_supply/BAT0/status", "Discharging\n");
+    root.write("sys/class/power_supply/AC/type", "Mains\n");
+    root.write("sys/class/power_supply/AC/online", "0\n");
+    // The mouse's battery is not the laptop's.
+    root.write("sys/class/power_supply/hidpp_battery_0/type", "Battery\n");
+    root.write("sys/class/power_supply/hidpp_battery_0/scope", "Device\n");
+    root.write("sys/class/power_supply/hidpp_battery_0/status", "Discharging\n");
+
+    const HardwareInfo info = describeLinux("Intel", "Mesa Intel(R) Iris(R) Xe Graphics (TGL GT2)", root.path());
+    EXPECT_EQ(info.os, HardwareInfo::Os::Linux);
+    EXPECT_EQ(info.vendor, HardwareInfo::GpuVendor::Intel);
+    EXPECT_EQ(info.gpuName, "Intel Iris Xe Graphics");
+    EXPECT_TRUE(info.integratedGpu);
+    EXPECT_FALSE(info.softwareRenderer);
+    EXPECT_FALSE(info.hardwareVideoDecoding);
+    EXPECT_EQ(info.cpuThreads, 8);
+    EXPECT_EQ(info.cpuName, "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz");
+    EXPECT_EQ(info.systemMemoryMb, 16'303'004u / 1024u);
+    EXPECT_TRUE(info.hasBattery);
+    EXPECT_TRUE(info.onBattery);
+
+    const HardwareAdvice advice = recommendedSettings(info);
+    EXPECT_EQ(advice.tier, GraphicsTier::CapableIntegrated);
+    EXPECT_EQ(advice.graphics.frameGenerationFactor, 0);
+    EXPECT_EQ(advice.graphics.superResolutionLevel, 1);
+    EXPECT_TRUE(advice.graphics.deband);
+    EXPECT_FALSE(advice.streamUpTo720p); // eight threads unpack 1080p
+
+    // Plugged in, the same laptop is not on battery.
+    root.write("sys/class/power_supply/AC/online", "1\n");
+    root.write("sys/class/power_supply/BAT0/status", "Charging\n");
+    EXPECT_FALSE(describeLinux("Intel", "Mesa Intel(R) Iris(R) Xe Graphics (TGL GT2)", root.path()).onBattery);
+}
+
+TEST(Hardware, ReadsAmdProcessorGraphicsFromLinux) {
+    FakeRoot root("hw_780m");
+    root.cpu(16, "AMD Ryzen 7 7840U w/ Radeon 780M Graphics");
+    root.memory(32'000'000);
+    root.card(1, "0x1002", true, "536870912");
+    root.write("sys/class/power_supply/ADP1/type", "Mains\n");
+    root.write("sys/class/power_supply/ADP1/online", "1\n");
+    const HardwareInfo info =
+        describeLinux("AMD", "AMD Radeon 780M (radeonsi, phoenix, LLVM 17.0.6, DRM 3.57, 6.8.0)", root.path());
+    EXPECT_EQ(info.vendor, HardwareInfo::GpuVendor::Amd);
+    EXPECT_EQ(info.gpuName, "AMD Radeon 780M");
+    EXPECT_EQ(info.videoMemoryMb, 512u);
+    EXPECT_TRUE(info.integratedGpu);
+    EXPECT_FALSE(info.hasBattery);
+    EXPECT_FALSE(info.onBattery);
+    EXPECT_EQ(tierOf(info), GraphicsTier::CapableIntegrated);
+
+    // The two units in a Ryzen 7000 desktop: integrated, and too small for extra work.
+    FakeRoot desktop("hw_raphael");
+    desktop.cpu(12, "AMD Ryzen 5 7600 6-Core Processor");
+    desktop.memory(32'000'000);
+    desktop.card(0, "0x1002", true, "2147483648");
+    const HardwareInfo raphael = describeLinux(
+        "AMD", "AMD Radeon Graphics (radeonsi, raphael_mendocino, LLVM 17.0.6, DRM 3.57, 6.8.0)", desktop.path());
+    EXPECT_TRUE(raphael.integratedGpu);
+    EXPECT_EQ(raphael.gpuName, "AMD Radeon Graphics");
+    EXPECT_EQ(tierOf(raphael), GraphicsTier::WeakIntegrated);
+    EXPECT_EQ(recommendedSettings(raphael).graphics.frameGenerationFactor, 1);
+
+    // A card of its own from the same maker.
+    FakeRoot card("hw_rx");
+    card.card(0, "0x1002", true, "17163091968");
+    const HardwareInfo rx =
+        describeLinux("AMD", "AMD Radeon RX 7800 XT (radeonsi, navi32, LLVM 17.0.6, DRM 3.57, 6.8.0)", card.path());
+    EXPECT_FALSE(rx.integratedGpu);
+    EXPECT_EQ(tierOf(rx), GraphicsTier::Dedicated);
+}
+
+TEST(Hardware, PicksTheCardThatDrawsOnALaptopWithTwo) {
+    FakeRoot root("hw_hybrid");
+    root.cpu(16, "Intel(R) Core(TM) i7-12700H");
+    root.memory(16'000'000);
+    root.card(0, "0x8086", true);
+    root.card(1, "0x10de", false);
+    const HardwareInfo info =
+        describeLinux("NVIDIA Corporation", "NVIDIA GeForce RTX 3060 Laptop GPU/PCIe/SSE2", root.path());
+    EXPECT_EQ(info.vendor, HardwareInfo::GpuVendor::Nvidia);
+    EXPECT_EQ(info.gpuName, "NVIDIA GeForce RTX 3060 Laptop GPU");
+    EXPECT_FALSE(info.integratedGpu);
+    EXPECT_EQ(info.videoMemoryMb, 0u); // NVIDIA's driver does not say; unknown, not small
+    EXPECT_EQ(tierOf(info), GraphicsTier::Dedicated);
+}
+
+TEST(Hardware, HoldsBackOnTheSoftwareRendererAndAWeakProcessor) {
+    FakeRoot root("hw_llvmpipe");
+    root.cpu(4, "Intel(R) Celeron(R) N5105 @ 2.00GHz");
+    root.memory(8'000'000);
+    const HardwareInfo info = describeLinux("Mesa", "llvmpipe (LLVM 15.0.7, 256 bits)", root.path());
+    EXPECT_TRUE(info.softwareRenderer);
+    EXPECT_EQ(info.vendor, HardwareInfo::GpuVendor::Other);
+    EXPECT_EQ(hardwareFingerprint(info), "linux|software");
+    const HardwareAdvice advice = recommendedSettings(info);
+    EXPECT_EQ(advice.tier, GraphicsTier::Software);
+    EXPECT_EQ(advice.graphics.frameGenerationFactor, 1);
+    EXPECT_EQ(advice.graphics.superResolutionLevel, 0);
+    EXPECT_FLOAT_EQ(advice.graphics.sharpness, 0.0f);
+    EXPECT_FALSE(advice.graphics.deband);
+    EXPECT_TRUE(advice.streamUpTo720p);
+
+    // Advice is stable under sanitize(): applied and saved, it still reads as the advice.
+    AppConfig config;
+    applyAdvice(config, advice);
+    sanitize(config);
+    EXPECT_TRUE(followsAdvice(config, advice));
+    config.graphics.lookStrength = 0.4f; // the strength of a style that is off cannot be seen
+    EXPECT_TRUE(followsAdvice(config, advice));
+    config.graphics.deband = true;
+    EXPECT_FALSE(followsAdvice(config, advice));
+
+    // A card of its own and four threads unpacking on the processor: 720p as well.
+    HardwareInfo cardAndFewThreads = authorsPc();
+    cardAndFewThreads.os = HardwareInfo::Os::Linux;
+    cardAndFewThreads.hardwareVideoDecoding = false;
+    cardAndFewThreads.cpuThreads = 4;
+    EXPECT_TRUE(recommendedSettings(cardAndFewThreads).streamUpTo720p);
+    cardAndFewThreads.hardwareVideoDecoding = true;
+    EXPECT_FALSE(recommendedSettings(cardAndFewThreads).streamUpTo720p);
+}
+
+TEST(Hardware, NamesOnlyWhatThePlatformHas) {
+    using Setting = AdviceLine::Setting;
+    const HardwareAdvice weak = recommendedSettings(
+        describeAdapter(HardwareInfo::Os::Windows, 0x8086, "Intel(R) UHD Graphics 620", 128ull << 20, false));
+    const auto find = [](const std::vector<AdviceLine>& lines, Setting setting) {
+        return std::find_if(lines.begin(), lines.end(), [&](const AdviceLine& line) { return line.setting == setting; });
+    };
+    const auto has = [&](const std::vector<AdviceLine>& lines, Setting setting) { return find(lines, setting) != lines.end(); };
+    const std::vector<AdviceLine> all = adviceLines(weak, PlatformCaps{}, false);
+    EXPECT_TRUE(has(all, Setting::FrameGeneration));
+    EXPECT_TRUE(has(all, Setting::Upscaling));
+    EXPECT_TRUE(has(all, Setting::Deband));
+    EXPECT_FALSE(has(all, Setting::Look)); // off, as it starts
+    EXPECT_FALSE(has(all, Setting::Vsync));
+    EXPECT_FALSE(has(all, Setting::StreamUpTo720p));
+
+    PlatformCaps bare;
+    bare.os = HardwareInfo::Os::Linux;
+    bare.frameGeneration = false;
+    bare.upscaling = false;
+    bare.deband = false;
+    bare.looks = false;
+    bare.amdFrc = false;
+    EXPECT_TRUE(adviceLines(weak, bare, false).empty());
+
+    // Before putting them back: only what would change.
+    AppConfig config;
+    applyAdvice(config, weak);
+    EXPECT_TRUE(adviceLines(weak, PlatformCaps{}, false, &config).empty());
+    config.graphics.deband = true;
+    config.graphics.look = 2;
+    config.graphics.vsync = false;
+    const std::vector<AdviceLine> changes = adviceLines(weak, PlatformCaps{}, false, &config);
+    ASSERT_EQ(changes.size(), 3u);
+    EXPECT_EQ(changes[0], (AdviceLine{Setting::Deband, 0}));
+    EXPECT_EQ(changes[1], (AdviceLine{Setting::Look, 0}));
+    EXPECT_EQ(changes[2], (AdviceLine{Setting::Vsync, 1}));
+    EXPECT_EQ(adviceLines(weak, bare, false, &config).size(), 1u); // VSync is there on every platform
+
+    // RTX Video without the card that has it is Lanczos, and is named so (a level the user chose, put in advice
+    // by hand here: the advice itself never picks it).
+    HardwareAdvice rtx;
+    rtx.graphics.superResolutionLevel = 2;
+    const std::vector<AdviceLine> noRtx = adviceLines(rtx, PlatformCaps{}, false);
+    ASSERT_TRUE(has(noRtx, Setting::Upscaling));
+    EXPECT_EQ(find(noRtx, Setting::Upscaling)->value, 1);
+}
+
+TEST(Config, KeepsWhatWasChosenForTheHardwareAndNeverChoosesForAnOldFile) {
+    test::FakeProtector protector;
+    // A settings file of its own has not seen the hardware.
+    EXPECT_TRUE(AppConfig{}.hardware.pending);
+
+    AppConfig chosen;
+    chosen.hardware = {false, true, "linux|Intel Iris Xe Graphics"};
+    chosen.autoUpTo720p = true;
+    const auto text = serializeConfig(chosen, protector);
+    ASSERT_TRUE(text.ok());
+    const auto back = parseConfig(*text, protector);
+    ASSERT_TRUE(back.ok());
+    EXPECT_EQ(back->hardware, chosen.hardware);
+    EXPECT_TRUE(back->autoUpTo720p);
+
+    // Files from before: whoever has one set things up already.
+    for (const char* old : {R"({"settings_version":6})", R"({})", R"({"settings_version":6,"graphics":{"hardware_pending":true}})"}) {
+        const auto parsed = parseConfig(old, protector);
+        ASSERT_TRUE(parsed.ok());
+        EXPECT_FALSE(parsed->hardware.pending) << old;
+        EXPECT_TRUE(parsed->hardware.chosenFor.empty());
+    }
+}
+
+TEST(AutoStream, StaysAt720pWhenAskedAndKeepsWhatItLearned) {
+    AppConfig config;
+    RegisteredConsole console = sampleConsole();
+    console.link.bitrateKbps = 25'000;
+    config.consoles = {console};
+    EXPECT_EQ(effectiveStream(config, console.hostId).height, 1080);
+    config.autoUpTo720p = true;
+    const StreamSettings limited = effectiveStream(config, console.hostId);
+    EXPECT_EQ(limited.width, 1280);
+    EXPECT_EQ(limited.height, 720);
+    EXPECT_EQ(limited.bitrateKbps, 25'000); // the rate it learned stays
+    EXPECT_EQ(effectiveStream(config, "unknown").height, 720);
+    EXPECT_FALSE(config.consoles[0].link.lowResolution);
+    // Not automatic: the user's own values, as they are.
+    config.activeProfile = std::string(kProfileCustom);
+    EXPECT_EQ(effectiveStream(config, console.hostId).height, config.stream.height);
 }

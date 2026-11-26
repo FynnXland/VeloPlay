@@ -3,6 +3,66 @@
 What changed in each published version. The release workflow copies the section of a version into
 its release page, which is what the update dialog in VeloPlay links to. English first, German below.
 
+## 1.17.0
+
+- **VeloPlay for Linux.** A client of its own for Linux (x86-64; Ubuntu 22.04, Debian 12, Fedora 38
+  and newer): window, picture through OpenGL with VeloPlay's own frame generation, smoothing of
+  colour steps, picture styles and Lanczos scaling, sound and microphone, controller, mouse and
+  keys, photos and videos, capture cards, Discord, installing with an entry in the application
+  menu, and updates from inside the program. Download `VeloPlay-linux-x64.zip`, unpack it, start
+  `./VeloPlay` in a terminal once and choose Settings > Advanced > General > Install. Pairings are
+  kept in the desktop's keyring. RTX Video, NVIDIA Optical Flow and AMD FRC stay Windows only. Tried
+  on one laptop so far (integrated Intel graphics, DualSense over Bluetooth): signing in, pairing
+  and playing through Sony's servers worked; recording, capture cards and the microphone are untried.
+- **Pairing through Sony without a PIN (beta).** After "Sign in to PlayStation" under Advanced >
+  Connection, a PS5 of your account that is not paired on this PC shows in the list with "Pair
+  through Sony". No PIN from the console is needed, and it works from anywhere; the PS5 has to be
+  on with Remote Play enabled.
+- **VeloPlay looks at the hardware on its first start** and picks picture settings to match:
+  graphics in the processor get fewer extras, a processor that unpacks the video itself is asked
+  for 720p at most. A note says what was found and chosen. Installations from before are not
+  changed. Advanced > General > "This PC" puts the choice back whenever you want.
+- **Advanced in four pages:** General, Sound, Connection and Extras. The microphone and the
+  network buffer are under Sound, playing from away under Connection.
+- **Connecting shows the way:** this PC, the router, Sony's servers and the router at home where
+  they are part of it, the PS5. The station reached lights up and a line names the step.
+- **A connection through Sony that broke no longer holds up the window.** VeloPlay lets go of it
+  after ten seconds at most and connects again.
+- Linux: in full screen VeloPlay's own bar slides in at the top edge. A button under Controls >
+  Controller keeps the DualSense's touchpad away from the desktop, which takes it as a mouse over
+  Bluetooth. `veloplay-cli update-folder <folder>` installs the latest release without the window.
+
+**Deutsch**
+
+- **VeloPlay für Linux.** Ein eigenes Programm für Linux (x86-64; Ubuntu 22.04, Debian 12,
+  Fedora 38 und neuer): Fenster, Bild über OpenGL mit den eigenen Zwischenbildern, Glätten von
+  Farbstufen, Bildstilen und Lanczos, Ton und Mikrofon, Controller, Maus und Tastatur, Fotos und
+  Videos, Capture-Cards, Discord, Installieren mit Eintrag im Anwendungsmenü und Updates aus dem
+  Programm. Lade `VeloPlay-linux-x64.zip`, entpacke sie, starte einmal `./VeloPlay` im Terminal
+  und wähle Einstellungen > Erweitert > Allgemein > Installieren. Kopplungen liegen im
+  Schlüsselbund des Desktops. RTX Video, NVIDIA Optical Flow und AMD FRC gibt es weiter nur unter
+  Windows. Ausprobiert bisher an einem Laptop (Intel-Grafik im Prozessor, DualSense über
+  Bluetooth): Anmelden, Koppeln und Spielen über die Server von Sony gingen; Aufnahme,
+  Capture-Cards und Mikrofon sind unausprobiert.
+- **Koppeln über Sony ohne PIN (Beta).** Nach „Bei PlayStation anmelden“ unter Erweitert >
+  Verbindung steht eine PS5 deines Kontos, die auf diesem PC nicht gekoppelt ist, mit „Über Sony
+  koppeln“ in der Liste. Eine PIN von der Konsole braucht es nicht, und es geht von überall; die
+  PS5 muss an sein, Remote Play eingeschaltet.
+- **VeloPlay sieht sich beim ersten Start die Hardware an** und wählt die Bildeinstellungen
+  danach: Grafik im Prozessor bekommt weniger Extras, ein Prozessor, der das Video selbst
+  entpackt, fragt nach höchstens 720p. Ein Hinweis sagt, was gefunden und gewählt wurde.
+  Bestehende Installationen werden nicht verändert. Erweitert > Allgemein > „Dieser PC“ stellt
+  die Wahl jederzeit wieder her.
+- **Erweitert in vier Seiten:** Allgemein, Ton, Verbindung und Extras. Mikrofon und
+  Netzwerkpuffer stehen unter Ton, „Von unterwegs spielen“ unter Verbindung.
+- **Verbinden zeigt den Weg:** dieser PC, der Router, wo sie dazugehören die Server von Sony und
+  der Router zu Hause, die PS5. Die erreichte Station leuchtet, eine Zeile nennt den Schritt.
+- **Eine abgerissene Verbindung über Sony hält das Fenster nicht mehr auf.** VeloPlay lässt sie
+  nach höchstens zehn Sekunden los und verbindet neu.
+- Linux: Im Vollbild gleitet am oberen Rand die eigene Leiste herein. Ein Knopf unter Steuerung >
+  Controller hält das Touchpad des DualSense vom Desktop fern, der es über Bluetooth als Maus
+  nimmt. `veloplay-cli update-folder <Ordner>` installiert die neueste Version ohne das Fenster.
+
 ## 1.16.0
 
 - **The page "Network".** Settings > Input now has two pages, Stream and Network; a click on the

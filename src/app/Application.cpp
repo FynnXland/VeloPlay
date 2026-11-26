@@ -114,6 +114,45 @@ bool reducedMotion() {
 
 float scaleForDpi(UINT dpi) { return static_cast<float>(dpi) / 96.0f; }
 
+/// What this PC can do, for the picture settings of the first start (app/Hardware.hpp).
+HardwareInfo describeThisPc(const render::D3D11Device& device, HWND window) {
+    HardwareInfo info = describeAdapter(HardwareInfo::Os::Windows, device.adapterVendor(), device.adapterName(),
+                                        device.dedicatedVideoMemory(), device.softwareRenderer());
+    info.cpuThreads = static_cast<int>(std::thread::hardware_concurrency());
+    MEMORYSTATUSEX memory{};
+    memory.dwLength = sizeof(memory);
+    if (GlobalMemoryStatusEx(&memory)) info.systemMemoryMb = memory.ullTotalPhys / (1024ull * 1024ull);
+    // The processor's name as the device manager shows it.
+    wchar_t cpu[256] = {};
+    DWORD cpuBytes = sizeof(cpu);
+    if (RegGetValueW(HKEY_LOCAL_MACHINE, L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"ProcessorNameString",
+                     RRF_RT_REG_SZ, nullptr, cpu, &cpuBytes) == ERROR_SUCCESS) {
+        std::wstring_view name(cpu);
+        while (!name.empty() && name.front() == L' ') name.remove_prefix(1);
+        while (!name.empty() && name.back() == L' ') name.remove_suffix(1);
+        const int size = WideCharToMultiByte(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), nullptr, 0, nullptr, nullptr);
+        if (size > 0) {
+            info.cpuName.resize(static_cast<std::size_t>(size));
+            WideCharToMultiByte(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), info.cpuName.data(), size, nullptr,
+                                nullptr);
+        }
+    }
+    MONITORINFO monitor{};
+    monitor.cbSize = sizeof(monitor);
+    if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) {
+        info.screenWidth = monitor.rcMonitor.right - monitor.rcMonitor.left;
+        info.screenHeight = monitor.rcMonitor.bottom - monitor.rcMonitor.top;
+    }
+    info.screenHz = refreshRateOf(window);
+    // BatteryFlag 128: no battery; 255: Windows does not know.
+    SYSTEM_POWER_STATUS power{};
+    if (GetSystemPowerStatus(&power)) {
+        info.hasBattery = power.BatteryFlag != 128 && power.BatteryFlag != 255;
+        info.onBattery = info.hasBattery && power.ACLineStatus == 0;
+    }
+    return info;
+}
+
 } // namespace
 
 Application::Application() = default;
@@ -403,6 +442,9 @@ int Application::run() {
     refreshInstallation(executablePath()); // an update changed the version Windows lists
     controller_ = std::make_unique<AppController>(std::move(options));
     controller_->start();
+    // Once, with the device of the start. After a lost device it may be the software renderer for a moment,
+    // which is no new hardware. The platform's abilities (UiModel::platform) keep their Windows defaults.
+    controller_->setHardware(describeThisPc(device_, window_));
 
     ui_ = std::make_unique<ui::UiManager>(*controller_);
     fonts_ = ui::loadFonts(fontPath(L"segoeui.ttf").c_str(), fontPath(L"seguisb.ttf").c_str());

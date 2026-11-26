@@ -1,0 +1,5 @@
+# Scripts and the pieces of the public workflow are read by a shell and put together line by line, also on
+# the Windows PC that runs the release: their lines end the same way everywhere.
+*.sh text eol=lf
+*.yml text eol=lf
+tools/publish/* text eol=lf

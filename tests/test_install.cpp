@@ -49,7 +49,7 @@ TEST(Install, CopiesOnlyThePackageAndNothingThatLiesNextToIt) {
     // Something from an installation before is replaced, not kept.
     write(to / "VeloPlay.exe", "older program");
 
-    const Result<int> copied = install::copyProgram(from, to);
+    const Result<int> copied = install::copyProgram(from, to, update::kWindowsPackage);
     ASSERT_TRUE(copied.ok()) << copied.error().message;
     EXPECT_EQ(copied.value(), 9);
     EXPECT_EQ(read(to / "VeloPlay.exe"), "program");
@@ -67,13 +67,13 @@ TEST(Install, CopiesOnlyThePackageAndNothingThatLiesNextToIt) {
 TEST(Install, RefusesWhatCannotWork) {
     const std::filesystem::path from = freshFolder("install_refuse");
     // Nothing there to install, or something without the program.
-    EXPECT_FALSE(install::copyProgram(from, freshFolder("install_refuse_to")).ok());
+    EXPECT_FALSE(install::copyProgram(from, freshFolder("install_refuse_to"), update::kWindowsPackage).ok());
     write(from / "SDL3.dll", "library");
-    EXPECT_FALSE(install::copyProgram(from, freshFolder("install_refuse_to")).ok());
-    EXPECT_FALSE(install::copyProgram(from / "missing", freshFolder("install_refuse_to")).ok());
+    EXPECT_FALSE(install::copyProgram(from, freshFolder("install_refuse_to"), update::kWindowsPackage).ok());
+    EXPECT_FALSE(install::copyProgram(from / "missing", freshFolder("install_refuse_to"), update::kWindowsPackage).ok());
     // Into itself: the copy would feed on its own output.
     write(from / "VeloPlay.exe", "program");
-    EXPECT_FALSE(install::copyProgram(from, from / "inner").ok());
+    EXPECT_FALSE(install::copyProgram(from, from / "inner", update::kWindowsPackage).ok());
 }
 
 TEST(Install, TellsWhetherAFileLiesInAFolder) {
@@ -90,11 +90,55 @@ TEST(Install, TellsWhetherAFileLiesInAFolder) {
 TEST(Install, RemovesOnlyAFolderThatInstallingMade) {
     const std::filesystem::path folder = freshFolder("install_remove");
     write(folder / "VeloPlay" / "VeloPlay.exe", "program");
-    EXPECT_TRUE(install::isRemovable(folder / "VeloPlay"));
+    EXPECT_TRUE(install::isRemovable(folder / "VeloPlay", update::kWindowsPackage));
     // Not a folder of another name, not one without the program in it.
     write(folder / "Documents" / "VeloPlay.exe", "program");
-    EXPECT_FALSE(install::isRemovable(folder / "Documents"));
+    EXPECT_FALSE(install::isRemovable(folder / "Documents", update::kWindowsPackage));
     std::filesystem::create_directories(folder / "empty" / "VeloPlay");
-    EXPECT_FALSE(install::isRemovable(folder / "empty" / "VeloPlay"));
-    EXPECT_FALSE(install::isRemovable(std::filesystem::path{}));
+    EXPECT_FALSE(install::isRemovable(folder / "empty" / "VeloPlay", update::kWindowsPackage));
+    EXPECT_FALSE(install::isRemovable(std::filesystem::path{}, update::kWindowsPackage));
+}
+
+// The Linux package has programs without an extension and libraries with a
+// version after ".so"; Windows names do not count there, and the other way round.
+TEST(Install, KnowsTheFilesOfEachPlatformsPackage) {
+    for (const char* name : {"VeloPlay", "veloplay-cli", "veloplay.png", "libSDL3.so", "libSDL3.so.0",
+                             "libavcodec.so.61.19.101", "README.md", "LICENSE"}) {
+        EXPECT_TRUE(install::belongsToPackage(name, update::kLinuxPackage)) << name;
+    }
+    for (const char* name : {"VeloPlay.exe", "SDL3.dll", "veloplay", "VeloPlay.old", "libSDL3.so.old", "notes.so.txt",
+                             ".so", "libx.so.", "libx.so.1a", "holiday.png", "Projects"}) {
+        EXPECT_FALSE(install::belongsToPackage(name, update::kLinuxPackage)) << name;
+    }
+    for (const char* name : {"VeloPlay.exe", "SDL3.DLL", "THIRD_PARTY.md"}) {
+        EXPECT_TRUE(install::belongsToPackage(name, update::kWindowsPackage)) << name;
+    }
+    for (const char* name : {"VeloPlay", "libSDL3.so.0", "veloplay.png"}) {
+        EXPECT_FALSE(install::belongsToPackage(name, update::kWindowsPackage)) << name;
+    }
+}
+
+TEST(Install, CopiesTheLinuxPackageWithItsExecutableBit) {
+    const std::filesystem::path from = freshFolder("install_linux_from");
+    const std::filesystem::path to = freshFolder("install_linux_to") / "VeloPlay";
+    write(from / "VeloPlay", "program");
+    write(from / "veloplay-cli", "tool");
+    write(from / "veloplay.png", "picture");
+    write(from / "libopus.so.0", "library");
+    write(from / "README.md", "text");
+    write(from / "VeloPlay.exe", "the Windows program, not ours here");
+    write(from / "VeloPlay.old", "the version before");
+    std::filesystem::permissions(from / "VeloPlay", std::filesystem::perms::owner_all, std::filesystem::perm_options::add);
+
+    const Result<int> copied = install::copyProgram(from, to, update::kLinuxPackage);
+    ASSERT_TRUE(copied.ok()) << copied.error().message;
+    EXPECT_EQ(copied.value(), 5);
+    EXPECT_FALSE(std::filesystem::exists(to / "VeloPlay.exe"));
+    EXPECT_FALSE(std::filesystem::exists(to / "VeloPlay.old"));
+#ifndef _WIN32
+    const auto mode = std::filesystem::status(to / "VeloPlay").permissions();
+    EXPECT_NE(mode & std::filesystem::perms::owner_exec, std::filesystem::perms::none);
+#endif
+    EXPECT_TRUE(install::isRemovable(to, update::kLinuxPackage));
+    EXPECT_FALSE(install::isRemovable(to, update::kWindowsPackage));
 }

@@ -358,7 +358,7 @@ constexpr Strings kGerman = {
     .noticePsnUnreachable = "Zu {0} ließ sich über das Internet kein Weg aufbauen. Manche Netze lassen das nicht zu, "
                             "etwa Firmen-WLAN oder der Hotspot vom Handy. Versuch es in einem anderen Netz.",
     .noticePsnFailed = "Die Verbindung über das Internet zu {0} ist gescheitert. Melde dich unter Einstellungen > "
-                       "Erweitert > Von unterwegs spielen neu an und versuch es noch einmal.",    .accountSignIn = "Bei PlayStation anmelden",
+                       "Erweitert > Verbindung > Von unterwegs spielen neu an und versuch es noch einmal.",    .accountSignIn = "Bei PlayStation anmelden",
     .accountSignInHint = "Öffnet die Anmeldeseite von Sony in einem eigenen Fenster. Du meldest dich dort an, VeloPlay "
                          "liest danach deine Account-ID aus. Dein Passwort sieht und speichert VeloPlay nicht.",
     .accountSignInBrowser = "Lieber im eigenen Browser anmelden, etwa mit Passkey",
@@ -431,9 +431,9 @@ constexpr Strings kGerman = {
     .pauseAway = "Unterwegs",
     .awayHelp = "Nicht zu Hause? So spielst du von unterwegs",
     .awayTitle = "Von unterwegs spielen",
-    .awayHint = "Über die Server von Sony, ohne Router und ohne VPN, wie bei Sonys eigener App. Koppel die PS5 vorher "
-                "zu Hause und lass sie am besten an, wenn du losgehst. Findet VeloPlay sie nicht im Netz, geht "
-                "„Verbinden“ über das Internet.",
+    .awayHint = "Über die Server von Sony, ohne Router und ohne VPN, wie bei Sonys eigener App. Lass die PS5 am "
+                "besten an, wenn du losgehst. Findet VeloPlay sie nicht im Netz, geht „Verbinden“ über das "
+                "Internet. Eine PS5, die hier noch nicht gekoppelt ist, koppelst du nach der Anmeldung ohne PIN.",
     .awaySignIn = "Bei PlayStation anmelden",
     .awaySigningIn = "Anmeldung läuft",
     .awaySignOut = "Abmelden",
@@ -566,6 +566,104 @@ constexpr Strings kGerman = {
     .netTestHint = "Misst die Strecke zur PS5 ohne Stream und schlägt eine Datenrate vor.",
     .netTestInGame = "Den Test gibt es außerhalb des Spiels. Hier siehst du die echte Verbindung live.",
     .netKept = "Das Diagramm zeigt die letzten 30 Minuten, die Zahlen den ganzen Stream.",
+    .statusFromSony = "In deinem PlayStation-Konto  ·  Koppeln ohne PIN",
+    .pairThroughSony = "Über Sony koppeln",
+    .pairingThroughSonyHint = "VeloPlay koppelt sich über die Server von Sony mit der PS5, ohne PIN, und verbindet "
+                              "danach. Das dauert bis zu einer Minute. Die PS5 muss an sein.",
+    .noticePsnPairFailed = "Das Koppeln mit {0} über das Internet hat nicht geklappt. Lass die PS5 an, prüf, ob Remote "
+                           "Play an ihr eingeschaltet ist, und versuch es noch einmal. Zu Hause geht es auch mit PIN.",
+    .awayPasteLabel = "Adresse aus dem Browser",
+    .awayPasteHint = "Melde dich im Browser an. Danach zeigt er eine fast leere Seite. Kopiere ihre Adresse "
+                     "und füge sie hier ein.",
+    .pathThisPc = "Dieser PC",
+    .pathRouter = "Router",
+    .pathSony = "Server von Sony",
+    .pathHome = "Router zu Hause",
+    .connectingSonyHint = "Über die Server von Sony dauert das bis zu einer Minute.",
+    .stageStarting = "Verbindung wird vorbereitet",
+    .stageAtSony = "Anmeldung bei den Servern von Sony",
+    .stageRouters = "Weg durch die Router wird gesucht",
+    .stageAtConsole = "Die PS5 antwortet",
+    .stageLoggedIn = "Bei der PS5 angemeldet",
+    .stageMeasuring = "Verbindung wird ausgemessen",
+    .touchpadTitle = "Touchpad des Controllers",
+    .touchpadHint = "Über Bluetooth benutzt Linux das Touchpad des DualSense zusätzlich als Maus. Ein Druck darauf, "
+                    "in vielen Spielen die Karte, klickt dann auf den Desktop.",
+    .touchpadKeep = "Vom Desktop fernhalten",
+    .touchpadKept = "Erledigt: Der Desktop benutzt das Touchpad nicht mehr. Im Spiel geht es weiter. Verbinde den "
+                    "Controller einmal neu.",
+    .touchpadWorking = "Linux fragt nach deinem Passwort",
+    .touchpadFailed = "Das hat nicht geklappt. Ohne Passwort darf VeloPlay die Regel nicht eintragen.",
+
+    .tabAdvancedGeneral = "Allgemein",
+    .tabAdvancedSound = "Ton",
+    .tabAdvancedConnection = "Verbindung",
+    .tabAdvancedExtras = "Extras",
+    .statsTitle = "Anzeige im Spiel",
+
+    .hwFirstTitle = "VeloPlay hat deinen PC erkannt",
+    .hwChangedTitle = "Andere Hardware erkannt",
+    .hwGraphics = "Grafik",
+    .hwProcessor = "Prozessor",
+    .hwMemory = "Arbeitsspeicher",
+    .hwScreen = "Bildschirm",
+    .hwSystem = "System",
+    .hwIntegrated = "{0}, im Prozessor",
+    .hwSoftware = "Kein Grafiktreiber, der Prozessor zeichnet",
+    .hwThreads = "{0}, {1} Threads",
+    .hwThreadsOnly = "{0} Threads",
+    .hwGigabytes = "{0} GB",
+    .hwScreenValue = "{0} x {1}, {2} Hz",
+    .hwUnknown = "Unbekannt",
+    .hwReasonDedicated = "Eigene Grafikkarte: Zwischenbilder und Hochskalierung laufen mit.",
+    .hwReasonCapable = "Grafik im Prozessor mit genug Kraft für Zwischenbilder. Ruckelt das Bild, schalte sie unter "
+                       "Ausgabe aus.",
+    .hwReasonWeak = "Grafik im Prozessor: Zwischenbilder, Hochskalierung und Glätten sind aus, damit das Bild flüssig "
+                    "bleibt.",
+    .hwReasonSoftware = "Ohne Grafiktreiber zeichnet der Prozessor das Bild. Alles, was Rechenzeit kostet, ist aus. Ein "
+                        "aktueller Grafiktreiber hilft.",
+    .hwReasonDecoding = "Dein Prozessor entpackt das Video selbst. Damit er mitkommt, fragt VeloPlay die PS5 nach "
+                        "höchstens 720p.",
+    .hwChosen = "Gewählt",
+    .hwLaterHint = "Ändern kannst du alles unter Einstellungen. Unter Erweitert > Allgemein stellst du diese Wahl "
+                   "wieder her.",
+    .hwOk = "Passt",
+    .hwShowSettings = "Einstellungen ansehen",
+    .hwChangedChosen = "Die Bildeinstellungen sind für {0} gewählt. VeloPlay läuft jetzt auf {1}.",
+    .hwChangedOwn = "Die Bildeinstellungen hast du selbst eingestellt. Mit „So lassen“ bleiben sie, wie sie sind.",
+    .hwChangedOther = "eine andere Grafik",
+    .hwSuits = "Passend für diesen PC",
+    .hwAdapt = "Anpassen",
+    .hwKeep = "So lassen",
+    .hwOn = "An",
+    .hwSection = "Dieser PC",
+    .hwMatches = "Die Bildeinstellungen passen zu dieser Hardware.",
+    .hwDiffers = "Die Bildeinstellungen weichen von dem ab, was VeloPlay für diese Hardware wählt.",
+    .hwReset = "Für diese Hardware wiederherstellen",
+    .hwResetQuestion = "Das wird gesetzt:",
+    .hwResetKeeps = "Kopplungen und alle anderen Einstellungen bleiben.",
+    .hwResetConfirm = "Wiederherstellen",
+    .inputUpTo720p = "Höchstens 720p",
+    .inputUpTo720pHint = "Für Prozessoren, die das Video selbst entpacken und dabei nicht mitkommen. 720p braucht etwa "
+                         "halb so viel Rechenzeit wie 1080p.",
+
+    .platformMissing = "Gibt es in dieser Version nicht.",
+    .platformMissingLinux = "Gibt es unter Linux noch nicht.",
+    .upscalingRtxOnlyWindows = "RTX Video gibt es nur unter Windows.",
+    .keysUnreadableLinux = "Die gespeicherten Schlüssel lassen sich auf diesem PC nicht lesen. Kopple die Konsole neu.",
+    .searchCheckFirewallLinux = "Eine Firewall auf diesem PC, etwa ufw oder firewalld, lässt VeloPlay ins lokale Netzwerk.",
+    .languageAutoLinux = "Wie das System",
+    .captureCardsHintLinux = "Zeigt das Bild einer Capture-Card mit Zwischenbildern und Hochskalierung. Der Controller "
+                             "bleibt an der Konsole. Kameras erscheinen hier mit.",
+    .captureVideosMissingLinux = "Videoaufnahme gibt es unter Linux noch nicht.",
+    .installHintLinux = "VeloPlay läuft gerade aus dem Ordner, in den du es entpackt hast. Installieren kopiert seine "
+                        "Dateien nach {0} und legt einen Eintrag im Anwendungsmenü an. Einstellungen und Kopplungen "
+                        "bleiben. Danach startest du VeloPlay aus dem Anwendungsmenü.",
+    .installedHintLinux = "VeloPlay ist auf diesem PC installiert und steht im Anwendungsmenü.",
+    .awayKeptLinux = "VeloPlay behält einen Schlüssel von Sony auf diesem PC. Dein Passwort sieht und speichert es nicht.",
+    .accountSignInBrowserOnly = "Im Browser bei PlayStation anmelden",
+    .accountSignInBrowserHint = "Öffnet die Anmeldeseite von Sony in deinem Browser. Danach zeigt er eine leere Seite. "
+                                "Kopiere ihre Adresse und füge sie oben ein, VeloPlay liest daraus deine Account-ID.",
 };
 
 constexpr Strings kEnglish = {
@@ -915,7 +1013,7 @@ constexpr Strings kEnglish = {
     .noticePsnUnreachable = "No way to {0} could be set up over the internet. Some networks do not allow it, such as "
                             "company Wi-Fi or a phone's hotspot. Try another network.",
     .noticePsnFailed = "The connection to {0} over the internet failed. Sign in again under Settings > Advanced > "
-                       "Play from away and try once more.",    .accountSignIn = "Sign in with PlayStation",
+                       "Connection > Play from away and try once more.",    .accountSignIn = "Sign in with PlayStation",
     .accountSignInHint = "Opens Sony's sign-in page in a window of its own. You sign in there, VeloPlay then reads "
                          "your account ID. VeloPlay neither sees nor stores your password.",
     .accountSignInBrowser = "Sign in in your own browser instead, with a passkey for example",
@@ -988,8 +1086,8 @@ constexpr Strings kEnglish = {
     .awayHelp = "Not at home? How to play from away",
     .awayTitle = "Play from away",
     .awayHint = "Through Sony's servers, without touching the router and without a VPN, as Sony's own app does it. "
-                "Pair the PS5 at home first and best leave it on when you go. When VeloPlay does not find it in the "
-                "network, Connect goes over the internet.",
+                "Best leave the PS5 on when you go. When VeloPlay does not find it in the network, Connect goes "
+                "over the internet. A PS5 that is not paired here yet is paired after signing in, without a PIN.",
     .awaySignIn = "Sign in with PlayStation",
     .awaySigningIn = "Signing in",
     .awaySignOut = "Sign out",
@@ -1122,6 +1220,102 @@ constexpr Strings kEnglish = {
     .netTestHint = "Measures the way to the PS5 without a stream and suggests a bitrate.",
     .netTestInGame = "The test is there outside the game. Here you see the real connection live.",
     .netKept = "The chart shows the last 30 minutes, the figures the whole stream.",
+    .statusFromSony = "In your PlayStation account  ·  Pairs without a PIN",
+    .pairThroughSony = "Pair through Sony",
+    .pairingThroughSonyHint = "VeloPlay pairs with the PS5 through Sony's servers, without a PIN, and connects "
+                              "afterwards. This takes up to a minute. The PS5 has to be on.",
+    .noticePsnPairFailed = "Pairing with {0} over the internet did not work. Leave the PS5 on, check that Remote Play "
+                           "is switched on there, and try again. At home a PIN works too.",
+    .awayPasteLabel = "Address from the browser",
+    .awayPasteHint = "Sign in in the browser. Afterwards it shows an almost empty page. Copy its address and "
+                     "paste it here.",
+    .pathThisPc = "This PC",
+    .pathRouter = "Router",
+    .pathSony = "Sony's servers",
+    .pathHome = "Router at home",
+    .connectingSonyHint = "Through Sony's servers this takes up to a minute.",
+    .stageStarting = "Getting the connection ready",
+    .stageAtSony = "Signing in at Sony's servers",
+    .stageRouters = "Finding a way through the routers",
+    .stageAtConsole = "The PS5 answers",
+    .stageLoggedIn = "Let in by the PS5",
+    .stageMeasuring = "Measuring the connection",
+    .touchpadTitle = "Controller touchpad",
+    .touchpadHint = "Over Bluetooth Linux also uses the DualSense's touchpad as a mouse. A press on it, the map in "
+                    "many games, then clicks on the desktop.",
+    .touchpadKeep = "Keep it away from the desktop",
+    .touchpadKept = "Done: the desktop no longer uses the touchpad. In games it still works. Connect the controller "
+                    "again once.",
+    .touchpadWorking = "Linux asks for your password",
+    .touchpadFailed = "That did not work. Without the password VeloPlay may not add the rule.",
+
+    .tabAdvancedGeneral = "General",
+    .tabAdvancedSound = "Sound",
+    .tabAdvancedConnection = "Connection",
+    .tabAdvancedExtras = "Extras",
+    .statsTitle = "Display in the game",
+
+    .hwFirstTitle = "VeloPlay has looked at your PC",
+    .hwChangedTitle = "Different hardware",
+    .hwGraphics = "Graphics",
+    .hwProcessor = "Processor",
+    .hwMemory = "Memory",
+    .hwScreen = "Screen",
+    .hwSystem = "System",
+    .hwIntegrated = "{0}, in the processor",
+    .hwSoftware = "No graphics driver, the processor draws",
+    .hwThreads = "{0}, {1} threads",
+    .hwThreadsOnly = "{0} threads",
+    .hwGigabytes = "{0} GB",
+    .hwScreenValue = "{0} x {1}, {2} Hz",
+    .hwUnknown = "Unknown",
+    .hwReasonDedicated = "A graphics card of its own: frame generation and upscaling come along.",
+    .hwReasonCapable = "Graphics in the processor with enough power for frame generation. If the picture stutters, "
+                       "switch it off under Output.",
+    .hwReasonWeak = "Graphics in the processor: frame generation, upscaling and smoothing are off, so the picture "
+                    "stays fluid.",
+    .hwReasonSoftware = "Without a graphics driver the processor draws the picture. Everything that costs computing "
+                        "time is off. A current graphics driver helps.",
+    .hwReasonDecoding = "Your processor unpacks the video itself. To keep up, VeloPlay asks the PS5 for 720p at most.",
+    .hwChosen = "Chosen",
+    .hwLaterHint = "You can change everything in the settings. Advanced > General puts this choice back.",
+    .hwOk = "Looks good",
+    .hwShowSettings = "See the settings",
+    .hwChangedChosen = "The picture settings were chosen for {0}. VeloPlay now runs on {1}.",
+    .hwChangedOwn = "You set the picture settings yourself. With “Keep” they stay as they are.",
+    .hwChangedOther = "other graphics",
+    .hwSuits = "What suits this PC",
+    .hwAdapt = "Adapt",
+    .hwKeep = "Keep",
+    .hwOn = "On",
+    .hwSection = "This PC",
+    .hwMatches = "The picture settings suit this hardware.",
+    .hwDiffers = "The picture settings differ from what VeloPlay chooses for this hardware.",
+    .hwReset = "Restore for this hardware",
+    .hwResetQuestion = "This will be set:",
+    .hwResetKeeps = "Pairings and all other settings stay.",
+    .hwResetConfirm = "Restore",
+    .inputUpTo720p = "720p at most",
+    .inputUpTo720pHint = "For processors that unpack the video themselves and cannot keep up. 720p takes about half "
+                         "the work of 1080p.",
+
+    .platformMissing = "Not in this version.",
+    .platformMissingLinux = "Not on Linux yet.",
+    .upscalingRtxOnlyWindows = "RTX Video is only on Windows.",
+    .keysUnreadableLinux = "The stored keys cannot be read on this PC. Pair the console again.",
+    .searchCheckFirewallLinux = "A firewall on this PC, such as ufw or firewalld, lets VeloPlay into the local network.",
+    .languageAutoLinux = "Same as the system",
+    .captureCardsHintLinux = "Shows the picture of a capture card with frame generation and upscaling. The controller "
+                             "stays at the console. Cameras show up here too.",
+    .captureVideosMissingLinux = "Recording videos is not on Linux yet.",
+    .installHintLinux = "VeloPlay runs from the folder you unpacked it to. Installing copies its files to {0} and adds "
+                        "it to the applications menu. Settings and pairings stay. Afterwards you start VeloPlay from "
+                        "the applications menu.",
+    .installedHintLinux = "VeloPlay is installed on this PC and is in the applications menu.",
+    .awayKeptLinux = "VeloPlay keeps a key from Sony on this PC. It neither sees nor stores your password.",
+    .accountSignInBrowserOnly = "Sign in with PlayStation in the browser",
+    .accountSignInBrowserHint = "Opens Sony's sign-in page in your browser. It ends on an empty page. Copy its address "
+                                "and paste it above, VeloPlay reads your account ID from it.",
 };
 
 } // namespace

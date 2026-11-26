@@ -2,12 +2,17 @@
 // Meant for checking a setup and for bug reports: its output shows what the
 // console answered at each step.
 
+#ifdef VELOPLAY_LINUX_PLATFORM
+#include "linux/LinuxServices.hpp"
+#endif
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -26,6 +31,7 @@
 #include "session/ISession.hpp"
 #include "update/HttpClient.hpp"
 #include "update/Release.hpp"
+#include "update/Updater.hpp"
 #include "update/Version.hpp"
 
 using namespace veloplay;
@@ -45,6 +51,7 @@ const char kUsage[] =
     "      network between PC and console is steady enough for streaming.\n"
     "\n"
     "  veloplay-cli check-update\n"
+    "  veloplay-cli update-folder <folder>   install the latest release over the VeloPlay in <folder>\n"
     "      Asks GitHub for the latest release (Windows only).\n"
     "\n"
     "  veloplay-cli wake --host <ip> --regist-key <key>\n"
@@ -177,25 +184,35 @@ int ping(const std::vector<std::string>& args) {
 }
 
 int checkUpdate() {
+#if defined(_WIN32) || defined(VELOPLAY_LINUX_PLATFORM)
 #ifdef _WIN32
     const auto http = update::createWinHttpClient("VeloPlay/" VELOPLAY_VERSION);
+#else
+    const auto http = linuxos::createCurlHttpClient("VeloPlay/" VELOPLAY_VERSION);
+#endif
     const auto response = http->get(update::latestReleaseApiUrl(), 1024 * 1024, {}, {});
     if (!response) {
         std::printf("No release information: %s\n", response.error().message.c_str());
         std::printf("HTTP 404 means that nothing is published yet or that the repository is private.\n");
         return 1;
     }
-    const auto release = update::parseLatestRelease(asText(*response));
-    if (!release) {
-        std::printf("The latest release cannot be used: %s\n", release.error().message.c_str());
+    const auto found = update::findRelease(asText(*response));
+    if (!found) {
+        std::printf("The latest release cannot be used: %s\n", found.error().message.c_str());
         return 1;
     }
+    // The Windows file comes first; the one for this system can follow a few minutes later.
+    if (!*found) {
+        std::printf("Installed %s: the latest release has no download for this system yet.\n", VELOPLAY_VERSION);
+        return 0;
+    }
+    const auto& release = *found;
     const auto current = update::Version::parse(VELOPLAY_VERSION).value_or(update::Version{});
     std::printf("Installed %s, latest %s: %s\n", current.toString().c_str(), release->version.toString().c_str(),
                 release->version > current ? "an update is available" : "up to date");
     return 0;
 #else
-    std::printf("Self-update exists on Windows only.\n");
+    std::printf("This build has no HTTPS client.\n");
     return 1;
 #endif
 }
@@ -500,6 +517,61 @@ int stream(const std::vector<std::string>& args) {
 
 } // namespace
 
+/// The updater as the program runs it, pointed at a folder: asks GitHub, downloads, checks the digest, unpacks
+/// and swaps the files in. For trying the whole way of an update without the window, and for a VeloPlay whose
+/// own window does not start any more.
+int updateFolder(const std::vector<std::string>& args) {
+#if defined(_WIN32) || defined(VELOPLAY_LINUX_PLATFORM)
+    if (args.size() < 2) {
+        std::fprintf(stderr, "update-folder needs the folder VeloPlay lies in.\n");
+        return 2;
+    }
+#ifdef _WIN32
+    const auto http = update::createWinHttpClient("VeloPlay/" VELOPLAY_VERSION);
+#else
+    const auto http = linuxos::createCurlHttpClient("VeloPlay/" VELOPLAY_VERSION);
+#endif
+    update::Updater::Options options;
+    options.current = update::Version::parse(VELOPLAY_VERSION).value_or(update::Version{});
+    options.installDir = args[1];
+    options.workDir = std::filesystem::path(args[1]) / "update";
+    options.http = http.get();
+    update::Updater updater(std::move(options));
+    using Phase = update::UpdateStatus::Phase;
+    const auto wait = [&](std::initializer_list<Phase> busy) {
+        for (;;) {
+            const update::UpdateStatus status = updater.status();
+            if (std::find(busy.begin(), busy.end(), status.phase) == busy.end()) return status;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    };
+    updater.check();
+    update::UpdateStatus status = wait({Phase::Idle, Phase::Checking});
+    if (status.phase == Phase::UpToDate) {
+        std::printf("Installed %s: nothing newer for this system.\n", status.current.toString().c_str());
+        return 0;
+    }
+    if (status.phase != Phase::Available) {
+        std::printf("The check failed: %s\n", status.detail.c_str());
+        return 1;
+    }
+    std::printf("Installing %s over %s in %s\n", status.latest.toString().c_str(), status.current.toString().c_str(),
+                args[1].c_str());
+    updater.install();
+    status = wait({Phase::Available, Phase::Downloading, Phase::Installing});
+    if (status.phase != Phase::RestartNeeded) {
+        std::printf("The update failed: %s\n", status.detail.c_str());
+        return 1;
+    }
+    std::printf("Done: %s is in place.\n", status.latest.toString().c_str());
+    return 0;
+#else
+    (void)args;
+    std::printf("This build has no HTTPS client.\n");
+    return 1;
+#endif
+}
+
 int main(int argc, char** argv) {
     spdlog::set_level(spdlog::level::warn);
     const std::vector<std::string> args(argv + 1, argv + argc);
@@ -510,6 +582,7 @@ int main(int argc, char** argv) {
     if (args[0] == "discover") return discover(args);
     if (args[0] == "ping") return ping(args);
     if (args[0] == "check-update") return checkUpdate();
+    if (args[0] == "update-folder") return updateFolder(args);
     if (args[0] == "wake") return wake(args);
     if (args[0] == "pair") return pair(args);
     if (args[0] == "stream") return stream(args);

@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <initializer_list>
 #include <iterator>
+#include <span>
+#include <vector>
 
 #include <imgui.h>
 
@@ -46,6 +48,7 @@ std::string statusLine(const Strings& t, const ConsoleEntry& console) {
     else if (console.status == ConsoleStatus::Ready) line = t.statusReady;
     else if (console.status == ConsoleStatus::Standby) line = t.statusStandby;
     else if (console.viaInternet) line = t.statusViaInternet;
+    else if (!console.sonyId.empty()) return t.statusFromSony; // only Sony's servers know it; that says it all
     else line = t.statusOffline;
 
     if (console.status == ConsoleStatus::Ready && !console.runningApp.empty()) {
@@ -91,6 +94,7 @@ std::string noticeText(const Strings& t, const Notice& notice) {
         case Notice::Topic::PsnNoAnswer: pattern = t.noticePsnNoAnswer; break;
         case Notice::Topic::PsnUnreachable: pattern = t.noticePsnUnreachable; break;
         case Notice::Topic::PsnFailed: pattern = t.noticePsnFailed; break;
+        case Notice::Topic::PsnPairFailed: pattern = t.noticePsnPairFailed; break;
     }
     return format(pattern, {notice.detail});
 }
@@ -121,6 +125,58 @@ void sectionTitle(std::string_view text, bool first = false) {
     space(8.0f);
 }
 
+/// A choice this platform does not have: shown standing on "off", everything else greyed out, and nothing
+/// written back, so the stored value stays for a platform that has it.
+void unavailableChoice(const char* id, std::span<const char* const> labels, int offIndex, float width = 0.0f) {
+    unsigned disabled = 0;
+    for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
+        if (i != offIndex) disabled |= 1u << i;
+    }
+    (void)segmented(id, labels, offIndex, width, disabled);
+}
+
+/// What the shell found, as rows of a name and a value. Rows nothing is known for are left out.
+std::vector<std::pair<std::string, std::string>> hardwareFacts(const Strings& t, const HardwareInfo& info) {
+    std::vector<std::pair<std::string, std::string>> rows;
+    std::string graphics = info.gpuName.empty() ? std::string(t.hwUnknown) : info.gpuName;
+    if (info.softwareRenderer) graphics = t.hwSoftware;
+    else if (info.integratedGpu) graphics = format(t.hwIntegrated, {graphics});
+    rows.emplace_back(t.hwGraphics, graphics);
+    const std::string threads = std::to_string(info.cpuThreads);
+    if (!info.cpuName.empty() && info.cpuThreads > 0) rows.emplace_back(t.hwProcessor, format(t.hwThreads, {info.cpuName, threads}));
+    else if (!info.cpuName.empty()) rows.emplace_back(t.hwProcessor, info.cpuName);
+    else if (info.cpuThreads > 0) rows.emplace_back(t.hwProcessor, format(t.hwThreadsOnly, {threads}));
+    if (info.systemMemoryMb > 0) {
+        const auto gigabytes = static_cast<long>(std::lround(static_cast<double>(info.systemMemoryMb) / 1024.0));
+        rows.emplace_back(t.hwMemory, format(t.hwGigabytes, {std::to_string(gigabytes)}));
+    }
+    if (info.screenWidth > 0 && info.screenHeight > 0) {
+        // A screen that does not say its rate (a virtual one, some remote desktops) gets no "0 Hz".
+        std::string value = format(t.hwScreenValue, {std::to_string(info.screenWidth), std::to_string(info.screenHeight),
+                                                     std::to_string(static_cast<long>(std::lround(info.screenHz)))});
+        if (info.screenHz < 1.0) value = std::to_string(info.screenWidth) + " x " + std::to_string(info.screenHeight);
+        rows.emplace_back(t.hwScreen, value);
+    }
+    rows.emplace_back(t.hwSystem, info.os == HardwareInfo::Os::Linux ? "Linux" : "Windows");
+    return rows;
+}
+
+/// Rows of a name on the left and its value in a column, the value wrapping inside its column.
+void factTable(const std::vector<std::pair<std::string, std::string>>& rows) {
+    const Palette& p = palette();
+    float column = 0.0f;
+    for (const auto& row : rows) column = std::max(column, measure(TextStyle::Body, row.first).x);
+    column += px(16.0f);
+    for (const auto& [name, value] : rows) {
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        drawText(ImGui::GetWindowDrawList(), start, TextStyle::Body, p.textSecondary, name);
+        ImGui::Indent(column);
+        paragraph(TextStyle::Body, value, p.text);
+        ImGui::Unindent(column);
+        space(6.0f);
+    }
+}
+
 /// Two boxes and an arrow above the picture settings: what the console
 /// sends on the left, what reaches the screen on the right. The box that
 /// belongs to the open tab is outlined, so it is clear which side the
@@ -142,11 +198,13 @@ void flowStrip(const Strings& t, const UiModel& model, const AppConfig& config, 
     const int mbit = static_cast<int>(std::lround(static_cast<float>(stream.bitrateKbps) / 1000.0f));
     const std::string input = std::to_string(stream.height) + "p  ·  " + std::to_string(stream.fps) + " fps  ·  " +
                               format(t.bitrateValue, {std::to_string(mbit)});
-    const int factor =
-        media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, stream.fps, model.displayHz);
+    // What the platform lacks does not happen, whatever the settings hold.
+    const int factor = model.platform.frameGeneration
+                           ? media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, stream.fps, model.displayHz)
+                           : 1;
     std::string output = std::to_string(stream.fps * factor) + " fps";
-    if (config.graphics.superResolutionLevel > 0) output += std::string("  ·  ") + t.flowUpscaled;
-    if (config.graphics.sharpness > 0.0f) output += std::string("  ·  ") + t.flowSharpened;
+    if (model.platform.upscaling && config.graphics.superResolutionLevel > 0) output += std::string("  ·  ") + t.flowUpscaled;
+    if (model.platform.upscaling && config.graphics.sharpness > 0.0f) output += std::string("  ·  ") + t.flowSharpened;
 
     const auto box = [&](float x, const char* caption, const std::string& value, bool active) {
         const ImVec2 min(origin.x + x, origin.y);
@@ -368,6 +426,11 @@ void UiManager::openSettings(SettingsTab tab) {
     settingsTab_ = tab;
     if (tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel) controlsTab_ = tab;
     if (tab == SettingsTab::Stream || tab == SettingsTab::Network) inputTab_ = tab;
+    if (tab == SettingsTab::Advanced || tab == SettingsTab::Sound || tab == SettingsTab::Connection ||
+        tab == SettingsTab::Extras) {
+        advancedTab_ = tab;
+    }
+    hardwareResetAsking_ = false;
     editedGameChosen_ = false; // the key layout shown is picked anew: the one in use now
 }
 
@@ -496,6 +559,14 @@ void UiManager::draw(const UiModel& model) {
     }
     pauseMenu_ = false;
     loginPin_.clear();
+    // The note about the hardware comes by itself on the first start, once nothing else is open; it
+    // goes once it was answered.
+    if (model.hardware.note != UiModel::HardwareView::Note::None && sheet_ == Sheet::None) {
+        sheet_ = Sheet::Hardware;
+        ++sheetGeneration_;
+    } else if (sheet_ == Sheet::Hardware && model.hardware.note == UiModel::HardwareView::Note::None) {
+        sheet_ = Sheet::None;
+    }
     drawDashboard(model);
     drawSheets(model);
     drawWindowBar(model);
@@ -703,7 +774,8 @@ void UiManager::drawEmptyState(const UiModel& model) {
     space(14.0f);
 
     // Conditions that all have to hold, so a short list is the honest form.
-    for (const char* line : {t.searchCheckPower, t.searchCheckNetwork, t.searchCheckRemotePlay, t.searchCheckFirewall}) {
+    const char* firewall = model.platform.os == HardwareInfo::Os::Linux ? t.searchCheckFirewallLinux : t.searchCheckFirewall;
+    for (const char* line : {t.searchCheckPower, t.searchCheckNetwork, t.searchCheckRemotePlay, firewall}) {
         const ImVec2 start = ImGui::GetCursorScreenPos();
         pushText(TextStyle::Body);
         const float lineHeight = ImGui::GetFontSize();
@@ -722,7 +794,7 @@ void UiManager::drawEmptyState(const UiModel& model) {
 /// Capture cards (and cameras, which Windows lists the same way), only when there are any. Beta: nobody could
 /// try one on real hardware yet.
 void UiManager::drawCaptureCards(const UiModel& model) {
-    if (model.captureDevices.empty()) return;
+    if (model.captureDevices.empty() || !model.platform.captureCards) return;
     const Strings& t = *text_;
     const Palette& p = palette();
     space(32.0f);
@@ -737,7 +809,8 @@ void UiManager::drawCaptureCards(const UiModel& model) {
         ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + std::max(titleHeight, pillHeight)));
     }
     space(6.0f);
-    paragraph(TextStyle::Caption, t.captureCardsHint, p.textSecondary);
+    paragraph(TextStyle::Caption, model.platform.os == HardwareInfo::Os::Linux ? t.captureCardsHintLinux : t.captureCardsHint,
+              p.textSecondary);
     space(12.0f);
     const bool idle = model.state == AppState::Idle || model.state == AppState::Error;
     for (int i = 0; i < static_cast<int>(model.captureDevices.size()); ++i) {
@@ -793,7 +866,7 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
              statusLine(t, console));
     if (needsRepair) {
         drawText(draw, ImVec2(min.x + textX, min.y + baseHeight - px(4.0f)), TextStyle::Caption, p.standby,
-                 t.keysUnreadable);
+                 model.platform.os == HardwareInfo::Os::Linux ? t.keysUnreadableLinux : t.keysUnreadable);
     }
 
     // Right: the action that makes sense for this console right now.
@@ -820,11 +893,23 @@ void UiManager::drawConsoleRow(const UiModel& model, const ConsoleEntry& console
         right -= px(8.0f); // same right margin as rows that end in a menu button
     }
 
-    if (!console.registered || needsRepair) {
+    const bool idleHere = model.state == AppState::Idle || model.state == AppState::Error;
+    if (!console.registered && !console.sonyId.empty() && console.address.empty()) {
+        // Only Sony's servers know it: pairing goes that way, without a PIN, and connects right after.
+        place(buttonSize(t.pairThroughSony).x);
+        if (button(t.pairThroughSony, ButtonKind::Primary, ImVec2(0, 0), idleHere)) actions_.pairThroughSony(console.sonyId);
+    } else if (!console.registered || needsRepair) {
         const char* text = needsRepair ? t.pairAgain : t.pair;
         place(buttonSize(text).x);
         if (button(text, ButtonKind::Primary)) {
             openPairing(console.address.empty() ? std::nullopt : std::optional<std::string>(console.address));
+        }
+        // Found here and in the account: the PIN stays the first way, Sony's servers are the second.
+        if (!console.registered && !console.sonyId.empty()) {
+            place(buttonSize(t.pairThroughSony).x);
+            if (button(t.pairThroughSony, ButtonKind::Secondary, ImVec2(0, 0), idleHere)) {
+                actions_.pairThroughSony(console.sonyId);
+            }
         }
     } else {
         // Connecting is what the row is for. A console in rest mode is woken on
@@ -950,7 +1035,7 @@ void UiManager::endSheet() {
 }
 
 void UiManager::drawSheets(const UiModel& model) {
-    const char* ids[] = {"", "pairing-sheet", "settings-sheet", "connection-sheet"};
+    const char* ids[] = {"", "pairing-sheet", "settings-sheet", "connection-sheet", "hardware-sheet"};
     if (sheet_ != openedSheet_) {
         openedSheet_ = sheet_;
         if (sheet_ != Sheet::None) ImGui::OpenPopup(ids[static_cast<int>(sheet_)]);
@@ -958,6 +1043,97 @@ void UiManager::drawSheets(const UiModel& model) {
     if (sheet_ == Sheet::Pairing) drawPairing(model);
     if (sheet_ == Sheet::Settings) drawSettings(model);
     if (sheet_ == Sheet::Connection) drawConnection(model);
+    if (sheet_ == Sheet::Hardware) drawHardwareNote(model);
+}
+
+void UiManager::drawHardwareNote(const UiModel& model) {
+    using Note = UiModel::HardwareView::Note;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    if (!beginSheet("hardware-sheet", 540.0f)) return;
+    const UiModel::HardwareView& hardware = model.hardware;
+    const bool changed = hardware.note == Note::Changed;
+
+    label(TextStyle::Title, changed ? t.hwChangedTitle : t.hwFirstTitle);
+    space(16.0f);
+    factTable(hardwareFacts(t, hardware.info));
+    space(10.0f);
+    if (changed) {
+        const std::string now = hardware.info.softwareRenderer ? std::string(t.hwSoftware) : hardware.info.gpuName;
+        const std::string before = hardware.previousGpu.empty() ? std::string(t.hwChangedOther) : hardware.previousGpu;
+        paragraph(TextStyle::Body, hardware.autoChosen ? format(t.hwChangedChosen, {before, now}) : std::string(t.hwChangedOwn),
+                  p.textSecondary);
+    } else {
+        // Every reason speaks of frame generation; where the platform has none, it would explain a choice
+        // that was never there (the list below still says what was set).
+        const bool pictureWork = model.platform.frameGeneration;
+        const char* reasons[] = {t.hwReasonSoftware, t.hwReasonWeak, t.hwReasonCapable, t.hwReasonDedicated};
+        if (pictureWork) paragraph(TextStyle::Body, reasons[static_cast<int>(hardware.advice.tier)], p.textSecondary);
+        if (hardware.advice.streamUpTo720p) {
+            if (pictureWork) space(6.0f);
+            paragraph(TextStyle::Body, t.hwReasonDecoding, p.textSecondary);
+        }
+    }
+
+    // What is set, as far as this platform has it.
+    const std::vector<AdviceLine> lines = adviceLines(hardware.advice, model.platform, model.rtxVideoAvailable);
+    if (!lines.empty()) {
+        space(16.0f);
+        label(TextStyle::Strong, changed ? t.hwSuits : t.hwChosen);
+        space(8.0f);
+        std::vector<std::pair<std::string, std::string>> rows;
+        for (const AdviceLine& line : lines) rows.push_back(adviceText(line));
+        factTable(rows);
+    }
+    if (!changed) {
+        space(8.0f);
+        paragraph(TextStyle::Caption, t.hwLaterHint, p.textTertiary);
+    }
+
+    // Footer: the other way on the left, the one this sheet is about on the right.
+    space(20.0f);
+    const char* other = changed ? t.hwKeep : t.hwShowSettings;
+    const char* main = changed ? t.hwAdapt : t.hwOk;
+    const bool otherPressed = button(other, ButtonKind::Secondary);
+    ImGui::SameLine();
+    alignRight(buttonSize(main).x);
+    const bool mainPressed = button(main, ButtonKind::Primary);
+    // Esc leaves things as they are: on other hardware that is "keep", on the first start "fine".
+    const bool escape = cancelPressed();
+    if (mainPressed || otherPressed || escape) {
+        if (mainPressed && changed) actions_.applyHardwareSettings();
+        else actions_.dismissHardwareNote();
+        closeSheet();
+        ImGui::CloseCurrentPopup();
+        if (otherPressed && !changed) openSettings(SettingsTab::Picture);
+    }
+    endSheet();
+}
+
+std::pair<std::string, std::string> UiManager::adviceText(const AdviceLine& line) const {
+    const Strings& t = *text_;
+    using Setting = AdviceLine::Setting;
+    const auto onOff = [&](int value) { return std::string(value != 0 ? t.hwOn : t.off); };
+    switch (line.setting) {
+        case Setting::FrameGeneration:
+            return {t.frameGeneration, line.value == 0 ? std::string(t.automatic2)
+                                       : line.value == 1 ? std::string(t.off)
+                                                         : std::to_string(line.value) + "x"};
+        case Setting::Upscaling:
+            return {t.upscaling, line.value == 0 ? std::string(t.off) : line.value == 1 ? "Lanczos" : "RTX Video"};
+        case Setting::Sharpness: return {t.sharpness, std::to_string(line.value) + " %"};
+        case Setting::Deband: return {t.deband, onOff(line.value)};
+        case Setting::Look:
+            return {t.look, line.value == 1 ? t.lookVivid : line.value == 2 ? t.lookCinema : t.off};
+        case Setting::AmdFrc: return {t.amdFrcUse, onOff(line.value)};
+        case Setting::Vsync: return {t.vsync, onOff(line.value)};
+        case Setting::StreamUpTo720p: return {t.inputUpTo720p, onOff(line.value)};
+    }
+    return {};
+}
+
+const char* UiManager::missingHere(const UiModel& model) const {
+    return model.platform.os == HardwareInfo::Os::Linux ? text_->platformMissingLinux : text_->platformMissing;
 }
 
 void UiManager::drawPairing(const UiModel& model) {
@@ -1071,6 +1247,16 @@ void UiManager::drawPairing(const UiModel& model) {
                       p.textSecondary);
             space(8.0f);
             if (button(t.cancel, ButtonKind::Quiet)) actions_.dismissAccountLookup();
+        } else if (model.accountLoginAvailable && !model.platform.embeddedSignIn) {
+            // No window of its own for Sony's page: the browser it is, and the address comes back by hand.
+            if (button(t.accountSignInBrowserOnly, ButtonKind::Secondary)) actions_.startAccountLogin();
+            space(6.0f);
+            if (lookup.phase == AccountLookup::Phase::Failed) {
+                paragraph(TextStyle::Caption, t.accountLookupFailed, p.danger);
+                if (!lookup.errorDetail.empty()) paragraph(TextStyle::Caption, lookup.errorDetail, p.textTertiary);
+            } else {
+                paragraph(TextStyle::Caption, t.accountSignInBrowserHint, p.textSecondary);
+            }
         } else if (model.accountLoginAvailable) {
             if (button(t.accountSignIn, ButtonKind::Secondary)) actions_.startAccountLogin();
             space(6.0f);
@@ -2031,14 +2217,22 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         label(TextStyle::Strong, t.frameGeneration);
         space(8.0f);
         const std::array<const char*, 5> factors = {t.automatic2, t.off, "2x", "3x", "4x"};
-        config.graphics.frameGenerationFactor =
-            segmented("pause-fg", factors, config.graphics.frameGenerationFactor, controlWidth);
+        // What the platform lacks stands on "off", greyed out; the settings say why.
+        if (!model.platform.frameGeneration) {
+            unavailableChoice("pause-fg", factors, 1, controlWidth);
+        } else {
+            config.graphics.frameGenerationFactor =
+                segmented("pause-fg", factors, config.graphics.frameGenerationFactor, controlWidth);
+        }
         ImGui::EndGroup();
         ImGui::SameLine(half);
         ImGui::BeginGroup();
         label(TextStyle::Strong, t.upscaling);
         space(8.0f);
-        if (model.rtxVideoAvailable) {
+        if (!model.platform.upscaling) {
+            const std::array<const char*, 2> methods = {t.off, "Lanczos"};
+            unavailableChoice("pause-upscaling", methods, 0, controlWidth);
+        } else if (model.rtxVideoAvailable) {
             const std::array<const char*, 3> methods = {t.off, "Lanczos", "RTX Video"};
             config.graphics.superResolutionLevel =
                 segmented("pause-upscaling", methods, config.graphics.superResolutionLevel, controlWidth);
@@ -2067,7 +2261,8 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         space(8.0f);
         {
             const std::array<const char*, 3> looks = {t.off, t.lookVivid, t.lookCinema};
-            config.graphics.look = segmented("pause-look", looks, std::clamp(config.graphics.look, 0, 2), controlWidth);
+            if (!model.platform.looks) unavailableChoice("pause-look", looks, 0, controlWidth);
+            else config.graphics.look = segmented("pause-look", looks, std::clamp(config.graphics.look, 0, 2), controlWidth);
         }
         ImGui::EndGroup();
         space(16.0f);
@@ -2075,7 +2270,7 @@ void UiManager::drawPauseMenu(const UiModel& model) {
         // Third row: the switches, side by side. Keys, mouse and microphone go to a console over the
         // network; a capture card has no way back. AMD FRC only on an AMD card: anywhere else it could
         // not do anything.
-        const bool amdCard = model.gpuVendor == UiModel::GpuVendor::Amd;
+        const bool amdCard = model.gpuVendor == UiModel::GpuVendor::Amd && model.platform.amdFrc;
         const ImVec2 switches = ImGui::GetCursorScreenPos();
         float switchesBottom = switches.y;
         if (!session.capture) {
@@ -2137,6 +2332,122 @@ void UiManager::drawPauseMenu(const UiModel& model) {
     space(16.0f);
     label(TextStyle::Caption, t.pauseKeys, p.textTertiary);
 }
+
+namespace {
+
+/// The way to the console while connecting: this PC, the router, through Sony's servers the way across the
+/// internet and the router at home, then the PS5. The station the connection has reached lights up, a dot runs
+/// along the stretch it is on, and a line below says what happens there (`stage` is session::ConnectStage).
+void drawConnectionPath(const Strings& t, bool throughSony, int stage, bool reducedMotion) {
+    const Palette& p = palette();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float radius = px(22.0f);
+    const float labelGap = px(8.0f);
+    const float labelHeight = measure(TextStyle::Caption, "Ag").y;
+    const float height = radius * 2.0f + labelGap + labelHeight;
+
+    enum class Icon { Pc, Router, Cloud, Console };
+    struct Node {
+        Icon icon;
+        const char* name;
+    };
+    std::vector<Node> nodes{{Icon::Pc, t.pathThisPc}, {Icon::Router, t.pathRouter}};
+    if (throughSony) {
+        nodes.push_back({Icon::Cloud, t.pathSony});
+        nodes.push_back({Icon::Router, t.pathHome});
+    }
+    nodes.push_back({Icon::Console, "PS5"});
+    const int last = static_cast<int>(nodes.size()) - 1;
+    // Which station the connection is at. Leaving this PC it is on its way to the router; at home Sony's steps
+    // do not exist, and the console is reached when it answers.
+    int current = 1;
+    if (stage >= 3) current = last;
+    else if (throughSony && stage == 2) current = 3;
+    else if (throughSony && stage == 1) current = 2;
+    const bool arrived = stage >= 4; // the console let us in: the way is complete
+
+    const float edge = std::max(radius, std::max(measure(TextStyle::Caption, nodes.front().name).x,
+                                                 measure(TextStyle::Caption, nodes.back().name).x) * 0.5f);
+    const float step = (width - 2.0f * edge) / static_cast<float>(last);
+    const float y = start.y + radius;
+    std::vector<ImVec2> centres;
+    for (int i = 0; i <= last; ++i) centres.emplace_back(start.x + edge + step * static_cast<float>(i), y);
+
+    // Stretches already crossed are solid, the rest dotted.
+    for (int i = 0; i < last; ++i) {
+        const float from = centres[i].x + radius + px(6.0f);
+        const float to = centres[i + 1].x - radius - px(6.0f);
+        if (i + 1 < current || (arrived && i + 1 <= current)) {
+            draw->AddLine(ImVec2(from, y), ImVec2(to, y), toU32(p.accent, 0.8f), px(2.0f));
+        } else {
+            for (float x = from; x <= to; x += px(7.0f)) draw->AddCircleFilled(ImVec2(x, y), px(1.4f), toU32(p.textTertiary, 0.6f));
+        }
+    }
+    // The dot on the stretch the connection is on now, running towards the station it is trying to reach.
+    if (!arrived) {
+        const float from = centres[current - 1].x + radius;
+        const float to = centres[current].x - radius;
+        const float phase = reducedMotion ? 0.5f : static_cast<float>(std::fmod(ImGui::GetTime() / 1.2, 1.0));
+        const ImVec2 dot(from + (to - from) * phase, y);
+        draw->AddCircleFilled(dot, px(7.0f), toU32(p.accent, 0.25f));
+        draw->AddCircleFilled(dot, px(4.0f), toU32(p.accent));
+    }
+
+    const ImU32 ink = toU32(p.text);
+    const ImU32 dim = toU32(p.textTertiary);
+    const float s = px(1.0f);
+    for (int i = 0; i <= last; ++i) {
+        const ImVec2 c = centres[i];
+        const bool reached = i < current || (arrived && i == current);
+        const bool here = i == current && !arrived;
+        const ImU32 icon = reached || here ? ink : dim;
+        draw->AddCircleFilled(c, radius, toU32(p.surfaceRaised));
+        if (here && !reducedMotion) {
+            const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(ImGui::GetTime()) * 4.0f);
+            draw->AddCircle(c, radius + px(3.0f) * pulse, toU32(p.accent, 0.35f + 0.35f * pulse), 0, px(2.0f));
+        }
+        draw->AddCircle(c, radius, reached || here ? toU32(p.accent) : toU32(p.hairline), 0, px(reached || here ? 2.0f : 1.0f));
+        switch (nodes[i].icon) {
+            case Icon::Pc: // a laptop: screen and base
+                draw->AddRect(ImVec2(c.x - 10 * s, c.y - 8 * s), ImVec2(c.x + 10 * s, c.y + 5 * s), icon, 2 * s, 0, 1.8f * s);
+                draw->AddLine(ImVec2(c.x - 13 * s, c.y + 8 * s), ImVec2(c.x + 13 * s, c.y + 8 * s), icon, 2.2f * s);
+                break;
+            case Icon::Router: // a box with two aerials and its lights
+                draw->AddRect(ImVec2(c.x - 12 * s, c.y), ImVec2(c.x + 12 * s, c.y + 8 * s), icon, 2 * s, 0, 1.8f * s);
+                draw->AddLine(ImVec2(c.x - 7 * s, c.y), ImVec2(c.x - 9 * s, c.y - 10 * s), icon, 1.8f * s);
+                draw->AddLine(ImVec2(c.x + 7 * s, c.y), ImVec2(c.x + 9 * s, c.y - 10 * s), icon, 1.8f * s);
+                for (int light = -1; light <= 1; ++light) {
+                    draw->AddCircleFilled(ImVec2(c.x + static_cast<float>(light) * 5 * s, c.y + 4 * s), 1.4f * s,
+                                          reached || here ? toU32(p.ready) : dim);
+                }
+                break;
+            case Icon::Cloud: { // the internet and Sony's servers
+                const ImU32 cloud = reached || here ? toU32(p.textSecondary) : dim;
+                draw->AddCircleFilled(ImVec2(c.x - 6 * s, c.y + 2 * s), 6 * s, cloud);
+                draw->AddCircleFilled(ImVec2(c.x + 1 * s, c.y - 3 * s), 8 * s, cloud);
+                draw->AddCircleFilled(ImVec2(c.x + 8 * s, c.y + 2 * s), 5.5f * s, cloud);
+                fill(draw, ImVec2(c.x - 6 * s, c.y + 2 * s), ImVec2(c.x + 8 * s, c.y + 7.5f * s), cloud);
+                break;
+            }
+            case Icon::Console: // standing upright, a light band down the middle
+                draw->AddRectFilled(ImVec2(c.x - 6 * s, c.y - 12 * s), ImVec2(c.x + 6 * s, c.y + 12 * s), icon, 4 * s);
+                draw->AddRectFilled(ImVec2(c.x - 1.5f * s, c.y - 10 * s), ImVec2(c.x + 1.5f * s, c.y + 10 * s),
+                                    toU32(p.surfaceRaised));
+                break;
+        }
+        const float labelWidth = measure(TextStyle::Caption, nodes[i].name).x;
+        drawText(draw, ImVec2(std::floor(c.x - labelWidth * 0.5f), y + radius + labelGap), TextStyle::Caption,
+                 reached || here ? p.text : p.textTertiary, nodes[i].name);
+    }
+    ImGui::Dummy(ImVec2(width, height));
+    space(12.0f);
+    const char* steps[] = {t.stageStarting, t.stageAtSony, t.stageRouters, t.stageAtConsole, t.stageLoggedIn, t.stageMeasuring};
+    label(TextStyle::Body, steps[std::clamp(stage, 0, 5)], p.textSecondary);
+}
+
+} // namespace
 
 void UiManager::drawSession(const UiModel& model) {
     const Strings& t = *text_;
@@ -2216,10 +2527,16 @@ void UiManager::drawSession(const UiModel& model) {
         heading(format(t.connecting, {session.consoleName}), true);
         space(8.0f);
         paragraph(TextStyle::Body,
-                  session.waitingForRelease ? std::string(t.waitingForRelease)
-                  : session.attempt > 1     ? format(t.connectingAttempt, {attempt, attempts})
-                                            : std::string(t.connectingHint),
+                  session.waitingForRelease   ? std::string(t.waitingForRelease)
+                  : session.pairingThroughSony ? std::string(t.pairingThroughSonyHint)
+                  : session.attempt > 1       ? format(t.connectingAttempt, {attempt, attempts})
+                  : session.throughSony       ? std::string(t.connectingSonyHint)
+                                              : std::string(t.connectingHint),
                   p.textSecondary);
+        if (!session.capture) {
+            space(24.0f);
+            drawConnectionPath(t, session.throughSony, session.connectStage, model.reducedMotion);
+        }
         space(24.0f);
         if (button(t.cancel, ButtonKind::Secondary) || cancelPressed()) actions_.disconnect();
     } else if (model.state == AppState::Reconnecting) {
@@ -2228,6 +2545,10 @@ void UiManager::drawSession(const UiModel& model) {
         paragraph(TextStyle::Body,
                   session.waitingForRelease ? std::string(t.waitingForRelease) : format(t.reconnectingBody, {attempt, attempts}),
                   p.textSecondary);
+        if (!session.capture) {
+            space(24.0f);
+            drawConnectionPath(t, session.throughSony, session.connectStage, model.reducedMotion);
+        }
         space(24.0f);
         if (button(t.cancel, ButtonKind::Secondary) || cancelPressed()) actions_.disconnect();
     } else if (model.state == AppState::Disconnecting) {
@@ -2318,9 +2639,14 @@ void UiManager::drawSettings(const UiModel& model) {
         return tab == SettingsTab::Controller || tab == SettingsTab::Keyboard || tab == SettingsTab::Wheel;
     };
     const auto input = [](SettingsTab tab) { return tab == SettingsTab::Stream || tab == SettingsTab::Network; };
+    const auto advanced = [](SettingsTab tab) {
+        return tab == SettingsTab::Advanced || tab == SettingsTab::Sound || tab == SettingsTab::Connection ||
+               tab == SettingsTab::Extras;
+    };
     const auto topOf = [&](SettingsTab tab) {
         if (controls(tab)) return 2;
         if (input(tab)) return 0;
+        if (advanced(tab)) return 4;
         return static_cast<int>(std::find(kTop.begin(), kTop.end(), tab) - kTop.begin());
     };
     const std::array<const char*, 5> tabs = {t.tabStream, t.tabPicture, t.tabControls, t.tabCapture, t.tabAdvanced};
@@ -2330,7 +2656,10 @@ void UiManager::drawSettings(const UiModel& model) {
     if (ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)) chosen = (chosen + 1) % 5;
     if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)) chosen = (chosen + 4) % 5;
     if (chosen != top) {
-        settingsTab_ = chosen == 2 ? controlsTab_ : chosen == 0 ? inputTab_ : kTop[static_cast<std::size_t>(chosen)];
+        settingsTab_ = chosen == 2   ? controlsTab_
+                       : chosen == 0 ? inputTab_
+                       : chosen == 4 ? advancedTab_
+                                     : kTop[static_cast<std::size_t>(chosen)];
     }
     // The row under "Controls" takes its height from the list below, so the sheet keeps its size.
     float rowHeight = 0.0f;
@@ -2352,6 +2681,18 @@ void UiManager::drawSettings(const UiModel& model) {
                                      ImGui::GetContentRegionAvail().x * 0.5f);
         settingsTab_ = picked == 1 ? SettingsTab::Network : SettingsTab::Stream;
         inputTab_ = settingsTab_;
+        rowHeight = ImGui::GetCursorScreenPos().y - rowTop;
+    } else if (advanced(settingsTab_)) {
+        // "Advanced" grew long; four pages keep each of them short. The order of the enum is the order here.
+        const float rowTop = ImGui::GetCursorScreenPos().y;
+        space(10.0f);
+        const std::array<const char*, 4> pages = {t.tabAdvancedGeneral, t.tabAdvancedSound, t.tabAdvancedConnection,
+                                                  t.tabAdvancedExtras};
+        const int page = static_cast<int>(settingsTab_) - static_cast<int>(SettingsTab::Advanced);
+        const int picked = segmented("advanced-tabs", pages, page, ImGui::GetContentRegionAvail().x * 0.75f);
+        settingsTab_ = static_cast<SettingsTab>(static_cast<int>(SettingsTab::Advanced) + picked);
+        if (settingsTab_ != SettingsTab::Advanced) hardwareResetAsking_ = false;
+        advancedTab_ = settingsTab_;
         rowHeight = ImGui::GetCursorScreenPos().y - rowTop;
     }
     space(18.0f);
@@ -2377,6 +2718,9 @@ void UiManager::drawSettings(const UiModel& model) {
         case SettingsTab::Wheel: drawWheel(model, config); break;
         case SettingsTab::Capture: drawCaptureTab(model); break;
         case SettingsTab::Advanced: drawAdvancedTab(model, config); break;
+        case SettingsTab::Sound: drawSoundTab(model, config); break;
+        case SettingsTab::Connection: drawConnectionTab(model, config); break;
+        case SettingsTab::Extras: drawExtrasTab(model, config); break;
     }
     space(4.0f);
     ImGui::EndChild();
@@ -2444,6 +2788,14 @@ void UiManager::drawStreamTab(const UiModel& model, AppConfig& config) {
     if (automatic) {
         space(8.0f);
         paragraph(TextStyle::Caption, t.inputAutoHdr, palette().textSecondary);
+        // Only where the processor unpacks the video, or where it is on: elsewhere it would be one more
+        // switch without a reason.
+        const bool softwareDecoding = model.hardware.known && !model.hardware.info.hardwareVideoDecoding;
+        if (softwareDecoding || config.autoUpTo720p) {
+            space(14.0f);
+            toggleRow(t.inputUpTo720p, &config.autoUpTo720p);
+            hint(t.inputUpTo720pHint);
+        }
         return;
     }
     space(18.0f);
@@ -2494,28 +2846,33 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     sectionTitle(t.frameGeneration, true);
     // The position on the control is the stored value: 0 is automatic, 1 is off.
     const std::array<const char*, 5> factors = {t.automatic2, t.off, "2x", "3x", "4x"};
-    config.graphics.frameGenerationFactor = segmented("fg", factors, config.graphics.frameGenerationFactor);
-    const int streamFps = isAutomatic(config) ? model.requestedStream.fps : config.stream.fps;
-    const std::string fps = std::to_string(streamFps);
-    const bool automatic = config.graphics.frameGenerationFactor == 0;
-    const int factor = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, streamFps, model.displayHz);
-    // The real picture is shown this long after it arrived, so the ones before it fit in.
-    const std::string delay = std::to_string(static_cast<int>(std::lround(1000.0 / streamFps * (factor - 1) / factor)));
-    const std::string shown = std::to_string(streamFps * factor);
-    if (!automatic && factor < config.graphics.frameGenerationFactor) {
-        // The screen has fewer refreshes than the chosen factor needs.
-        hint(format(t.frameGenerationCapped,
-                    {std::to_string(static_cast<int>(std::lround(model.displayHz))), std::to_string(factor), fps}));
-    } else if (factor > 1) {
-        hint(format(automatic ? t.frameGenerationAutoOn : t.frameGenerationHint, {fps, shown, delay}));
+    if (!model.platform.frameGeneration) {
+        unavailableChoice("fg", factors, 1);
+        hint(missingHere(model));
     } else {
-        hint(format(automatic ? t.frameGenerationAutoOff : t.frameGenerationOffHint, {fps}));
+        config.graphics.frameGenerationFactor = segmented("fg", factors, config.graphics.frameGenerationFactor);
+        const int streamFps = isAutomatic(config) ? model.requestedStream.fps : config.stream.fps;
+        const std::string fps = std::to_string(streamFps);
+        const bool automatic = config.graphics.frameGenerationFactor == 0;
+        const int factor = media::frameGenerationFactorFor(config.graphics.frameGenerationFactor, streamFps, model.displayHz);
+        // The real picture is shown this long after it arrived, so the ones before it fit in.
+        const std::string delay = std::to_string(static_cast<int>(std::lround(1000.0 / streamFps * (factor - 1) / factor)));
+        const std::string shown = std::to_string(streamFps * factor);
+        if (!automatic && factor < config.graphics.frameGenerationFactor) {
+            // The screen has fewer refreshes than the chosen factor needs.
+            hint(format(t.frameGenerationCapped,
+                        {std::to_string(static_cast<int>(std::lround(model.displayHz))), std::to_string(factor), fps}));
+        } else if (factor > 1) {
+            hint(format(automatic ? t.frameGenerationAutoOn : t.frameGenerationHint, {fps, shown, delay}));
+        } else {
+            hint(format(automatic ? t.frameGenerationAutoOff : t.frameGenerationOffHint, {fps}));
+        }
     }
 
     // AMD's method, beta. Greyed out on other cards, so it is clear it exists and why it cannot be chosen.
     {
         space(14.0f);
-        const bool amd = model.gpuVendor == UiModel::GpuVendor::Amd;
+        const bool amd = model.gpuVendor == UiModel::GpuVendor::Amd && model.platform.amdFrc;
         const ImVec2 start = ImGui::GetCursorScreenPos();
         toggleRow(t.amdFrcUse, &config.graphics.amdFrc, amd);
         const ImVec2 after = ImGui::GetCursorScreenPos();
@@ -2524,7 +2881,9 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
         ImGui::SetCursorScreenPos(ImVec2(start.x + labelSize.x + px(10.0f), start.y + (px(36.0f) - pillHeight) * 0.5f));
         pill(t.beta, palette().beta);
         ImGui::SetCursorScreenPos(after);
-        if (!amd) {
+        if (!model.platform.amdFrc) {
+            hint(missingHere(model));
+        } else if (!amd) {
             hint(t.amdFrcOnlyAmd);
         } else {
             hint(t.amdFrcHint);
@@ -2540,7 +2899,11 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
     // choice would be; the menu in the game leaves it out there.
     sectionTitle(t.upscaling, true);
     const std::array<const char*, 3> methods = {t.off, "Lanczos", "RTX Video"};
-    if (model.rtxVideoAvailable) {
+    if (!model.platform.upscaling) {
+        // Enlarging and sharpening are one step; without it neither happens, and there is no slider either.
+        unavailableChoice("upscaling", methods, 0);
+        hint(missingHere(model));
+    } else if (model.rtxVideoAvailable) {
         config.graphics.superResolutionLevel = segmented("upscaling", methods, config.graphics.superResolutionLevel);
         hint(config.graphics.superResolutionLevel >= 2 ? t.upscalingRtxHint : t.upscalingHint);
     } else {
@@ -2550,31 +2913,43 @@ void UiManager::drawPictureTab(const UiModel& model, AppConfig& config) {
         if (chosen != shown) config.graphics.superResolutionLevel = chosen;
         hint(t.upscalingHint);
         space(4.0f);
-        paragraph(TextStyle::Caption,
-                  model.gpuVendor == UiModel::GpuVendor::Nvidia ? t.upscalingRtxMissing : t.upscalingRtxOnlyNvidia,
-                  palette().textTertiary);
+        const char* why = model.platform.os == HardwareInfo::Os::Linux          ? t.upscalingRtxOnlyWindows
+                          : model.gpuVendor == UiModel::GpuVendor::Nvidia ? t.upscalingRtxMissing
+                                                                          : t.upscalingRtxOnlyNvidia;
+        paragraph(TextStyle::Caption, why, palette().textTertiary);
     }
 
-    space(18.0f);
-    float sharpness = config.graphics.sharpness * 100.0f;
-    if (sliderRow(t.sharpness, &sharpness, 0.0f, 100.0f, std::to_string(static_cast<int>(std::lround(sharpness))) + " %")) {
-        config.graphics.sharpness = std::round(sharpness) / 100.0f;
+    if (model.platform.upscaling) {
+        space(18.0f);
+        float sharpness = config.graphics.sharpness * 100.0f;
+        if (sliderRow(t.sharpness, &sharpness, 0.0f, 100.0f, std::to_string(static_cast<int>(std::lround(sharpness))) + " %")) {
+            config.graphics.sharpness = std::round(sharpness) / 100.0f;
+        }
+        hint(t.sharpnessHint);
     }
-    hint(t.sharpnessHint);
 
     space(14.0f);
-    toggleRow(t.deband, &config.graphics.deband);
-    paragraph(TextStyle::Caption, t.debandHint, palette().textSecondary);
+    if (model.platform.deband) {
+        toggleRow(t.deband, &config.graphics.deband);
+        paragraph(TextStyle::Caption, t.debandHint, palette().textSecondary);
+    } else {
+        bool off = false;
+        toggleRow(t.deband, &off, false);
+        hint(missingHere(model));
+    }
 
     space(18.0f);
     label(TextStyle::Strong, t.look);
     space(8.0f);
-    {
-        const std::array<const char*, 3> looks = {t.off, t.lookVivid, t.lookCinema};
+    const std::array<const char*, 3> looks = {t.off, t.lookVivid, t.lookCinema};
+    if (!model.platform.looks) {
+        unavailableChoice("look", looks, 0);
+        hint(missingHere(model));
+    } else {
         config.graphics.look = segmented("look", looks, std::clamp(config.graphics.look, 0, 2));
+        hint(t.lookHint);
     }
-    hint(t.lookHint);
-    if (config.graphics.look != 0) {
+    if (model.platform.looks && config.graphics.look != 0) {
         space(10.0f);
         float strength = config.graphics.lookStrength * 100.0f;
         if (sliderRow(t.lookStrength, &strength, 0.0f, 100.0f, std::to_string(static_cast<int>(std::lround(strength))) + " %")) {
@@ -2621,6 +2996,25 @@ void UiManager::drawControllerTab(const UiModel& model, AppConfig& config) {
     space(2.0f);
     toggleRow(t.adaptiveTriggers, &config.controller.adaptiveTriggers);
     hint(t.adaptiveTriggersHint);
+
+    if (model.controllerTouchpad.offered) {
+        const UiModel::ControllerTouchpadView& touchpad = model.controllerTouchpad;
+        sectionTitle(t.touchpadTitle);
+        paragraph(TextStyle::Caption, t.touchpadHint, palette().textSecondary);
+        space(10.0f);
+        if (touchpad.kept) {
+            paragraph(TextStyle::Body, t.touchpadKept, palette().ready);
+        } else {
+            if (button(touchpad.working ? t.touchpadWorking : t.touchpadKeep, ButtonKind::Secondary, ImVec2(0, 0),
+                       !touchpad.working)) {
+                actions_.keepControllerTouchpadFromDesktop();
+            }
+            if (!touchpad.error.empty()) {
+                space(6.0f);
+                paragraph(TextStyle::Caption, t.touchpadFailed, palette().danger);
+            }
+        }
+    }
 }
 
 /// A steering wheel with pedals, beta: nobody has tried one on real hardware yet. The axes are shown by
@@ -3591,7 +3985,9 @@ void UiManager::drawCaptureTab(const UiModel& model) {
             ImGui::PopID();
         }
     } else {
-        paragraph(TextStyle::Caption, t.captureVideosMissing, p.textSecondary);
+        paragraph(TextStyle::Caption,
+                  model.platform.os == HardwareInfo::Os::Linux ? t.captureVideosMissingLinux : t.captureVideosMissing,
+                  p.textSecondary);
         if (!model.recording.missing.empty()) {
             space(4.0f);
             paragraph(TextStyle::Caption, model.recording.missing, p.textTertiary);
@@ -3606,9 +4002,10 @@ void UiManager::drawCaptureTab(const UiModel& model) {
 void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     const Strings& t = *text_;
     const Palette& p = palette();
+    const bool onLinux = model.platform.os == HardwareInfo::Os::Linux;
 
     sectionTitle(t.language, true);
-    const std::array<const char*, 3> languages = {t.languageAuto, "Deutsch", "English"};
+    const std::array<const char*, 3> languages = {onLinux ? t.languageAutoLinux : t.languageAuto, "Deutsch", "English"};
     const int language = config.language == "de" ? 1 : config.language == "en" ? 2 : 0;
     const int chosenLanguage = segmented("language", languages, language);
     config.language = chosenLanguage == 1 ? "de" : chosenLanguage == 2 ? "en" : "auto";
@@ -3648,6 +4045,22 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         }
     }
 
+    // The display over the picture, beside the notes over it. It used to stand under the network buffer,
+    // which is about sound.
+    sectionTitle(t.statsTitle);
+    toggleRow(t.statsOverlay, &config.network.statsOverlay);
+    space(8.0f);
+    toggleRow(t.statsCompact, &config.network.statsCompact, config.network.statsOverlay);
+    space(10.0f);
+    label(TextStyle::Body, t.statsCorner);
+    space(8.0f);
+    {
+        const std::array<const char*, 4> corners = {t.cornerTopLeft, t.cornerTopRight, t.cornerBottomLeft, t.cornerBottomRight};
+        config.network.statsCorner = segmented("stats-corner", corners, config.network.statsCorner, ImGui::GetContentRegionAvail().x);
+    }
+
+    drawHardwareSection(model, config);
+
     if (model.updaterAvailable) {
         sectionTitle(t.updatesTitle);
         using Phase = update::UpdateStatus::Phase;
@@ -3681,9 +4094,10 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
     if (model.install.available) {
         sectionTitle(t.installTitle);
         if (model.install.installed) {
-            paragraph(TextStyle::Caption, t.installedHint, p.textSecondary);
+            paragraph(TextStyle::Caption, onLinux ? t.installedHintLinux : t.installedHint, p.textSecondary);
         } else {
-            paragraph(TextStyle::Caption, format(t.installHint, {model.install.target}), p.textSecondary);
+            paragraph(TextStyle::Caption, format(onLinux ? t.installHintLinux : t.installHint, {model.install.target}),
+                      p.textSecondary);
             space(10.0f);
             const bool idle = !model.install.busy && model.state != AppState::Streaming;
             if (button(model.install.busy ? t.installBusy : t.installButton, ButtonKind::Secondary, ImVec2(0, 0), idle)) {
@@ -3696,21 +4110,91 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
             }
         }
     }
+}
+
+void UiManager::drawHardwareSection(const UiModel& model, const AppConfig& config) {
+    if (!model.hardware.known) return;
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    sectionTitle(t.hwSection);
+    std::string found;
+    // One line; the screen is left out here, it is no part of what the settings are chosen for.
+    for (const auto& [name, value] : hardwareFacts(t, model.hardware.info)) {
+        if (name == t.hwScreen) continue;
+        found += (found.empty() ? "" : "  ·  ") + value;
+    }
+    paragraph(TextStyle::Caption, found, p.textSecondary);
+    space(6.0f);
+    // What putting them back would change, as far as this platform has it. Nothing: they suit already.
+    const std::vector<AdviceLine> changes = adviceLines(model.hardware.advice, model.platform, model.rtxVideoAvailable, &config);
+    if (changes.empty()) hardwareResetAsking_ = false;
+    paragraph(TextStyle::Caption, changes.empty() ? t.hwMatches : t.hwDiffers, p.textSecondary);
+    space(10.0f);
+    if (!hardwareResetAsking_) {
+        if (button(t.hwReset, ButtonKind::Secondary, ImVec2(0, 0), !changes.empty())) hardwareResetAsking_ = true;
+        return;
+    }
+    // The question names what changes, so nothing comes as a surprise.
+    label(TextStyle::Body, t.hwResetQuestion, p.text);
+    space(8.0f);
+    std::vector<std::pair<std::string, std::string>> rows;
+    for (const AdviceLine& line : changes) rows.push_back(adviceText(line));
+    ImGui::Indent(px(12.0f));
+    factTable(rows);
+    ImGui::Unindent(px(12.0f));
+    space(2.0f);
+    paragraph(TextStyle::Caption, t.hwResetKeeps, p.textTertiary);
+    space(10.0f);
+    if (button(t.hwResetConfirm, ButtonKind::Secondary)) {
+        actions_.applyHardwareSettings();
+        hardwareResetAsking_ = false;
+    }
+    ImGui::SameLine();
+    if (button(t.cancel, ButtonKind::Quiet)) hardwareResetAsking_ = false;
+}
+
+void UiManager::drawSoundTab(const UiModel& model, AppConfig& config) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+
+    // Both are about sound: the buffer holds back sound only, the microphone sends it.
+    sectionTitle(t.jitter, true);
+    {
+        const std::array<const char*, 3> jitter = {t.jitterAuto, t.jitterLow, t.jitterStable};
+        const std::array<JitterMode, 3> modes = {JitterMode::Auto, JitterMode::LowLatency, JitterMode::Stable};
+        const int current = config.network.jitter == JitterMode::Stable       ? 2
+                            : config.network.jitter == JitterMode::LowLatency ? 1
+                                                                              : 0;
+        config.network.jitter = modes[static_cast<std::size_t>(segmented("jitter", jitter, current))];
+    }
+    hint(t.jitterHint);
+
+    if (model.microphoneAvailable) {
+        sectionTitle(t.micTitle);
+        toggleRow(t.micEnable, &config.audio.microphone);
+        paragraph(TextStyle::Caption, t.micHint, p.textSecondary);
+    }
+}
+
+void UiManager::drawConnectionTab(const UiModel& model, AppConfig& config) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+    const bool onLinux = model.platform.os == HardwareInfo::Os::Linux;
 
     if (model.psnRemote.available) {
         using Phase = UiModel::PsnRemoteView::Phase;
         const UiModel::PsnRemoteView& away = model.psnRemote;
-        space(20.0f);
         {
+            // At the top of the page the pill must not reach above it: the row is as tall as the taller of the two.
             const ImVec2 start = ImGui::GetCursorScreenPos();
-            const float titleHeight = measure(TextStyle::Strong, t.awayTitle).y;
-            label(TextStyle::Strong, t.awayTitle);
-            const float titleWidth = measure(TextStyle::Strong, t.awayTitle).x;
+            const ImVec2 title = measure(TextStyle::Strong, t.awayTitle);
             const float pillHeight = measure(TextStyle::Caption, t.beta).y + px(4.0f);
-            ImGui::SetCursorScreenPos(
-                ImVec2(start.x + titleWidth + px(10.0f), start.y + (titleHeight - pillHeight) * 0.5f));
+            const float rowHeight = std::max(title.y, pillHeight);
+            ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + (rowHeight - title.y) * 0.5f));
+            label(TextStyle::Strong, t.awayTitle);
+            ImGui::SetCursorScreenPos(ImVec2(start.x + title.x + px(10.0f), start.y + (rowHeight - pillHeight) * 0.5f));
             pill(t.beta, p.beta);
-            ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + std::max(titleHeight, pillHeight)));
+            ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + rowHeight));
         }
         space(8.0f);
         paragraph(TextStyle::Caption, t.awayHint, p.textSecondary);
@@ -3739,11 +4223,24 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
                 paragraph(TextStyle::Caption, t.awayExpired, p.standby);
                 space(8.0f);
             }
-            if (button(busy ? t.awaySigningIn : t.awaySignIn, ButtonKind::Secondary, ImVec2(0, 0), !busy)) {
+            // While signing in it can be started again: the browser may have been closed without signing in.
+            if (button(busy ? t.awaySigningIn : t.awaySignIn, ButtonKind::Secondary, ImVec2(0, 0),
+                       away.phase != Phase::Fetching)) {
                 actions_.startRemoteLogin();
             }
+            if (away.phase == Phase::SigningIn && !model.platform.embeddedSignIn) {
+                // Without a sign-in window of our own (Linux) the user's browser
+                // shows Sony's page, and the address it lands on comes back by hand. It carries the code that is traded for the sign-in.
+                space(10.0f);
+                textField(t.awayPasteLabel, awayPaste_, "https://remoteplay.dl.playstation.net/...", FieldState::Neutral,
+                          t.awayPasteHint);
+                if (protocol::psnCodeFromRedirect(awayPaste_)) {
+                    actions_.submitAccountRedirect(awayPaste_);
+                    awayPaste_.clear();
+                }
+            }
             space(6.0f);
-            paragraph(TextStyle::Caption, t.awayKept, p.textTertiary);
+            paragraph(TextStyle::Caption, onLinux ? t.awayKeptLinux : t.awayKept, p.textTertiary);
         }
         if (away.phase == Phase::Failed) {
             space(8.0f);
@@ -3752,48 +4249,7 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         }
     }
 
-    if (model.microphoneAvailable) {
-        sectionTitle(t.micTitle);
-        toggleRow(t.micEnable, &config.audio.microphone);
-        paragraph(TextStyle::Caption, t.micHint, p.textSecondary);
-    }
-
-    if (model.discordAvailable) {
-        sectionTitle(t.discordTitle);
-        toggleRow(t.discordShow, &config.discord.enabled);
-        paragraph(TextStyle::Caption, t.discordShowHint, p.textSecondary);
-        space(6.0f);
-        toggleRow(t.discordGame, &config.discord.showGame, config.discord.enabled);
-        if (config.discord.enabled && config.discord.showGame) {
-            space(8.0f);
-            textField(t.discordGameName, config.discord.gameName, t.discordGameNamePlaceholder, FieldState::Neutral,
-                      t.discordGameNameHint);
-        }
-    }
-
-    sectionTitle(t.jitter);
-    {
-        const std::array<const char*, 3> jitter = {t.jitterAuto, t.jitterLow, t.jitterStable};
-        const std::array<JitterMode, 3> modes = {JitterMode::Auto, JitterMode::LowLatency, JitterMode::Stable};
-        const int current = config.network.jitter == JitterMode::Stable       ? 2
-                            : config.network.jitter == JitterMode::LowLatency ? 1
-                                                                              : 0;
-        config.network.jitter = modes[static_cast<std::size_t>(segmented("jitter", jitter, current))];
-    }
-    hint(t.jitterHint);
-    space(10.0f);
-    toggleRow(t.statsOverlay, &config.network.statsOverlay);
-    space(8.0f);
-    toggleRow(t.statsCompact, &config.network.statsCompact, config.network.statsOverlay);
-    space(10.0f);
-    label(TextStyle::Body, t.statsCorner);
-    space(8.0f);
-    {
-        const std::array<const char*, 4> corners = {t.cornerTopLeft, t.cornerTopRight, t.cornerBottomLeft, t.cornerBottomRight};
-        config.network.statsCorner = segmented("stats-corner", corners, config.network.statsCorner, ImGui::GetContentRegionAvail().x);
-    }
-
-    sectionTitle(t.extraAddresses);
+    sectionTitle(t.extraAddresses, !model.psnRemote.available);
     paragraph(TextStyle::Caption, t.extraAddressesHint, p.textSecondary);
     space(8.0f);
     for (std::size_t i = 0; i < config.manualHosts.size(); ++i) {
@@ -3825,8 +4281,26 @@ void UiManager::drawAdvancedTab(const UiModel& model, AppConfig& config) {
         config.manualHosts.emplace_back(trim(newAddress_));
         newAddress_.clear();
     }
+}
 
-    sectionTitle(t.remoteTitle);
+void UiManager::drawExtrasTab(const UiModel& model, AppConfig& config) {
+    const Strings& t = *text_;
+    const Palette& p = palette();
+
+    if (model.discordAvailable) {
+        sectionTitle(t.discordTitle, true);
+        toggleRow(t.discordShow, &config.discord.enabled);
+        paragraph(TextStyle::Caption, t.discordShowHint, p.textSecondary);
+        space(6.0f);
+        toggleRow(t.discordGame, &config.discord.showGame, config.discord.enabled);
+        if (config.discord.enabled && config.discord.showGame) {
+            space(8.0f);
+            textField(t.discordGameName, config.discord.gameName, t.discordGameNamePlaceholder, FieldState::Neutral,
+                      t.discordGameNameHint);
+        }
+    }
+
+    sectionTitle(t.remoteTitle, !model.discordAvailable);
     paragraph(TextStyle::Caption, t.remoteHint, p.textSecondary);
     space(6.0f);
     toggleRow(t.remoteEnable, &config.remoteApi.enabled);

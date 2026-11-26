@@ -169,12 +169,57 @@ static int map_quit_reason(ChiakiQuitReason reason)
 	}
 }
 
+// Every session through Sony's servers pairs first (session.c, the regist step
+// in session_thread_func). When the console refuses, the library sets
+// CHIAKI_QUIT_REASON_PSN_REGIST_FAILED and then overwrites it with STOPPED on
+// the way out (CHECK_STOP); when it does not answer in ten seconds, the reason
+// is STOPPED as well. So: "stopped" without our asking and without the pairing
+// having succeeded means the pairing failed. psn_regist_succeeded is written
+// under the session's state mutex before the session thread, which sends the
+// quit event, takes that mutex again; reading it here, on that thread, is safe.
+static int vp_psn_refined_quit(VpSession *vp, ChiakiQuitReason reason)
+{
+	int out = map_quit_reason(reason);
+	if(!vp->psn || !vp->psn_mutex_ready || reason != CHIAKI_QUIT_REASON_STOPPED)
+		return out;
+	chiaki_mutex_lock(&vp->psn_mutex);
+	bool asked = vp->psn_stop;
+	chiaki_mutex_unlock(&vp->psn_mutex);
+	if(!asked && !vp->session.psn_regist_succeeded)
+		out = VP_QUIT_PSN_REGIST_FAILED;
+	return out;
+}
+
+static void vp_registered(VpSession *vp, const ChiakiRegisteredHost *host)
+{
+	if(!vp->callbacks.registered)
+		return;
+	VpRegisteredHost out;
+	memset(&out, 0, sizeof(out));
+	// The library's field need not end in a zero.
+	for(size_t i = 0; i < sizeof(host->server_nickname) && i + 1 < sizeof(out.nickname) && host->server_nickname[i]; i++)
+		out.nickname[i] = host->server_nickname[i];
+	memcpy(out.mac, host->server_mac, sizeof(out.mac));
+	memcpy(out.regist_key, host->rp_regist_key, sizeof(out.regist_key));
+	memcpy(out.rp_key, host->rp_key, sizeof(out.rp_key));
+	out.rp_key_type = host->rp_key_type;
+	vp->callbacks.registered(vp->callbacks.user, &out);
+	// The keys are in the caller's hands now; no copy of them stays on this stack.
+	volatile uint8_t *wipe = (volatile uint8_t *)&out;
+	for(size_t i = 0; i < sizeof(out); i++)
+		wipe[i] = 0;
+}
+
 static void event_cb(ChiakiEvent *event, void *user)
 {
 	VpSession *vp = user;
 	const VpCallbacks *cb = &vp->callbacks;
 	switch(event->type)
 	{
+		case CHIAKI_EVENT_REGIST:
+			// Only sent with auto_regist, from the pairing on the way through Sony's servers.
+			vp_registered(vp, &event->host);
+			break;
 		case CHIAKI_EVENT_CONNECTED:
 			// Sent from inside the running stream connection: its transport is open from here on.
 			if(vp->mic_mutex_ready)
@@ -213,7 +258,7 @@ static void event_cb(ChiakiEvent *event, void *user)
 				const char *detail = event->quit.reason_str;
 				if(!detail || !*detail)
 					detail = chiaki_quit_reason_string(event->quit.reason);
-				cb->quit(cb->user, map_quit_reason(event->quit.reason), detail);
+				cb->quit(cb->user, vp_psn_refined_quit(vp, event->quit.reason), detail);
 			}
 			break;
 		default:
@@ -275,6 +320,8 @@ VpSession *vp_session_create(const VpConnectInfo *info, const VpCallbacks *callb
 {
 	if(!info || !callbacks || (!info->host && !info->psn_token))
 		return NULL;
+	if(info->psn_pair && !info->psn_token)
+		return NULL; // pairing without a PIN exists only on the way through Sony's servers
 
 	VpSession *vp = calloc(1, sizeof(VpSession));
 	if(!vp)
@@ -305,7 +352,10 @@ VpSession *vp_session_create(const VpConnectInfo *info, const VpCallbacks *callb
 	connect.enable_keyboard = false;
 	connect.enable_dualsense = info->dualsense != 0;
 	connect.audio_video_disabled = CHIAKI_NONE_DISABLED;
-	connect.auto_regist = false;
+	// With auto_regist the session pairs through Sony's servers (the same step
+	// every session on that way takes), reports the keys and ends; connecting
+	// is a session of its own afterwards, as in chiaki-ng's client.
+	connect.auto_regist = info->psn_token && info->psn_pair;
 	connect.holepunch_session = NULL;
 	connect.rudp_sock = NULL;
 	if(info->psn_token)

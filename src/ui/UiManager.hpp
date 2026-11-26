@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "app/UiModel.hpp"
 #include "ui/Strings.hpp"
@@ -15,10 +16,11 @@ namespace veloplay::ui {
 /// the user does goes out through IUiActions.
 class UiManager {
 public:
-    enum class Sheet { None, Pairing, Settings, Connection };
+    enum class Sheet { None, Pairing, Settings, Connection, Hardware };
     enum class PairingStep { Console, Account, Pin, Progress };
     /// Controller, Keyboard and Wheel are the three pages under "Controls", which has a row of its own.
-    enum class SettingsTab { Stream, Network, Picture, Controller, Keyboard, Wheel, Capture, Advanced };
+    /// Advanced (its general page), Sound, Connection and Extras are the four under "Advanced".
+    enum class SettingsTab { Stream, Network, Picture, Controller, Keyboard, Wheel, Capture, Advanced, Sound, Connection, Extras };
 
     explicit UiManager(IUiActions& actions);
 
@@ -63,6 +65,8 @@ public:
     }
     /// Lists the notes over the picture one by one in the settings, as the button there does. For pictures of it.
     void showNoteChoices() { notesExpanded_ = true; }
+    /// Asks whether to put back the settings for this hardware, as the button under Advanced does. For pictures of it.
+    void showHardwareReset() { hardwareResetAsking_ = true; }
     /// Opens the settings from that menu, over the running picture.
     void showSettingsInGame(SettingsTab tab) {
         pauseMenu_ = true;
@@ -110,6 +114,17 @@ private:
     void drawKeyboardMouse(const UiModel& model, AppConfig& config);
     void drawControllerTest(const UiModel& model);
     void drawAdvancedTab(const UiModel& model, AppConfig& config);
+    void drawSoundTab(const UiModel& model, AppConfig& config);
+    void drawConnectionTab(const UiModel& model, AppConfig& config);
+    void drawExtrasTab(const UiModel& model, AppConfig& config);
+    /// "This PC" under Advanced: what was found, and putting the settings for it back.
+    void drawHardwareSection(const UiModel& model, const AppConfig& config);
+    /// The sheet on the first start, or on other hardware than the settings were chosen for.
+    void drawHardwareNote(const UiModel& model);
+    /// One setting of the advice in words: its name and its value.
+    [[nodiscard]] std::pair<std::string, std::string> adviceText(const AdviceLine& line) const;
+    /// A sentence for what the platform lacks: "not on Linux yet".
+    [[nodiscard]] const char* missingHere(const UiModel& model) const;
     bool beginSheet(const char* id, float width);
     void endSheet();
 
@@ -125,12 +140,15 @@ private:
     PairingStep pairingStep_ = PairingStep::Console;
     std::string pairingAddress_;
     std::string pairingAccount_;
+    std::string awayPaste_; // the address the browser landed on after signing in for playing from away
     std::string pairingPin_;
     bool accountPrefilled_ = false;
 
     SettingsTab settingsTab_ = SettingsTab::Stream;
     SettingsTab controlsTab_ = SettingsTab::Controller; // the page under "Controls" seen last
     SettingsTab inputTab_ = SettingsTab::Stream;        // the page under "Input" seen last
+    SettingsTab advancedTab_ = SettingsTab::Advanced;   // the page under "Advanced" seen last
+    bool hardwareResetAsking_ = false;                  // the question before the settings for this hardware come back
     std::string newAddress_;
     int remotePortEdit_ = 0;
     bool remotePortActive_ = false;

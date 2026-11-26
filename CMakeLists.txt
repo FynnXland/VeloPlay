@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(VeloPlay
-    VERSION 1.16.0
+    VERSION 1.17.0
     DESCRIPTION "Remote Play client for PS5 with frame generation and upscaling"
     LANGUAGES C CXX)
 
@@ -14,6 +14,11 @@ option(VELOPLAY_BUILD_APP "Build the Windows client (needs Direct3D 11, Dear ImG
 option(VELOPLAY_BUILD_CLI "Build veloplay-cli, a diagnostics tool for discovery, wake-up and pairing" ON)
 option(VELOPLAY_BUILD_TESTS "Build the unit tests" ON)
 option(VELOPLAY_BUILD_UI_PREVIEW "Build ui_preview, which renders the UI offscreen (needs GLFW and OpenGL)" OFF)
+option(VELOPLAY_LINUX_PLATFORM "Build the Linux picture, sound and system parts (OpenGL, SDL3, curl, libsecret)" OFF)
+option(VELOPLAY_BUILD_LINUX_APP "Build the Linux client (needs VELOPLAY_LINUX_PLATFORM)" OFF)
+# The Linux release runs on distributions other than the one it was built on:
+# the C++ runtime goes into the program, glibc stays the system's.
+option(VELOPLAY_STATIC_RUNTIME "Link the C++ runtime statically (Linux release)" OFF)
 
 if(VELOPLAY_BUILD_APP AND NOT WIN32)
     message(FATAL_ERROR "The client application targets Windows. Configure with -DVELOPLAY_BUILD_APP=OFF to build the portable parts.")
@@ -29,6 +34,9 @@ else()
     target_compile_options(veloplay_options INTERFACE -Wall -Wextra -Wpedantic)
     if(WIN32)
         target_compile_definitions(veloplay_options INTERFACE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+    endif()
+    if(VELOPLAY_STATIC_RUNTIME)
+        target_link_options(veloplay_options INTERFACE -static-libstdc++ -static-libgcc)
     endif()
 endif()
 
@@ -90,6 +98,7 @@ add_library(veloplay_core STATIC
     src/app/Installer.cpp
     src/app/CaptureMatch.cpp
     src/app/DiscordPresence.cpp
+    src/app/Hardware.cpp
     # Texts live with the UI but have no toolkit dependency, so the tests can check them.
     src/ui/Strings.cpp
 )
@@ -105,7 +114,7 @@ if(WIN32)
 endif()
 
 # ---- UI: Dear ImGui screens, independent of window system and renderer -----
-if(VELOPLAY_BUILD_APP OR VELOPLAY_BUILD_UI_PREVIEW)
+if(VELOPLAY_BUILD_APP OR VELOPLAY_BUILD_UI_PREVIEW OR VELOPLAY_BUILD_LINUX_APP)
     if(VELOPLAY_BUILD_APP)
         find_package(imgui CONFIG REQUIRED)
         set(VELOPLAY_IMGUI_TARGET imgui::imgui)
@@ -149,6 +158,28 @@ if(WIN32)
     # so that VeloPlay still starts on Windows N editions, which come without it.
 endif()
 
+# ---- Linux: picture, sound and the system around them ----------------------
+# Every part brings its own file under cmake/linux/ and adds its sources to
+# veloplay_linux there, so the parts can be worked on side by side.
+if(VELOPLAY_LINUX_PLATFORM)
+    if(WIN32 OR APPLE)
+        message(FATAL_ERROR "VELOPLAY_LINUX_PLATFORM is for Linux.")
+    endif()
+    find_package(SDL3 CONFIG REQUIRED)
+    # OpenGL is not linked: SDL loads the system's driver library when the window opens, and every OpenGL
+    # function comes through SDL_GL_GetProcAddress. Linked, the program would refuse to start where
+    # libOpenGL.so.0 is not installed (a fresh Ubuntu lacks it; reported on the first laptop it met).
+    if(NOT TARGET veloplay_imgui AND NOT TARGET imgui::imgui)
+        include(cmake/FetchImGui.cmake)
+    endif()
+    add_library(veloplay_linux STATIC src/linux/LinuxPlatform.cpp)
+    target_link_libraries(veloplay_linux PUBLIC veloplay_core SDL3::SDL3 ${CMAKE_DL_LIBS})
+    file(GLOB VELOPLAY_LINUX_PARTS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/cmake/linux/*.cmake")
+    foreach(part IN LISTS VELOPLAY_LINUX_PARTS)
+        include(${part})
+    endforeach()
+endif()
+
 # ---- Windows client ---------------------------------------------------------
 if(VELOPLAY_BUILD_APP)
     find_package(SDL3 CONFIG REQUIRED)
@@ -180,7 +211,12 @@ endif()
 if(VELOPLAY_BUILD_CLI)
     add_executable(veloplay-cli tools/cli/main.cpp)
     target_link_libraries(veloplay-cli PRIVATE veloplay_core)
-    if(VELOPLAY_BUILD_APP)
+    if(VELOPLAY_LINUX_PLATFORM)
+        # The HTTPS client for the update check.
+        target_link_libraries(veloplay-cli PRIVATE veloplay_linux)
+        target_compile_definitions(veloplay-cli PRIVATE VELOPLAY_LINUX_PLATFORM)
+    endif()
+    if(VELOPLAY_BUILD_APP OR VELOPLAY_BUILD_LINUX_APP)
         set_target_properties(veloplay-cli PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app")
         install(TARGETS veloplay-cli RUNTIME DESTINATION .)
     endif()

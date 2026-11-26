@@ -53,26 +53,33 @@ public:
         SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
     }
 
+    explicit SdlControllerBackend(bool fetchesEvents) : fetchesEvents_(fetchesEvents) {}
+
     void poll() override {
-        // Events have to be fetched on the thread that started SDL. Opening
-        // and closing happens here, under the lock that read() takes too.
+        // A program whose window lives in SDL as well fetches the events itself and hands these on
+        // (handleSdlControllerEvent): the queue is one for window, keys and controllers.
+        if (!fetchesEvents_) return;
+        // Events have to be fetched on the thread that started SDL.
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_JOYSTICK_ADDED || event.type == SDL_EVENT_JOYSTICK_REMOVED) {
-                // Gamepads come as both; those are handled below. The rest are wheels, sticks, pedals.
-                std::lock_guard lock(mutex_);
-                if (event.type == SDL_EVENT_JOYSTICK_ADDED) {
-                    if (!SDL_IsGamepad(event.jdevice.which)) openStick(event.jdevice.which);
-                } else {
-                    closeStickById(event.jdevice.which);
-                }
-                continue;
-            }
-            if (event.type != SDL_EVENT_GAMEPAD_ADDED && event.type != SDL_EVENT_GAMEPAD_REMOVED) continue;
+        while (SDL_PollEvent(&event)) handle(event);
+    }
+
+    /// Opening and closing happens here, under the lock that read() takes too.
+    void handle(const SDL_Event& event) {
+        if (event.type == SDL_EVENT_JOYSTICK_ADDED || event.type == SDL_EVENT_JOYSTICK_REMOVED) {
+            // Gamepads come as both; those are handled below. The rest are wheels, sticks, pedals.
             std::lock_guard lock(mutex_);
-            if (event.type == SDL_EVENT_GAMEPAD_ADDED) open(event.gdevice.which);
-            else close(event.gdevice.which);
+            if (event.type == SDL_EVENT_JOYSTICK_ADDED) {
+                if (!SDL_IsGamepad(event.jdevice.which)) openStick(event.jdevice.which);
+            } else {
+                closeStickById(event.jdevice.which);
+            }
+            return;
         }
+        if (event.type != SDL_EVENT_GAMEPAD_ADDED && event.type != SDL_EVENT_GAMEPAD_REMOVED) return;
+        std::lock_guard lock(mutex_);
+        if (event.type == SDL_EVENT_GAMEPAD_ADDED) open(event.gdevice.which);
+        else close(event.gdevice.which);
     }
 
     // SDL allows SDL_UpdateGamepads and the getters from any thread.
@@ -331,11 +338,12 @@ private:
 
     std::map<std::uint32_t, Pad> pads_;
     std::map<std::uint32_t, Stick> sticks_;
+    bool fetchesEvents_ = true;
 };
 
 } // namespace
 
-std::unique_ptr<IControllerBackend> createSdlControllerBackend() {
+std::unique_ptr<IControllerBackend> createSdlControllerBackend(bool fetchesEvents) {
     // Keep reading the controller while the window is in the background, and
     // use SDL's own DualSense driver so touchpad, sensors and rumble work.
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
@@ -350,9 +358,13 @@ std::unique_ptr<IControllerBackend> createSdlControllerBackend() {
     }
     // Force feedback for steering wheels; without it wheels still work, they just do not pull back.
     if (!SDL_InitSubSystem(SDL_INIT_HAPTIC)) spdlog::info("SDL force feedback is not available: {}", SDL_GetError());
-    auto backend = std::make_unique<SdlControllerBackend>();
+    auto backend = std::make_unique<SdlControllerBackend>(fetchesEvents);
     backend->openConnected();
     return backend;
+}
+
+void handleSdlControllerEvent(IControllerBackend& backend, const void* sdlEvent) {
+    if (auto* sdl = dynamic_cast<SdlControllerBackend*>(&backend)) sdl->handle(*static_cast<const SDL_Event*>(sdlEvent));
 }
 
 } // namespace veloplay::input

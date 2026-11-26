@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "veloplay",
-  "version-string": "1.16.0",
+  "version-string": "1.17.0",
   "builtin-baseline": "5d4a3dc90c0b3773f3bac81bf41297b54328f471",
   "dependencies": [
     "openssl",
@@ -13,7 +13,21 @@
     {
       "name": "ffmpeg",
       "default-features": false,
-      "features": ["avcodec"]
+      "features": [
+        "avcodec",
+        {
+          "name": "avformat",
+          "platform": "linux"
+        },
+        {
+          "name": "swscale",
+          "platform": "linux"
+        },
+        {
+          "name": "openh264",
+          "platform": "linux"
+        }
+      ]
     },
     {
       "name": "sdl3",
@@ -25,25 +39,30 @@
     },
     {
       "name": "imgui",
-      "features": ["dx11-binding", "win32-binding"],
+      "features": [
+        "dx11-binding",
+        "win32-binding"
+      ],
       "platform": "windows"
     },
     {
       "name": "curl",
-      "features": ["websockets"],
-      "platform": "windows"
+      "features": [
+        "websockets"
+      ],
+      "platform": "windows | linux"
     },
     {
       "name": "json-c",
-      "platform": "windows"
+      "platform": "windows | linux"
     },
     {
       "name": "libevent",
-      "platform": "windows"
+      "platform": "windows | linux"
     },
     {
       "name": "miniupnpc",
-      "platform": "windows"
+      "platform": "windows | linux"
     }
   ]
 }

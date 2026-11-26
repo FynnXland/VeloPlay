@@ -26,6 +26,35 @@
       }
     },
     {
+      "name": "linux",
+      "displayName": "Linux client (system packages, for development)",
+      "description": "The Linux client with its tests, built against system packages and a locally installed SDL3.",
+      "inherits": "core",
+      "binaryDir": "${sourceDir}/build/linux",
+      "cacheVariables": {
+        "VELOPLAY_LINUX_PLATFORM": "ON",
+        "VELOPLAY_BUILD_LINUX_APP": "ON"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux client for release (vcpkg, static)",
+      "description": "What the release ships: dependencies from vcpkg, linked statically, and SDL3 built with every desktop backend under SDL3_ROOT (CI builds it; see .github/workflows/build.yml).",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-release",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "CMAKE_PREFIX_PATH": "$env{SDL3_ROOT}",
+        "VELOPLAY_LINUX_PLATFORM": "ON",
+        "VELOPLAY_BUILD_LINUX_APP": "ON",
+        "VELOPLAY_PSN": "ON",
+        "VELOPLAY_STATIC_RUNTIME": "ON"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    },
+    {
       "name": "ui-preview",
       "displayName": "Portable parts plus offscreen UI preview",
       "inherits": "core",
@@ -39,6 +68,8 @@
     { "name": "windows", "configurePreset": "windows", "configuration": "Release" },
     { "name": "windows-debug", "configurePreset": "windows", "configuration": "Debug" },
     { "name": "core", "configurePreset": "core" },
+    { "name": "linux", "configurePreset": "linux" },
+    { "name": "linux-release", "configurePreset": "linux-release" },
     { "name": "ui-preview", "configurePreset": "ui-preview" }
   ],
   "testPresets": [
@@ -51,6 +82,16 @@
     {
       "name": "core",
       "configurePreset": "core",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
       "output": { "outputOnFailure": true }
     }
   ]

@@ -225,3 +225,198 @@ jobs:
           Compress-Archive -Path dist\VeloPlay\* -DestinationPath VeloPlay-windows-x64.zip
           gh release create $tag VeloPlay-windows-x64.zip --verify-tag --title "VeloPlay $version" --notes-file notes.md
           exit $LASTEXITCODE
+
+  # The Linux client, built beside the Windows one. It never holds the Windows
+  # release back: it waits for the release that job creates and adds its file.
+  # Until it has, installed Linux clients see no update; the Windows ones do.
+  linux:
+    name: Linux client
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+      SDL3_ROOT: ${{ github.workspace }}/.sdl3
+      SDL3_VERSION: release-3.4.18
+      CC: gcc-12
+      CXX: g++-12
+    steps:
+      - uses: actions/checkout@v4
+
+      # Headers only: SDL loads X11, Wayland, PulseAudio, PipeWire and ALSA when
+      # the program starts, from whatever the user's system has.
+      - name: Install build tools and system headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build nasm pkg-config autoconf autoconf-archive automake libtool zip xvfb mesa-utils \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev libxtst-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev libgles-dev libdrm-dev libgbm-dev \
+            libpulse-dev libpipewire-0.3-dev libasound2-dev libudev-dev libdbus-1-dev libsecret-1-dev libglfw3-dev
+
+      - name: Set up vcpkg
+        run: |
+          baseline=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")
+          if [ ! -d "$VCPKG_ROOT/.git" ]; then
+            git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          fi
+          git -C "$VCPKG_ROOT" fetch --filter=blob:none origin "$baseline"
+          git -C "$VCPKG_ROOT" checkout "$baseline"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+
+      - name: Restore built dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-x64-linux-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vcpkg-x64-linux-${{ hashFiles('vcpkg.json') }}-
+            vcpkg-x64-linux-
+
+      # vcpkg's SDL3 leaves out PulseAudio, PipeWire, udev and most of X11 on
+      # purpose; a desktop program needs them. Built here with all of it.
+      - name: Restore SDL3
+        id: sdl3
+        uses: actions/cache@v4
+        with:
+          path: .sdl3
+          key: sdl3-${{ env.SDL3_VERSION }}-ubuntu-22.04-gcc12-v1
+
+      - name: Build SDL3
+        if: steps.sdl3.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$SDL3_VERSION" https://github.com/libsdl-org/SDL.git "$RUNNER_TEMP/sdl3"
+          cmake -S "$RUNNER_TEMP/sdl3" -B "$RUNNER_TEMP/sdl3/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$SDL3_ROOT" -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DSDL_STATIC=ON -DSDL_SHARED=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_TEST_LIBRARY=OFF \
+            -DSDL_X11=ON -DSDL_WAYLAND=ON -DSDL_PULSEAUDIO=ON -DSDL_PIPEWIRE=ON -DSDL_ALSA=ON -DSDL_HIDAPI=ON \
+            -DSDL_LIBUDEV=ON -DSDL_DBUS=ON -DSDL_OPENGL=ON -DSDL_OPENGLES=ON 2>&1 | tee "$RUNNER_TEMP/sdl3-configure.log"
+          cmake --build "$RUNNER_TEMP/sdl3/build"
+          cmake --install "$RUNNER_TEMP/sdl3/build"
+          # Each of these has to be in, or the program would not open a window or play sound on many desktops.
+          for backend in SDL_X11 SDL_WAYLAND SDL_PULSEAUDIO SDL_PIPEWIRE SDL_ALSA SDL_HIDAPI SDL_LIBUDEV; do
+            grep -E "^-- +$backend +.*: ON$" "$RUNNER_TEMP/sdl3-configure.log" || { echo "::error::SDL3 was built without $backend"; exit 1; }
+          done
+
+      - name: Configure
+        id: configure
+        run: |
+          before=$(find "$VCPKG_DEFAULT_BINARY_CACHE" -type f | wc -l)
+          code=1
+          for attempt in 1 2 3; do
+            if cmake --preset linux-release; then code=0; break; fi
+            echo "Configure failed on attempt $attempt."
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
+          after=$(find "$VCPKG_DEFAULT_BINARY_CACHE" -type f | wc -l)
+          echo "Packages in the binary cache: $before before, $after after."
+          if [ "$after" -ne "$before" ]; then echo "changed=yes" >> "$GITHUB_OUTPUT"; fi
+          exit $code
+
+      - name: Save built dependencies
+        if: always() && steps.configure.outputs.changed == 'yes'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-x64-linux-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Build
+        run: cmake --build --preset linux-release
+
+      # Packed here and not by the upload: an artifact loses the executable bit of its files, a zip keeps it.
+      - name: Package
+        run: |
+          rm -rf dist
+          cmake --install build/linux-release --prefix dist/VeloPlay
+          ls -l dist/VeloPlay
+          # What the program needs from the system: glibc and the libraries every desktop has.
+          if [ -x dist/VeloPlay/VeloPlay ]; then
+            ldd dist/VeloPlay/VeloPlay
+            echo "Newest glibc symbol: $(objdump -T dist/VeloPlay/VeloPlay | grep -o 'GLIBC_[0-9.]*' | sort -V | tail -1)"
+            # OpenGL comes through SDL at run time. Linked, the program would not start where libOpenGL.so.0 is missing.
+            if objdump -p dist/VeloPlay/VeloPlay | grep -E 'NEEDED +lib(OpenGL|GL|EGL|GLX)\.'; then
+              echo "::error::VeloPlay links an OpenGL library; it must load it through SDL."
+              exit 1
+            fi
+          fi
+          (cd dist/VeloPlay && zip -r -X ../VeloPlay-linux-x64.zip .)
+
+      - name: Upload client
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeloPlay-linux-x64
+          path: dist/VeloPlay-linux-x64.zip
+          if-no-files-found: error
+
+      # The graphics tests draw with Mesa's software renderer on a virtual screen.
+      - name: Test
+        run: |
+          if ! xvfb-run -a ctest --preset linux-release; then
+            echo "Some tests failed. Running those once more."
+            xvfb-run -a ctest --preset linux-release --rerun-failed --output-on-failure
+          fi
+
+      # Starts the packaged client as a user would, on a virtual screen, and checks that it gets as far as a
+      # window that draws, a search for consoles and a look for updates.
+      - name: Smoke test
+        run: |
+          if [ ! -x dist/VeloPlay/VeloPlay ]; then echo "::warning::No Linux client in this build yet."; exit 0; fi
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/veloplay-config"
+          rm -rf "$XDG_CONFIG_HOME"
+          dist/VeloPlay/VeloPlay --about
+          xvfb-run -a -s "-screen 0 1600x900x24" bash -c 'dist/VeloPlay/VeloPlay & pid=$!; sleep 10; kill $pid; wait $pid || true'
+          log="$XDG_CONFIG_HOME/veloplay/veloplay.log"
+          cat "$log"
+          grep -q 'Graphics:' "$log" || { echo "::error::The renderer did not start."; exit 1; }
+          grep -q 'Discovery listening' "$log" || { echo "::error::Discovery did not start."; exit 1; }
+          grep -q 'Update:' "$log" || { echo "::error::The update check did not run."; exit 1; }
+          dist/VeloPlay/veloplay-cli check-update
+          dist/VeloPlay/veloplay-cli --help > /dev/null
+
+      # The same file on other distributions: catches a glibc that is too old, a missing system library and
+      # certificates in another place, all at once.
+      - name: Start on other distributions
+        run: |
+          if [ ! -x dist/VeloPlay/VeloPlay ]; then exit 0; fi
+          # Bare images come without the certificates every desktop has; those are put in first.
+          check() {
+            echo "== $1"
+            docker run --rm -v "$PWD/dist/VeloPlay:/app:ro" "$1" sh -c "$2 && /app/VeloPlay --about && /app/veloplay-cli check-update" \
+              || { echo "::error::VeloPlay does not start on $1"; exit 1; }
+          }
+          check debian:12 'apt-get update -qq && apt-get install -y -qq ca-certificates > /dev/null'
+          check ubuntu:24.04 'apt-get update -qq && apt-get install -y -qq ca-certificates > /dev/null'
+          check fedora:41 'true'
+          check archlinux:latest 'true'
+          check opensuse/tumbleweed:latest 'true'
+
+      - name: Upload vcpkg logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-logs-linux
+          path: |
+            .vcpkg/buildtrees/*/*.log
+            build/linux-release/vcpkg-manifest-install.log
+          if-no-files-found: ignore
+
+      # The Windows job creates the release; this one adds the Linux file to it once it is there.
+      - name: Add to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^ *VERSION \([0-9][0-9.]*\)$/\1/p' CMakeLists.txt | head -1)
+          test -n "$version"
+          for attempt in $(seq 1 120); do
+            if gh release view "v$version" > /dev/null 2>&1; then
+              if gh release view "v$version" --json assets --jq '.assets[].name' | grep -qx VeloPlay-linux-x64.zip; then
+                echo "v$version has its Linux file already."
+                exit 0
+              fi
+              gh release upload "v$version" dist/VeloPlay-linux-x64.zip
+              exit $?
+            fi
+            sleep 30
+          done
+          echo "::error::v$version was not published within an hour; the Linux file was not added."
+          exit 1

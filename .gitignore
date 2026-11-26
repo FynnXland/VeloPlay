@@ -9,3 +9,4 @@
 /.idea/
 CMakeUserPresets.json
 *.user
+.claude/worktrees/

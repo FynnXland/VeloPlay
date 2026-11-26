@@ -156,7 +156,7 @@ void sanitize(AppConfig& config) {
 }
 
 // Raised when defaults change in a way that old files have to follow.
-constexpr int kSettingsVersion = 6;
+constexpr int kSettingsVersion = 7;
 
 bool applyProfile(AppConfig& config, std::string_view profileId) {
     if (profileId == kProfileAuto) {
@@ -176,9 +176,11 @@ bool applyProfile(AppConfig& config, std::string_view profileId) {
 StreamSettings effectiveStream(const AppConfig& config, std::string_view hostId, bool away) {
     if (!isAutomatic(config)) return config.stream;
     for (const RegisteredConsole& console : config.consoles) {
-        if (console.hostId == hostId) return automaticStream(away ? console.awayLink : console.link, away);
+        if (console.hostId == hostId) {
+            return automaticStream(away ? console.awayLink : console.link, away, config.autoUpTo720p);
+        }
     }
-    return automaticStream(LinkMemory{}, away);
+    return automaticStream(LinkMemory{}, away, config.autoUpTo720p);
 }
 
 void detectProfile(AppConfig& config) {
@@ -205,6 +207,7 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"width", config.stream.width},   {"height", config.stream.height},
         {"fps", config.stream.fps},       {"codec", codecName(config.stream.codec)},
         {"hdr", config.stream.hdr},       {"bitrate_kbps", config.stream.bitrateKbps},
+        {"auto_up_to_720p", config.autoUpTo720p},
     };
     root["graphics"] = {
         {"frame_generation_factor", config.graphics.frameGenerationFactor},
@@ -215,6 +218,10 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
         {"look_strength", config.graphics.lookStrength},
         {"amd_frc", config.graphics.amdFrc},
         {"vsync", config.graphics.vsync},
+        // Whether these were chosen for the machine (Hardware.hpp), and for which.
+        {"hardware_pending", config.hardware.pending},
+        {"auto_chosen", config.hardware.autoChosen},
+        {"chosen_for", config.hardware.chosenFor},
     };
     root["controller"] = {
         {"deadzone", config.controller.deadzone},
@@ -316,6 +323,7 @@ Result<std::string> serializeConfig(const AppConfig& config, ISecretProtector& p
             {"away_low_resolution", console.awayLink.lowResolution},
             {"away_clean_at_low", console.awayLink.cleanAtLow},
         };
+        if (!console.psnId.empty()) entry["psn_id"] = console.psnId;
         // A console whose keys could not be read keeps its place in the list
         // (the user sees "pair again"), but there is nothing to encrypt.
         if (console.credentialsValid) {
@@ -349,6 +357,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(stream, "fps", config.stream.fps);
     read(stream, "hdr", config.stream.hdr);
     read(stream, "bitrate_kbps", config.stream.bitrateKbps);
+    read(stream, "auto_up_to_720p", config.autoUpTo720p);
     std::string codec;
     read(stream, "codec", codec);
     config.stream.codec = codec == "h264" ? VideoCodec::H264 : VideoCodec::Hevc;
@@ -362,6 +371,11 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     read(graphics, "look_strength", config.graphics.lookStrength);
     read(graphics, "amd_frc", config.graphics.amdFrc);
     read(graphics, "vsync", config.graphics.vsync);
+    // A file that does not say has seen the hardware: only a settings file of its own is pending.
+    config.hardware.pending = false;
+    read(graphics, "hardware_pending", config.hardware.pending);
+    read(graphics, "auto_chosen", config.hardware.autoChosen);
+    read(graphics, "chosen_for", config.hardware.chosenFor);
 
     const json& controller = section(root, "controller");
     read(controller, "deadzone", config.controller.deadzone);
@@ -474,6 +488,7 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
             read(entry, "auto_clean_at_low", console.link.cleanAtLow);
             read(entry, "away_low_resolution", console.awayLink.lowResolution);
             read(entry, "away_clean_at_low", console.awayLink.cleanAtLow);
+            read(entry, "psn_id", console.psnId);
             std::string credentials;
             read(entry, "credentials", credentials);
             console.credentialsValid = unprotectCredentials(credentials, protector, console);
@@ -525,6 +540,10 @@ Result<AppConfig> parseConfig(std::string_view text, ISecretProtector& protector
     // Up to 1.14 the network buffer was "low latency" unless somebody chose "stable". Since 1.15 the
     // program finds the amount itself; the old start moves along, a choice of "stable" stays.
     if (version < 6 && config.network.jitter == JitterMode::LowLatency) config.network.jitter = JitterMode::Auto;
+
+    // Since 1.17 the first start chooses the picture settings for the machine. Whoever has a file from
+    // before set things up already: nothing is chosen for them, and nothing they chose changes.
+    if (version < 7) config.hardware.pending = false;
 
     sanitize(config);
     return config;

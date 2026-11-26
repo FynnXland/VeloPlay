@@ -127,6 +127,19 @@ struct DiscordSettings {
     friend bool operator==(const DiscordSettings&, const DiscordSettings&) = default;
 };
 
+/// Whether VeloPlay chose the picture settings for the machine it runs on, and for which.
+struct HardwareChoiceSettings {
+    /// A settings file that has never seen the hardware: the first start chooses for it. Files from before
+    /// settings_version 7 belong to people who set things up themselves, and are never pending.
+    bool pending = true;
+    /// The picture settings are VeloPlay's choice for this machine and were not changed by hand since.
+    bool autoChosen = false;
+    /// hardwareFingerprint() of the machine they were chosen for or last looked at on. Empty: none yet.
+    std::string chosenFor;
+
+    friend bool operator==(const HardwareChoiceSettings&, const HardwareChoiceSettings&) = default;
+};
+
 struct UpdateSettings {
     bool checkAtStartup = true;
 
@@ -143,6 +156,9 @@ struct RegisteredConsole {
     std::uint32_t rpKeyType = 0;
     LinkMemory link;         // what "automatic" learned about the way to this console
     LinkMemory awayLink;     // the same for the way from away (VPN, another network), kept apart
+    /// Sony's id of the console (64 hex digits), set when it was paired through Sony's servers. Sony lists
+    /// consoles by that id and a name; the name may change, the id does not.
+    std::string psnId;
     /// False when the stored keys could not be decrypted, for example after the
     /// file was copied to another PC. The console then needs to be paired again.
     bool credentialsValid = true;
@@ -170,6 +186,9 @@ struct AppConfig {
     NoteSettings notes{};
     PsnRemoteSettings psn{};
     DiscordSettings discord{};
+    HardwareChoiceSettings hardware{};
+    /// "Automatic" asks for at most 720p: for processors that unpack the video themselves and are slow.
+    bool autoUpTo720p = false;
     std::string accountId; // PSN account ID, base64 notation
     std::vector<std::string> manualHosts; // IPv4 addresses probed in addition to the broadcast
     std::vector<RegisteredConsole> consoles;

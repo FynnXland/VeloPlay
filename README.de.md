@@ -7,7 +7,7 @@ die mit 30 fps laufen, mit 60 fps auf dem Monitor sehen, sauber hochskaliert auf
 
 [English version](README.md)
 
-> **Stand: 1.0.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
+> **Stand: 1.17, für Windows und Linux.** VeloPlay findet deine PS5, koppelt sich mit ihr, weckt sie auf, verbindet sich
 > und zeigt Bild und Ton am PC. Dein Controller steuert die Konsole, mit Vibration, adaptiven
 > Triggern und Haptik, oder du spielst mit Maus und Tastatur. Läuft ein Spiel mit 30 fps, merkt
 > VeloPlay das, berechnet die Bilder dazwischen und zeigt 60.
@@ -16,6 +16,10 @@ die mit 30 fps laufen, mit 60 fps auf dem Monitor sehen, sauber hochskaliert auf
 > Noch nicht ausprobiert: das Mikrofon in einer Party, die Anmeldung bei PlayStation für die
 > Account-ID, andere Grafikkarten und Controller. HDR ist noch nicht gebaut. Rückmeldungen sind
 > willkommen.
+>
+> Die Linux-Fassung ist neu (1.17) und an einem Laptop mit Intel-Grafik ausprobiert: Anmelden,
+> Koppeln und Spielen über die Server von Sony gingen. Aufnahme, Capture-Cards und Mikrofon hat
+> dort noch niemand benutzt.
 
 VeloPlay ist ein unabhängiges Open-Source-Projekt. Es stammt nicht von Sony und wird von Sony
 nicht unterstützt. „PlayStation“ und „PS5“ sind Marken von Sony Interactive Entertainment.
@@ -77,7 +81,8 @@ Einstellungen > Eingang kannst du die Automatik abschalten und selbst 30 oder 60
 
 ## Voraussetzungen
 
-- Windows 10 oder 11, 64 Bit
+- Windows 10 oder 11, 64 Bit, oder Linux (x86-64, ab etwa Ubuntu 22.04, Debian 12, Fedora 38;
+  siehe [Unter Linux](#linux))
 - Die [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)
   (x64). Auf den meisten PCs ist sie schon installiert. Meldet Windows eine fehlende
   `VCRUNTIME140.dll` oder `MSVCP140.dll`, installiere sie.
@@ -108,7 +113,7 @@ Auf der Konsole:
    unter `C:\Programme` ab: VeloPlay aktualisiert sich selbst und muss dafür den eigenen Ordner
    ändern dürfen.
 3. Starte `VeloPlay.exe`.
-4. Wenn du willst: **Einstellungen > Erweitert > Auf diesem PC installieren** kopiert VeloPlay nach
+4. Wenn du willst: **Einstellungen > Erweitert > Allgemein > Auf diesem PC installieren** kopiert VeloPlay nach
    `%LOCALAPPDATA%\Programs\VeloPlay`, legt einen Eintrag im Startmenü an und trägt es in Windows
    unter den installierten Apps ein. Administratorrechte braucht das nicht. Entfernen kannst du es
    wie jede andere App unter Einstellungen > Apps > Installierte Apps; deine Einstellungen bleiben.
@@ -119,6 +124,31 @@ installiert sie, ein zweiter startet das Programm neu.
 Windows warnt möglicherweise vor einem unbekannten Herausgeber, weil die Datei nicht signiert ist.
 Beim ersten Start fragt die Windows-Firewall eventuell, ob VeloPlay das Netzwerk nutzen darf.
 Erlaube das für private Netzwerke, sonst kommen die Antworten der Konsole nicht im Programm an.
+
+<a id="linux"></a>
+
+#### Unter Linux
+
+1. Lade aus der [neuesten Version](https://github.com/FynnXland/VeloPlay/releases/latest)
+   **VeloPlay-linux-x64.zip** herunter und entpacke sie, zum Beispiel mit Rechtsklick > *Hier
+   entpacken*.
+2. Öffne im entpackten Ordner ein Terminal (Rechtsklick > *Im Terminal öffnen*) und starte
+   VeloPlay einmal mit `./VeloPlay`.
+3. **Einstellungen > Erweitert > Allgemein > Installieren** legt VeloPlay unter `~/.local/share/VeloPlay` ab
+   und trägt es ins Anwendungsmenü ein. Ab dann startest du es von dort. Entfernen geht über das
+   Kontextmenü des Eintrags (*VeloPlay entfernen*) oder mit `VeloPlay --uninstall`.
+
+Was unter Linux anders ist:
+
+- Kopplungen werden im Schlüsselbund des Desktops gespeichert (GNOME Schlüsselbund, KWallet).
+  Ohne Schlüsselbund kann VeloPlay eine Kopplung nicht behalten.
+- Die Anmeldung bei Sony öffnet deinen eigenen Browser. Nach der Anmeldung zeigt er eine fast leere
+  Seite; kopiere deren Adresse in das Feld für die Account-ID.
+- Das Bild wird auf dem Prozessor entpackt. Ein üblicher Laptop schafft 1080p mit 60 Bildern.
+- Die adaptiven Trigger des DualSense brauchen Zugriff auf `/dev/hidraw*`. Mit Steam ist das schon
+  eingerichtet, sonst fehlt nur der Widerstand der Trigger.
+- RTX Video, NVIDIA Optical Flow und AMD FRC gibt es nur unter Windows. Die eigenen Zwischenbilder
+  laufen auf jeder Grafik, kosten auf integrierter Grafik aber mehr.
 
 <a id="account-id"></a>
 
@@ -244,13 +274,14 @@ PS5 in einem fremden Netz noch nicht ausprobiert.
 So macht es auch Sonys eigene App: Die Server von Sony bringen PC und PS5 zusammen, danach läuft
 das Bild direkt. Am Router musst du nichts einstellen, ein VPN brauchst du nicht.
 
-**Einmal zu Hause vorbereiten:**
+**Einrichten, zu Hause oder unterwegs:**
 
-1. **Den Laptop zu Hause mit der PS5 koppeln**, wie den PC. Die PIN zeigt nur der Bildschirm der
-   PS5, deshalb geht das unterwegs nicht.
-2. **In VeloPlay anmelden:** Einstellungen > Erweitert > Von unterwegs spielen > „Bei PlayStation
-   anmelden“. Danach steht dort, welche PS5 Sony für dein Konto kennt.
-3. **An der PS5** muss Remote Play eingeschaltet sein (Einstellungen > System > Remote Play).
+1. **An der PS5** muss Remote Play eingeschaltet sein (Einstellungen > System > Remote Play).
+2. **In VeloPlay anmelden:** Einstellungen > Erweitert > Verbindung > Von unterwegs spielen > „Bei
+   PlayStation anmelden“. Danach steht dort, welche PS5 Sony für dein Konto kennt.
+3. **Koppeln:** Ist die PS5 auf diesem PC schon gekoppelt, bist du fertig. Sonst steht sie in der
+   Liste der Konsolen mit **„Über Sony koppeln“**. Das geht ohne PIN und von überall, die PS5 muss
+   nur an sein.
 
 **Unterwegs:** Lass die PS5 am besten an, wenn du losgehst. Ob VeloPlay sie auf diesem Weg aus dem
 Ruhemodus holen kann, ist noch nicht geprüft. Dann VeloPlay starten. Findet es die PS5 nicht im
@@ -317,7 +348,7 @@ andere es auch kann. VeloPlay ruft zuerst ins ganze Netz und fragt nach einigen 
 Antwort jede Adresse einzeln. Bleibt die Liste nach 15 Sekunden leer:
 
 1. Sieh auf der PS5 unter Einstellungen > Netzwerk > Verbindungsstatus anzeigen die IP-Adresse
-   nach und trage sie in VeloPlay unter Einstellungen > Erweitert > Zusätzliche Adressen ein.
+   nach und trage sie in VeloPlay unter Einstellungen > Erweitert > Verbindung > Zusätzliche Adressen ein.
 2. Erscheint sie dann, lag es am Weg durchs Netz, und es bleibt einfach bei der eingetragenen
    Adresse. Gib der PS5 im Router am besten eine feste Adresse.
 3. Erscheint sie auch dann nicht, hängen PC und PS5 vermutlich in getrennten Netzen, oder eine
@@ -391,7 +422,7 @@ die Konsolen in der Liste und müssen neu gekoppelt werden.
 
 VeloPlay spricht mit deiner PS5 und, für Updates, mit GitHub. Beim Start fragt es GitHub, welche
 Version die neueste ist. Diese Anfrage enthält nichts über dich oder deine Konsole; GitHub sieht
-deine IP-Adresse, wie jede Webseite. Unter Einstellungen > Erweitert > Updates lässt sich die
+deine IP-Adresse, wie jede Webseite. Unter Einstellungen > Erweitert > Allgemein > Updates lässt sich die
 Prüfung abschalten. Telemetrie gibt es nicht.
 
 Nur wenn du dich für „Von unterwegs spielen“ anmeldest, spricht VeloPlay auch mit den Servern von
@@ -455,8 +486,8 @@ Als Nächstes:
 
 1. HDR
 
-Von unterwegs spielen geht über die Server von Sony oder über ein VPN, siehe [oben](#away); an
-einer echten PS5 noch nicht ausprobiert.
+Von unterwegs spielen geht über die Server von Sony oder über ein VPN, siehe [oben](#away). Der Weg
+über Sony ist mit der Linux-Fassung aus einem fremden WLAN ausprobiert, der über ein VPN noch nicht.
 
 ## Dank
 

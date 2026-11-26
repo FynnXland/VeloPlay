@@ -50,6 +50,10 @@ public:
     [[nodiscard]] const std::string& adapterName() const { return adapterName_; }
     /// PCI vendor of the card: 0x10DE NVIDIA, 0x1002 AMD, 0x8086 Intel; 0 for the software renderer.
     [[nodiscard]] unsigned adapterVendor() const { return adapterVendor_; }
+    /// Memory of the card itself in bytes (DXGI_ADAPTER_DESC1::DedicatedVideoMemory); 0 for the software renderer.
+    [[nodiscard]] unsigned long long dedicatedVideoMemory() const { return dedicatedVideoMemory_; }
+    /// The device draws on the processor (WARP), because no graphics card gave one.
+    [[nodiscard]] bool softwareRenderer() const { return softwareRenderer_; }
     [[nodiscard]] bool tearingSupported() const { return tearingSupported_; }
     [[nodiscard]] UINT width() const { return width_; }
     [[nodiscard]] UINT height() const { return height_; }
@@ -66,6 +70,8 @@ private:
     std::string adapterName_;
     std::string lostReason_;
     unsigned adapterVendor_ = 0;
+    unsigned long long dedicatedVideoMemory_ = 0;
+    bool softwareRenderer_ = false;
     bool tearingSupported_ = false;
     UINT swapChainFlags_ = 0;
     HANDLE frameLatencyWait_ = nullptr; // closed in destroy()

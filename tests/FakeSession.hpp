@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <deque>
 #include <memory>
@@ -23,7 +24,10 @@ struct FakeSessionHub {
 
     std::vector<session::SessionConfig> configs; // one per started session
     FakeSession* current = nullptr;
-    int destroyed = 0;
+    std::atomic<int> destroyed{0}; // a session through Sony's servers ends on a thread of its own
+    bool ignoreStop = false;       // like a session whose link broke: asked to stop, it never ends
+    bool slowToEnd = false;        // like a session through Sony's servers
+    int detachedSinks = 0;
     int stops = 0;
     int sleeps = 0;
     int controllerUpdates = 0;
@@ -98,8 +102,11 @@ public:
 
     void stop() override {
         ++hub_->stops;
-        events_.push_back(FakeSessionHub::quit(session::QuitReason::Stopped));
+        if (!hub_->ignoreStop) events_.push_back(FakeSessionHub::quit(session::QuitReason::Stopped));
     }
+
+    bool slowToEnd() const override { return hub_->slowToEnd; }
+    void detachSink() override { ++hub_->detachedSinks; }
 
     std::vector<session::SessionEvent> pollEvents() override {
         std::vector<session::SessionEvent> out;

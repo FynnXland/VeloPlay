@@ -74,6 +74,9 @@ public:
     void startRemoteLogin() override {}
     void signOutRemote() override {}
     void tryRemoteAtHome(bool) override {}
+    void pairThroughSony(std::string_view) override {}
+    void applyHardwareSettings() override {}
+    void dismissHardwareNote() override {}
 };
 
 /// Response times in ms for the connection scenes; negative means lost.
@@ -197,8 +200,66 @@ void withGameLayout(UiModel& model) {
     model.currentGameName = game.name;
 }
 
+/// The machine as a shell would describe it, and what suits it.
+void withHardware(UiModel& model, const HardwareInfo& info, UiModel::HardwareView::Note note = UiModel::HardwareView::Note::None) {
+    model.hardware.known = true;
+    model.hardware.info = info;
+    model.hardware.advice = recommendedSettings(info);
+    model.hardware.note = note;
+    model.hardware.autoChosen = true;
+}
+
+HardwareInfo authorsPc() {
+    HardwareInfo info = describeAdapter(HardwareInfo::Os::Windows, 0x10DE, "NVIDIA GeForce RTX 4070", 12ull << 30, false);
+    info.cpuName = "AMD Ryzen 9 7900X 12-Core Processor";
+    info.cpuThreads = 24;
+    info.systemMemoryMb = 32 * 1024;
+    info.screenWidth = 1920;
+    info.screenHeight = 1080;
+    info.screenHz = 60.0;
+    return info;
+}
+
+/// A laptop with Intel graphics under Linux, as describeLinux and the shell fill it.
+HardwareInfo linuxLaptop(bool weak) {
+    HardwareInfo info;
+    info.os = HardwareInfo::Os::Linux;
+    info.vendor = HardwareInfo::GpuVendor::Intel;
+    info.gpuName = weak ? "Intel UHD Graphics 620" : "Intel Iris Xe Graphics";
+    info.gpuDriverName = weak ? "Mesa Intel(R) UHD Graphics 620 (KBL GT2)" : "Mesa Intel(R) Iris(R) Xe Graphics (TGL GT2)";
+    info.integratedGpu = true;
+    info.hardwareVideoDecoding = false;
+    info.cpuName = weak ? "Intel(R) Core(TM) i3-7100U CPU @ 2.40GHz" : "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz";
+    info.cpuThreads = weak ? 4 : 8;
+    info.systemMemoryMb = weak ? 8 * 1024 : 16 * 1024;
+    info.screenWidth = 1920;
+    info.screenHeight = 1080;
+    info.screenHz = 60.0;
+    info.hasBattery = true;
+    info.onBattery = true;
+    return info;
+}
+
+/// What a Linux shell can do. `bare`: only showing the stream, as a first Linux build might.
+void onLinux(UiModel& model, bool bare) {
+    model.platform.os = HardwareInfo::Os::Linux;
+    model.platform.amdFrc = false;
+    model.platform.captureCards = false;
+    model.platform.embeddedSignIn = false;
+    if (bare) {
+        model.platform.frameGeneration = false;
+        model.platform.upscaling = false;
+        model.platform.deband = false;
+        model.platform.looks = false;
+    }
+    model.ownWindowBar = false;
+    model.gpuName = "Intel Iris Xe Graphics";
+    model.gpuVendor = UiModel::GpuVendor::Intel;
+}
+
 std::vector<Scene> scenes() {
     using ui::UiManager;
+    using Note = UiModel::HardwareView::Note;
     return {
         {"01-searching", [](UiModel& model, UiManager&) { model.discoveryRunning = true; }},
         {"02-dashboard", [](UiModel& model, UiManager&) { withConsoles(model); }},
@@ -385,7 +446,7 @@ std::vector<Scene> scenes() {
              model.install.available = true;
              model.install.target = "C:\\Users\\Jörg\\AppData\\Local\\Programs\\VeloPlay";
              ui.openSettings(UiManager::SettingsTab::Advanced);
-             ui.scrollSettingsTo(0.35f);
+             ui.scrollSettingsTo(1.0f);
          }},
         {"40-settings-install-failed",
          [](UiModel& model, UiManager& ui) {
@@ -395,7 +456,7 @@ std::vector<Scene> scenes() {
              model.install.target = "C:\\Users\\Jörg\\AppData\\Local\\Programs\\VeloPlay";
              model.install.error = "could not copy avcodec-63.dll: There is not enough space on the disk.";
              ui.openSettings(UiManager::SettingsTab::Advanced);
-             ui.scrollSettingsTo(0.35f);
+             ui.scrollSettingsTo(1.0f);
          }},
         {"41-settings-installed",
          [](UiModel& model, UiManager& ui) {
@@ -404,7 +465,7 @@ std::vector<Scene> scenes() {
              model.install.available = true;
              model.install.installed = true;
              ui.openSettings(UiManager::SettingsTab::Advanced);
-             ui.scrollSettingsTo(0.35f);
+             ui.scrollSettingsTo(1.0f);
          }},
         {"44-settings-capture",
          [](UiModel& model, UiManager& ui) {
@@ -438,12 +499,107 @@ std::vector<Scene> scenes() {
         {"14-settings-advanced",
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
-             model.config->remoteApi.enabled = true;
+             withHardware(model, authorsPc());
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+         }},
+        {"70-settings-advanced-hardware",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             onLinux(model, false);
+             withHardware(model, linuxLaptop(true));
+             model.config->graphics.look = 2; // the defaults and a style: what putting back would change
+             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.showHardwareReset();
+             ui.scrollSettingsTo(1.0f);
+         }},
+        {"71-settings-sound",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.microphoneAvailable = true;
+             ui.openSettings(UiManager::SettingsTab::Sound);
+         }},
+        {"72-settings-connection",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.psnRemote.available = true;
              model.config->manualHosts = {"10.0.20.5"};
+             ui.openSettings(UiManager::SettingsTab::Connection);
+         }},
+        {"73-settings-extras",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             model.config->remoteApi.enabled = true;
              model.remoteApiRunning = true;
              model.discordAvailable = true;
              model.config->discord.gameName = "Astro's Playroom";
-             ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.openSettings(UiManager::SettingsTab::Extras);
+         }},
+        {"66-first-start",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             withHardware(model, authorsPc(), Note::FirstStart);
+         }},
+        {"67-first-start-linux-laptop",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             onLinux(model, false);
+             withHardware(model, linuxLaptop(false), Note::FirstStart);
+         }},
+        {"68-first-start-linux-weak",
+         [](UiModel& model, UiManager&) {
+             model.discoveryRunning = true;
+             onLinux(model, true);
+             withHardware(model, linuxLaptop(true), Note::FirstStart);
+         }},
+        {"79-first-start-linux-without-frame-generation",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             onLinux(model, false);
+             model.platform.frameGeneration = false; // upscaling and smoothing there, frame generation not yet
+             withHardware(model, linuxLaptop(false), Note::FirstStart);
+         }},
+        {"69-hardware-changed",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             withHardware(model, authorsPc(), Note::Changed);
+             model.hardware.previousGpu = "Intel UHD Graphics 620";
+         }},
+        {"74-settings-picture-linux",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             onLinux(model, true);
+             ui.openSettings(UiManager::SettingsTab::Picture);
+             ui.scrollSettingsTo(0.6f);
+         }},
+        {"75-settings-picture-linux-nvidia",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             onLinux(model, false);
+             model.gpuName = "NVIDIA GeForce RTX 3060";
+             model.gpuVendor = UiModel::GpuVendor::Nvidia;
+             ui.openSettings(UiManager::SettingsTab::Picture);
+             ui.scrollSettingsTo(0.3f);
+         }},
+        {"76-pair-account-linux",
+         [](UiModel& model, UiManager& ui) {
+             onLinux(model, false);
+             model.accountLoginAvailable = true;
+             withConsoles(model);
+             ui.openPairing("192.168.1.44");
+             ui.setPairingInputs("192.168.1.44", "", "");
+         }},
+        {"77-settings-stream-linux-720p",
+         [](UiModel& model, UiManager& ui) {
+             withConsoles(model);
+             onLinux(model, false);
+             withHardware(model, linuxLaptop(true));
+             model.config->autoUpTo720p = true;
+             ui.openSettings(UiManager::SettingsTab::Stream);
+         }},
+        {"78-searching-linux",
+         [](UiModel& model, UiManager&) {
+             model.discoveryRunning = true;
+             onLinux(model, false);
          }},
         {"15-update-available",
          [](UiModel& model, UiManager&) {
@@ -504,6 +660,7 @@ std::vector<Scene> scenes() {
              model.update.phase = update::UpdateStatus::Phase::UpToDate;
              model.update.current = {0, 5, 0};
              ui.openSettings(UiManager::SettingsTab::Advanced);
+             ui.scrollSettingsTo(1.0f);
          }},
         {"29-stream-notes",
          [](UiModel& model, UiManager&) {
@@ -652,8 +809,7 @@ std::vector<Scene> scenes() {
              withConsoles(model);
              model.psnRemote.available = true;
              model.psnRemote.expired = true;
-             ui.openSettings(UiManager::SettingsTab::Advanced);
-             ui.scrollSettingsTo(0.3f);
+             ui.openSettings(UiManager::SettingsTab::Connection);
          }},
         {"58-settings-away-signed-in",
          [](UiModel& model, UiManager& ui) {
@@ -662,8 +818,7 @@ std::vector<Scene> scenes() {
              model.psnRemote.signedIn = true;
              model.psnRemote.listed = true;
              model.psnRemote.consoles = {"Wohnzimmer"};
-             ui.openSettings(UiManager::SettingsTab::Advanced);
-             ui.scrollSettingsTo(0.3f);
+             ui.openSettings(UiManager::SettingsTab::Connection);
          }},
         {"59-home-console-over-the-internet",
          [](UiModel& model, UiManager&) {
@@ -721,6 +876,53 @@ std::vector<Scene> scenes() {
          [](UiModel& model, UiManager& ui) {
              withConsoles(model);
              ui.openSettings(UiManager::SettingsTab::Network);
+         }},
+        {"80-laptop-pair-through-sony",
+         [](UiModel& model, UiManager&) {
+             // Set up away from home: nothing paired, only the sign-in at Sony, which lists the console.
+             withController(model);
+             model.psnRemote.available = true;
+             model.psnRemote.signedIn = true;
+             model.psnRemote.listed = true;
+             model.psnRemote.consoles = {"Wohnzimmer"};
+             ConsoleEntry remote = console("Wohnzimmer", "sony:5a5a", "", ConsoleStatus::Offline, false);
+             remote.sonyId = "5a5a";
+             model.consoles = {remote};
+         }},
+        {"81-home-pair-through-sony-or-pin",
+         [](UiModel& model, UiManager&) {
+             // Found here, not paired, and in the account: the PIN first, Sony's servers beside it.
+             withConsoles(model);
+             model.psnRemote.available = true;
+             model.psnRemote.signedIn = true;
+             for (ConsoleEntry& entry : model.consoles) {
+                 if (!entry.registered) entry.sonyId = "5a5a";
+             }
+         }},
+        {"82-pairing-through-sony",
+         [](UiModel& model, UiManager&) {
+             withController(model);
+             model.state = AppState::Connecting;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.pairingThroughSony = true;
+             model.session.throughSony = true;
+         }},
+        {"84-linux-controller-touchpad",
+         [](UiModel& model, UiManager& ui) {
+             withController(model);
+             model.platform.os = HardwareInfo::Os::Linux;
+             model.controllerTouchpad.offered = true;
+             ui.openSettings(UiManager::SettingsTab::Controller);
+             ui.scrollSettingsTo(1.0f);
+         }},
+        {"83-connecting-through-sony",
+         [](UiModel& model, UiManager&) {
+             withConsoles(model);
+             model.state = AppState::Connecting;
+             model.session.consoleName = "Wohnzimmer";
+             model.session.throughSony = true;
+             model.session.away = true;
+             model.session.connectStage = 2; // through the routers
          }},
         {"28-settings-in-game",
          [](UiModel& model, UiManager& ui) {

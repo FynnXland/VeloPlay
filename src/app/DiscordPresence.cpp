@@ -216,7 +216,9 @@ void Presence::update(const std::optional<Activity>& wanted, Clock::time_point n
 
 } // namespace veloplay::discord
 
-#ifndef _WIN32
+// The Linux platform library brings a pipe of its own (src/linux/DiscordPipeLinux.cpp)
+// and sets VELOPLAY_DISCORD_PIPE_ELSEWHERE on this library.
+#if !defined(_WIN32) && !defined(VELOPLAY_DISCORD_PIPE_ELSEWHERE)
 namespace veloplay::discord {
 std::unique_ptr<IPipe> createPipe() { return nullptr; }
 } // namespace veloplay::discord
